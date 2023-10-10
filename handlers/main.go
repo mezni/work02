@@ -55,6 +55,7 @@ type AppInfo struct {
 	Domain            string
 	Device            string
 	Content           string
+	ApplicationName   string
 }
 
 type TrxInfo struct {
@@ -93,13 +94,14 @@ func generateAppInfo(startDate time.Time) AppInfo {
 	var appInfo AppInfo
 	appInfo.TransportProtocol = refTraProtocol[rand.Intn(len(refTraProtocol))]
 	appInfo.AppProtocol = refAppProtocol[rand.Intn(len(refAppProtocol))]
-	appInfo.AppName = refAppName[rand.Intn(len(refAppName))]
+	appInfo.ApplicationName = refAppName[rand.Intn(len(refAppName))]
 	appInfo.Domain = refDomain[rand.Intn(len(refDomain))]
 	appInfo.Device = refDevice[rand.Intn(len(refDevice))]
 	appInfo.Content = refContent[rand.Intn(len(refContent))]
 
 	appInfo.Timestamp = strconv.Itoa(int(startDate.Unix()))
 	appInfo.Type = "AllIPMessages"
+	appInfo.AppName = "TraficServerElement"
 	appInfo.AppInstance = strconv.Itoa(int(startDate.Unix()))[3:7]
 	appInfo.AppPID = strconv.Itoa(rand.Intn(55000) + 1000)
 
@@ -169,11 +171,16 @@ func generateEvents(intervalStartDate string, intervalMinutes int, trxCount int)
 		event.Timestamp = appInfo.Timestamp
 		event.IpProtocol = appInfo.TransportProtocol
 		event.ApplicationProtocol = appInfo.AppProtocol
-		event.ApplicationName = appInfo.AppName
+		event.ApplicationName = appInfo.ApplicationName
 		event.Domain = appInfo.Domain
 		event.DeviceType = appInfo.Device
 		event.ContentType = appInfo.Content
 
+		event.Type = appInfo.Type
+		event.AppName = appInfo.AppName
+		event.AppInstance = appInfo.AppInstance 
+		event.AppPID = appInfo.AppPID
+	
 		events = append(events, event)
 	}
 
