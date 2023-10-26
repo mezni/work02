@@ -106,6 +106,22 @@ ref_servers = [
         "ServerIPAddress": generate_random_ip(),
     },
     {
+        "domain": "web.facebook.com",
+        "appName": "Facebook",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "web.facebook.com",
+        "appName": "Facebook",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
         "domain": "l.facebook.com",
         "appName": "Facebook",
         "protocol": "TCP",
@@ -145,13 +161,150 @@ ref_servers = [
         "contentType": "video",
         "ServerIPAddress": generate_random_ip(),
     },
+    {
+        "domain": "google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "maps.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "play.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "earth.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "video.google.com",
+        "appName": "Google",
+        "protocol": "UDP",
+        "appProtocol": "quick",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "maps.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "play.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "earth.google.com",
+        "appName": "Google",
+        "protocol": "TCP",
+        "appProtocol": "quick",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "video.google.com",
+        "appName": "Google",
+        "protocol": "UDP",
+        "appProtocol": "quick",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "m.tiktok.com",
+        "appName": "Tiktok",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "m.tiktok.com",
+        "appName": "Tiktok",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "m.tiktok.com",
+        "appName": "Tiktok",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "m.tiktok.com",
+        "appName": "Tiktok",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "welcome.com",
+        "appName": "-",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Video",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "weather.com",
+        "appName": "-",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Text",
+        "ServerIPAddress": generate_random_ip(),
+    },
+    {
+        "domain": "tvshow.com",
+        "appName": "-",
+        "protocol": "TCP",
+        "appProtocol": "https",
+        "contentType": "Web",
+        "ServerIPAddress": generate_random_ip(),
+    },
 ]
 
 
 batch_id = random.randint(10000, 99999)
 subscriber_prefix = "201" + str(batch_id)
-subscribers = generate_subscribers(subscriber_prefix, 5)
-ips = generate_ips(10)
+
+subscribers = generate_subscribers(subscriber_prefix, 1000)
+ips = generate_ips(10000)
 
 interval_min_ts = int(
     datetime.datetime.strptime("25/10/2023 21:00:00", "%d/%m/%Y %H:%M:%S").timestamp()
@@ -160,11 +313,13 @@ interval_max_ts = int(
     datetime.datetime.strptime("25/10/2023 21:05:00", "%d/%m/%Y %H:%M:%S").timestamp()
 )
 
+
+events = []
 file_type = "AllIPMessages"
 app_name = "TrafficServerElement"
 app_instance = random.randint(1000, 9999)
 app_id = random.randint(10000, 99999)
-for i in range(20):
+for i in range(10000):
     random_server_id = random.randint(0, len(ref_servers) - 1)
     bytes_in = random.randint(0, 102400)
     bytes_out = random.randint(0, 21600)
@@ -210,4 +365,4 @@ for i in range(20):
         "srttMsClient": random.randint(0, 500),
         "srttMsServer": random.randint(0, 500),
     }
-    print(event)
+    events.append(event)
