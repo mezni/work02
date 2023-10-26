@@ -1,0 +1,24 @@
+domain,appName,protocol,appProtocol,contentType,serverIPAddress
+google.com,Google Apis,TCP,https,Web,30.58.20.16
+google.com,Google Apis,TCP,https,Web,69.61.71.112
+google.com,Google Apis,TCP,https,Web,161.197.248.194
+google.com,Google Apis,TCP,https,Web,26.153.98.216
+google.com,Google Apis,TCP,https,Web,213.3.243.99
+maps.google.com,Google Apis,TCP,https,Web,11.243.108.124
+maps.google.com,Google Apis,TCP,https,Web,54.158.18.133
+maps.google.com,Google Apis,TCP,https,Web,223.39.89.150
+play.google.com,Google Apis,UDP,Quick,Video,224.100.168.84
+play.google.com,Google Apis,UDP,Quick,Video,179.37.223.92
+drive.google.com,Google Apis,TCP,https,Web,74.35.52.118
+drive.google.com,Google Apis,TCP,https,Web,133.174.26.220
+apis.google.com,Google Apis,TCP,https,Web,201.46.106.164
+apis.google.com,Google Apis,TCP,https,Web,201.46.106.165
+apis.google.com,Google Apis,TCP,https,Web,201.46.106.166
+apis.google.com,Google Apis,TCP,https,Web,201.46.106.167
+apis.google.com,Google Apis,TCP,https,Web,201.46.106.168
+accounts.google.com,Google Apis,TCP,https,Text,70.215.190.168
+accounts.google.com,Google Apis,TCP,https,Text,70.215.190.169
+mail.google.com,Google Apis,TCP,https,Text,221.187.104.225
+mail.google.com,Google Apis,TCP,https,Text,220.30.117.115
+mail.google.com,Google Apis,TCP,https,Text,139.114.15.150
+mail.google.com,Google Apis,TCP,https,Text,132.130.51.130

@@ -1,4 +1,14 @@
-import random, datetime, uuid
+import csv, random, uuid, datetime
+
+
+def generate_cache(file_name):
+    """generate cache"""
+    fp = open("data/" + file_name, "r")
+    reader = csv.DictReader(fp)
+    cache = list()
+    for dict in reader:
+        cache.append(dict)
+    return cache
 
 
 def generate_random_ip():
@@ -87,221 +97,11 @@ def add_ip(subscriber):
     return ip
 
 
-ref_devices = [
-    "iphone",
-    "samsung",
-    "pixel",
-    "xiaomi",
-    "nokia",
-    "hlc",
-]
-
-ref_servers = [
-    {
-        "domain": "web.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "web.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "web.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "l.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "business.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "apps.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.facebook.com",
-        "appName": "Facebook",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "maps.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "play.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "earth.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "video.google.com",
-        "appName": "Google",
-        "protocol": "UDP",
-        "appProtocol": "quick",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "maps.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "play.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "earth.google.com",
-        "appName": "Google",
-        "protocol": "TCP",
-        "appProtocol": "quick",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "video.google.com",
-        "appName": "Google",
-        "protocol": "UDP",
-        "appProtocol": "quick",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.tiktok.com",
-        "appName": "Tiktok",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.tiktok.com",
-        "appName": "Tiktok",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.tiktok.com",
-        "appName": "Tiktok",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "m.tiktok.com",
-        "appName": "Tiktok",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "welcome.com",
-        "appName": "-",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Video",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "weather.com",
-        "appName": "-",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Text",
-        "ServerIPAddress": generate_random_ip(),
-    },
-    {
-        "domain": "tvshow.com",
-        "appName": "-",
-        "protocol": "TCP",
-        "appProtocol": "https",
-        "contentType": "Web",
-        "ServerIPAddress": generate_random_ip(),
-    },
-]
-
-
 batch_id = random.randint(10000, 99999)
 subscriber_prefix = "201" + str(batch_id)
+
+servers = generate_cache("servers.csv")
+devices = generate_cache("devices.csv")
 
 subscribers = generate_subscribers(subscriber_prefix, 1000)
 ips = generate_ips(10000)
@@ -320,7 +120,7 @@ app_name = "TrafficServerElement"
 app_instance = random.randint(1000, 9999)
 app_id = random.randint(10000, 99999)
 for i in range(10000):
-    random_server_id = random.randint(0, len(ref_servers) - 1)
+    random_server_id = random.randint(0, len(servers) - 1)
     bytes_in = random.randint(0, 102400)
     bytes_out = random.randint(0, 21600)
     if random.randint(0, 100) > 95:
@@ -347,22 +147,23 @@ for i in range(10000):
         "TransactionDuration": trx_duration,
         "ClientIPAddress": ip["ip"],
         "ClientPort": random.randint(1024, 52000),
-        "ServerIPAddress": ref_servers[random_server_id]["ServerIPAddress"],
+        "ServerIPAddress": servers[random_server_id]["serverIPAddress"],
         "ServerPort": 443,
-        "ipProtocol": ref_servers[random_server_id]["protocol"],
+        "ipProtocol": servers[random_server_id]["protocol"],
         "bytesFromClient": bytes_out,
         "bytesToClient": bytes_in,
         "bytesFromServer": bytes_in,
         "bytesToServer": bytes_out,
         "SubscriberID": new_subscriber["subscriber"],
-        "applicationProtocol": ref_servers[random_server_id]["appProtocol"],
-        "applicationName": ref_servers[random_server_id]["appName"],
-        "domain": ref_servers[random_server_id]["domain"],
-        "deviceType": ref_devices[random.randint(0, len(ref_devices) - 1)],
-        "contentType": ref_servers[random_server_id]["contentType"],
+        "applicationProtocol": servers[random_server_id]["appProtocol"],
+        "applicationName": servers[random_server_id]["appName"],
+        "domain": servers[random_server_id]["domain"],
+        "deviceType": devices[random.randint(0, len(devices) - 1)],
+        "contentType": servers[random_server_id]["contentType"],
         "lostBytesClient": bytes_in_lost,
         "lostBytesServer": bytes_out_lost,
         "srttMsClient": random.randint(0, 500),
         "srttMsServer": random.randint(0, 500),
     }
     events.append(event)
+    
