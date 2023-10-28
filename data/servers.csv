@@ -1,4 +1,4 @@
-domain,appName,protocol,appProtocol,contentType,serverIPAddress
+domain,app_name,protocol,app_protocol,content_type,server_ip_address
 google.com,Google Apis,TCP,https,Web,30.58.20.16
 google.com,Google Apis,TCP,https,Web,69.61.71.112
 google.com,Google Apis,TCP,https,Web,161.197.248.194
