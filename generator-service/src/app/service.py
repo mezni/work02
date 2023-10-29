@@ -29,7 +29,7 @@ def generate_ips(ip_count):
 
 def generate_cache(file_name):
     """Generate cache"""
-    fp = open("../../data/" + file_name, "r")
+    fp = open("data/" + file_name, "r")
     reader = csv.DictReader(fp)
     cache = list()
     for dict in reader:
