@@ -1,2 +1,4 @@
 - containerize api
 - deploy k8s, cloud providers 
+- add logging / instrumentation
+- add Webserver / LB / Api GW
