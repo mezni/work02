@@ -1,15 +1,5 @@
+import sqlite3
 import csv, random, uuid
-
-
-async def generate_cache(file_name):
-    """generate cache"""
-    fp = open("../data/" + file_name, "r")
-    reader = csv.DictReader(fp)
-    cache = list()
-    for dict in reader:
-        cache.append(dict)
-    print (cache)
-    return cache
 
 
 def generate_random_ip():
@@ -17,7 +7,7 @@ def generate_random_ip():
     return ".".join(str(random.randint(0, 255)) for _ in range(4))
 
 
-async def generate_subscribers(subscriber_prefix, subscriber_count):
+def generate_subscribers(subscriber_prefix, subscriber_count):
     """generate subscribers"""
     subscribers = []
     for i in range(subscriber_count):
@@ -27,7 +17,7 @@ async def generate_subscribers(subscriber_prefix, subscriber_count):
     return subscribers
 
 
-async def generate_ips(ip_count):
+def generate_ips(ip_count):
     """generate ips"""
     ips = []
     for i in range(ip_count):
@@ -35,6 +25,87 @@ async def generate_ips(ip_count):
         item = {"ip": ip, "min_ts": 0, "max_ts": 0}
         ips.append(item)
     return ips
+
+
+def generate_cache(file_name):
+    """Generate cache"""
+    fp = open("../data/" + file_name, "r")
+    reader = csv.DictReader(fp)
+    cache = list()
+    for dict in reader:
+        cache.append(dict)
+    return cache
+
+
+def create_db(db_name):
+    """Create db"""
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    cursor.execute(
+        "CREATE TABLE if not exists servers (domain text, app_name text, protocol text, app_protocol text, content_type text, server_ip_address text)"
+    )
+    cursor.execute("CREATE TABLE if not exists devices (device_type text)")
+    cursor.execute("CREATE TABLE if not exists ips (ip text, min_ts int, max_ts int)")
+    cursor.execute(
+        "CREATE TABLE if not exists subscribers (subscriber text, min_ts int, max_ts int)"
+    )
+    conn.close()
+
+
+def load_data_to_db(db_name, table_name, data):
+    """Load data"""
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    for d in data:
+        placeholders = ", ".join(["?"] * len(d))
+        columns = ", ".join(d.keys())
+        sql = "INSERT INTO %s ( %s ) VALUES ( %s )" % (
+            table_name,
+            columns,
+            placeholders,
+        )
+        cursor.execute(sql, list(d.values()))
+    conn.commit()
+    conn.close()
+
+
+def delete_table(db_name, table_name):
+    """Delete data"""
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    query = cursor.execute("DELETE FROM " + table_name)
+    conn.commit()
+    conn.close()
+
+
+def load_data_from_db(db_name, table_name):
+    """Load data"""
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
+    query = cursor.execute("SELECT * FROM " + table_name)
+    colums = [d[0] for d in query.description]
+    result = []
+    for r in query.fetchall():
+        row = {}
+        for i in range(len(colums)):
+            row[colums[i]] = r[i]
+        result.append(row)
+        del row
+    conn.close()
+    return result
+
+
+def init(db_name, subscriber_prefix, subscriber_count, ip_count):
+    """init"""
+    create_db(db_name)
+    servers = generate_cache("servers.csv")
+    load_data_to_db(db_name, "servers", servers)
+    devices = generate_cache("devices.csv")
+    load_data_to_db(db_name, "devices", devices)
+    subscribers = generate_subscribers(subscriber_prefix, subscriber_count)
+    load_data_to_db(db_name, "subscribers", subscribers)
+    ips = generate_ips(ip_count)
+    load_data_to_db(db_name, "ips", ips)
 
 
 def get_trx_ts(interval_min_ts, interval_max_ts):
@@ -50,7 +121,7 @@ def get_trx_ts(interval_min_ts, interval_max_ts):
     return trx_start, trx_end, trx_duration
 
 
-def add_subscriber(interval_min_ts, interval_max_ts):
+def add_subscriber(interval_min_ts, interval_max_ts, subscribers):
     """add subscriber"""
     trx_start, trx_end, trx_duration = get_trx_ts(interval_min_ts, interval_max_ts)
     subscriber = subscribers[random.randint(0, len(subscribers) - 1)]
@@ -92,13 +163,20 @@ def add_subscriber(interval_min_ts, interval_max_ts):
     return subscriber, new_subscriber, trx_start, trx_end, trx_duration
 
 
-def add_ip(subscriber):
+def add_ip(subscriber, ips):
     """add ip"""
     ip = ips[random.randint(0, len(ips) - 1)]
     return ip
 
-def generate_events(interval_min_ts, interval_max_ts, trx_count):
+
+def generate_events(db_name, interval_min_ts, interval_max_ts, trx_count):
     events = []
+
+    servers = load_data_from_db(db_name, "servers")
+    devices = load_data_from_db(db_name, "devices")
+    subscribers = load_data_from_db(db_name, "subscribers")
+    ips = load_data_from_db(db_name, "ips")
+
     file_type = "AllIPMessages"
     app_name = "TrafficServerElement"
     app_instance = random.randint(1000, 9999)
@@ -120,10 +198,10 @@ def generate_events(interval_min_ts, interval_max_ts, trx_count):
             trx_start,
             trx_end,
             trx_duration,
-        ) = add_subscriber(interval_min_ts, interval_max_ts)
+        ) = add_subscriber(interval_min_ts, interval_max_ts, subscribers)
         subscribers.remove(old_subscriber)
         subscribers.append(new_subscriber)
-        ip = add_ip(new_subscriber)
+        ip = add_ip(new_subscriber, ips)
         event = {
             "Timestamp": str(interval_max_ts),
             "type": file_type,
@@ -137,7 +215,7 @@ def generate_events(interval_min_ts, interval_max_ts, trx_count):
             "TransactionDuration": trx_duration,
             "ClientIPAddress": ip["ip"],
             "ClientPort": random.randint(1024, 52000),
-            "ServerIPAddress": servers[random_server_id]["serverIPAddress"],
+            "ServerIPAddress": servers[random_server_id]["server_ip_address"],
             "ServerPort": 443,
             "ipProtocol": servers[random_server_id]["protocol"],
             "bytesFromClient": bytes_out,
@@ -145,28 +223,18 @@ def generate_events(interval_min_ts, interval_max_ts, trx_count):
             "bytesFromServer": bytes_in,
             "bytesToServer": bytes_out,
             "SubscriberID": new_subscriber["subscriber"],
-            "applicationProtocol": servers[random_server_id]["appProtocol"],
-            "applicationName": servers[random_server_id]["appName"],
+            "applicationProtocol": servers[random_server_id]["app_protocol"],
+            "applicationName": servers[random_server_id]["app_name"],
             "domain": servers[random_server_id]["domain"],
-            "deviceType": devices[random.randint(0, len(devices) - 1)],
-            "contentType": servers[random_server_id]["contentType"],
+            "deviceType": devices[random.randint(0, len(devices) - 1)]["device_type"],
+            "contentType": servers[random_server_id]["content_type"],
             "lostBytesClient": bytes_in_lost,
             "lostBytesServer": bytes_out_lost,
             "srttMsClient": random.randint(0, 500),
             "srttMsServer": random.randint(0, 500),
         }
-        print (event)
+
         events.append(event)
+    delete_table(db_name, "subscribers")
+    load_data_to_db(db_name, "subscribers", subscribers)
     return events
-
-#2018481470814
-2014702351364
-subscriber_count = 10000
-ip_count = 50000
-batch_id = random.randint(10000, 99999)
-subscriber_prefix = "201" + str(batch_id)
-
-servers = generate_cache("servers.csv")
-devices = generate_cache("devices.csv")
-subscribers = generate_subscribers(subscriber_prefix, subscriber_count)
-ips = generate_ips(ip_count)
