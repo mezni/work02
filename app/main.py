@@ -3,8 +3,6 @@ from pydantic import BaseModel
 import datetime, random
 from service import init, generate_events
 
-app = FastAPI()
-
 
 class Request(BaseModel):
     interval_start: str
@@ -12,12 +10,14 @@ class Request(BaseModel):
     trx_count: int
 
 
+app = FastAPI()
+
 db_name = "events.db"
 batch_id = random.randint(10000, 99999)
 subscriber_prefix = "201" + str(batch_id)
 
-subscriber_count = 1000
-ip_count = 5000
+subscriber_count = 10000
+ip_count = 50000
 init(db_name, subscriber_prefix, subscriber_count, ip_count)
 
 
