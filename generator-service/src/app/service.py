@@ -169,7 +169,7 @@ def add_ip(subscriber, ips):
     return ip
 
 
-def generate_events(db_name, interval_min_ts, interval_max_ts, trx_count):
+def generate_events(instance_id, db_name, interval_min_ts, interval_max_ts, trx_count):
     events = []
 
     servers = load_data_from_db(db_name, "servers")
@@ -208,6 +208,7 @@ def generate_events(db_name, interval_min_ts, interval_max_ts, trx_count):
             "appName": app_name,
             "appInstance": app_instance,
             "appID": app_id,
+            "probeID": instance_id,
             "eventID": str(uuid.uuid4()),
             "correletionID": random.randint(1000000000, 9990000000),
             "TransactionStart": trx_start,

@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import datetime, random
+import datetime, random, uuid
 from app.service import init, generate_events
 from app.config import settings
 
@@ -12,6 +12,8 @@ class Request(BaseModel):
 
 
 app = FastAPI()
+
+instance_id = str(uuid.uuid4())
 
 db_name = settings.DB_NAME
 subscriber_count = settings.SUBSCRIBER_COUNT
@@ -43,7 +45,7 @@ async def get_events(payload: Request):
         )
 
         trx_count = int(r["trx_count"])
-        events = generate_events(db_name, interval_min_ts, interval_max_ts, trx_count)
+        events = generate_events(instance_id, db_name, interval_min_ts, interval_max_ts, trx_count)
         return {"events": events}
 
     except:
