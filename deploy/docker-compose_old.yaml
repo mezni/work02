@@ -41,3 +41,32 @@ services:
     networks:
       datapipeline:
         ipv4_address: 172.18.0.3
+  init-kafka:
+    image: confluentinc/cp-kafka:7.3.2
+    depends_on:
+      - kafka1
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      # blocks until kafka is reachable
+      kafka-topics --bootstrap-server kafka1:9092 --list
+
+      echo -e 'Creating kafka topics'
+      kafka-topics --bootstrap-server kafka1:9092 --create --if-not-exists --topic events --replication-factor 1 --partitions 1
+
+      echo -e 'Successfully created the following topics:'
+      kafka-topics --bootstrap-server kafka1:9092 --list
+      "
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.4
+  generator1:
+    image: dali/generator:latest
+    hostname: generator1
+    container_name: generator1
+    restart: always
+    ports:
+      - "8000:8000"
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.5
