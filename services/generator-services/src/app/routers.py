@@ -1,7 +1,9 @@
-import datetime
+import datetime, uuid
 import logging
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, HTTPException, status
 from app import schemas, repositories, database
+
+instance_id = str(uuid.uuid4())[:8]
 
 logger = logging.getLogger(__name__)
 
@@ -52,5 +54,9 @@ async def get_events(payload: schemas.Request):
     )
     await database.delete_table("servers")
     await database.load_data_to_db("servers", servers)
+    
+    response = {
+        "instanceID":instance_id,
+        "events": events}
     logger.info("end request")
-    return events
+    return response
