@@ -2,3 +2,50 @@
 - deploy k8s, cloud providers 
 - add logging / instrumentation
 - add Webserver / LB / Api GW
+
+
+
+
+producer 
+-> input
+-> process: ex:agg    
+-> output
+
+
+
+
+"Timestamp": str(interval_max_ts),
+"type": file_type,
+"appName": app_name,
+"appInstance": app_instance,
+"appID": app_id,
+"probeID": instance_id,
+"eventID": str(uuid.uuid4()),
+"correletionID": random.randint(1000000000, 9990000000),
+"TransactionStart": trx_start,
+"TransactionEnd": trx_end,
+"TransactionDuration": trx_duration,
+"ClientIPAddress": ip["ip"],
+"ClientPort": random.randint(1024, 52000),
+"ServerIPAddress": servers[random_server_id]["server_ip_address"],
+"ServerPort": 443,
+"ipProtocol": servers[random_server_id]["protocol"],
+"bytesFromClient": bytes_out,
+"bytesToClient": bytes_in,
+"bytesFromServer": bytes_in,
+"bytesToServer": bytes_out,
+"SubscriberID": new_subscriber["subscriber"],
+"applicationProtocol": servers[random_server_id]["app_protocol"],
+"applicationName": servers[random_server_id]["app_name"],
+"domain": servers[random_server_id]["domain"],
+"deviceType": devices[random.randint(0, len(devices) - 1)]["device_type"],
+"contentType": servers[random_server_id]["content_type"],
+"lostBytesClient": bytes_in_lost,
+"lostBytesServer": bytes_out_lost,
+"srttMsClient": random.randint(0, 500),
+"srttMsServer": random.randint(0, 500),
+
+
+
+trx_info: start, end, duration, 
+bytesFromClient, bytesToClient, lostBytesClient, lostBytesServer,  

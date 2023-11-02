@@ -1,9 +1,60 @@
-import asyncio, time, random, uuid
+import random, uuid
+from app.data import servers_list, devices
 
 
-def generate_random_ip():
+async def generate_random_ip():
     """generate single ip"""
     return ".".join(str(random.randint(0, 255)) for _ in range(4))
+
+
+async def generate_ips(ip_count):
+    """generate ips"""
+    ips = []
+    for i in range(ip_count):
+        ip = await generate_random_ip()
+        item = {"ip": ip, "min_ts": 0, "max_ts": 0}
+        ips.append(item)
+    return ips
+
+
+async def generate_subscribers(subscriber_prefix, subscriber_count):
+    """generate subscribers"""
+    subscribers = []
+    for i in range(subscriber_count):
+        subscriber = subscriber_prefix + str(random.randint(10000, 99999))
+        item = {"subscriber": subscriber, "min_ts": 0, "max_ts": 0}
+        subscribers.append(item)
+    return subscribers
+
+
+async def generate_server_info():
+    """generate server info"""
+    servers = []
+    for sl in servers_list:
+        for i in range(int(sl.split(",")[5])):
+            s = {
+                "domain": sl.split(",")[0],
+                "app_name": sl.split(",")[1],
+                "protocol": sl.split(",")[2],
+                "app_protocol": sl.split(",")[3],
+                "content_type": sl.split(",")[4],
+                "server_ip": await generate_random_ip(),
+                "server_port": 443,
+            }
+            servers.append(s)
+    return servers
+
+
+async def generate_app_info():
+    """generate server info"""
+    info = {
+        "file_type": "AllIPMessages",
+        "app_name": "TrafficServerElement",
+        "app_instance": random.randint(1000, 9999),
+        "app_id": random.randint(10000, 99999),
+        "probe_id": str(uuid.uuid4()),
+    }
+    return info
 
 
 async def generate_trx(interval_min_ts, interval_max_ts):
@@ -66,59 +117,12 @@ async def generate_trx(interval_min_ts, interval_max_ts):
     return trx
 
 
-async def generate_ips(ip_count):
-    """generate ips"""
-    ips = []
-    for i in range(ip_count):
-        ip = generate_random_ip()
-        item = {"ip": ip, "min_ts": 0, "max_ts": 0}
-        ips.append(item)
-    return ips
-
-
-async def generate_app_info():
-    """generate server info"""
-    info = {
-        "file_type": "AllIPMessages",
-        "app_name": "TrafficServerElement",
-        "app_instance": random.randint(1000, 9999),
-        "app_id": random.randint(10000, 99999),
-        "probe_id": str(uuid.uuid4()),
-    }
-    return info
-
-
-async def generate_server_info():
-    """generate server info"""
-    servers = []
-    for sl in servers_list:
-        for i in range(int(sl.split(",")[5])):
-            s = {
-                "domain": sl.split(",")[0],
-                "app_name": sl.split(",")[1],
-                "protocol": sl.split(",")[2],
-                "app_protocol": sl.split(",")[3],
-                "content_type": sl.split(",")[4],
-                "server_ip": generate_random_ip(),
-                "server_port": 443,
-            }
-            servers.append(s)
-    return servers
-
-
-async def generate_subscribers(subscriber_prefix, subscriber_count):
-    """generate subscribers"""
-    subscribers = []
-    for i in range(subscriber_count):
-        subscriber = subscriber_prefix + str(random.randint(10000, 99999))
-        item = {"subscriber": subscriber, "min_ts": 0, "max_ts": 0}
-        subscribers.append(item)
-    return subscribers
-
-
-async def add_subscriber(interval_min_ts, interval_max_ts, subscribers):
+async def add_subscriber(interval_min_ts, interval_max_ts, trx_info, subscribers):
     """add subscriber"""
-    trx_start, trx_end, trx_duration = get_trx_ts(interval_min_ts, interval_max_ts)
+    trx_start = trx_info["trx_start"]
+    trx_end = trx_info["trx_end"]
+    trx_duration = trx_info["trx_duration"]
+
     subscriber = subscribers[random.randint(0, len(subscribers) - 1)]
 
     if trx_duration == 0:
@@ -158,78 +162,36 @@ async def add_subscriber(interval_min_ts, interval_max_ts, subscribers):
     return subscriber, new_subscriber, trx_start, trx_end, trx_duration
 
 
-servers_list = [
-    "google.com,Google Apis,TCP,https,Web,10",
-    "maps.google.com,Google Apis,TCP,https,Web,10",
-    "play.google.com,Google Apis,UDP,Quick,Video,15",
-    "drive.google.com,Google Apis,TCP,https,Web,5",
-    "apis.google.com,Google Apis,TCP,https,Web,5",
-    "mail.google.com,Google Apis,TCP,https,Text,5",
-    "accounts.google.com,Google Apis,TCP,https,Text,5",
-    "-,-,TCP,https,Web,10",
-    "-,-,TCP,https,Text,10",
-    "-,-,TCP,https,Video,10",
-]
-
-devices = [
-    "iphone",
-    "iphone 12",
-    "iphone 13",
-    "iphone 14",
-    "iphone 15",
-    "iphone 14 pro",
-    "iphone 15 pro",
-    "samsung",
-    "samsung s19",
-    "samsung s20",
-    "samsung s21",
-    "samsung s22",
-    "samsung s23",
-    "nokia",
-    "xioami",
-    "pixel",
-    "htc",
-    "blackberry",
-    "motorolla",
-]
-
-
-async def generate_events():
-    servers = await generate_server_info()
-    ip_count = 100
-    client_ips = await generate_ips(ip_count)
-
-    batch_id = random.randint(10000, 99999)
-    subscriber_prefix = "201" + str(batch_id)
-    subscriber_count = 100
-    subscribers = await generate_subscribers(subscriber_prefix, subscriber_count)
-
+async def generate_events(
+    interval_min_ts, interval_max_ts, trx_count, servers, subscribers, client_ips
+):
     app_info = await generate_app_info()
+
     events = []
-    for i in range(10):
-        trx_info = await generate_trx(100, 200)
+    for i in range(trx_count):
+        trx_info = await generate_trx(interval_min_ts, interval_max_ts)
         (
             old_subscriber,
             new_subscriber,
             trx_start,
             trx_end,
             trx_duration,
-        ) = await add_subscriber(interval_min_ts, interval_max_ts, subscribers)
+        ) = await add_subscriber(
+            interval_min_ts, interval_max_ts, trx_info, subscribers
+        )
+        trx_info["trx_start"] = trx_start
+        trx_info["trx_end"] = trx_end
+        trx_info["trx_duration"] = trx_duration
 
         subscribers.remove(old_subscriber)
         subscribers.append(new_subscriber)
 
         client_port = random.randint(1025, 65000)
 
-        if random.randint(0, 10) > 9:
-            server_port = random.choice([443, 80, 22])
-        else:
-            server_port = 443
-
         server_id = random.randint(0, len(servers) - 1)
 
         event = {
-            "timestamp": "",
+            "timestamp": interval_max_ts,
             "type": app_info["file_type"],
             "appName": app_info["app_name"],
             "appInstance": app_info["app_instance"],
@@ -262,18 +224,3 @@ async def generate_events():
         }
         events.append(event)
     return events
-
-
-async def main():
-    batch_id = random.randint(10000, 99999)
-    subscriber_prefix = "201" + str(batch_id)
-
-#    events = await generate_events()
-
-
-if __name__ == "__main__":
-    start = time.time()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
-    end = time.time()
-    print(f"Time: {end-start:.2f} sec")

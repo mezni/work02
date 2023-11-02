@@ -1,13 +1,14 @@
-
 import aiosqlite, asyncio, time
+
 
 async def test():
     db_name = "test.db"
     conn = await aiosqlite.connect(db_name)
     cursor = await conn.execute(
-            "CREATE TABLE if not exists subscribers (subscriber text, min_ts int, max_ts int)"
-        )
+        "CREATE TABLE if not exists subscribers (subscriber text, min_ts int, max_ts int)"
+    )
     await conn.close()
+
 
 if __name__ == "__main__":
     start = time.time()
