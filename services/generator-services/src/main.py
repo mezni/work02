@@ -1,5 +1,8 @@
 import logging
 from fastapi import FastAPI
+
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.database import init_db
 from app.routers import event_router
 
@@ -9,6 +12,8 @@ logging.config.fileConfig("logging.conf", disable_existing_loggers=False)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title=service_name)
+
+Instrumentator().instrument(app).expose(app)
 
 
 @app.on_event("startup")
