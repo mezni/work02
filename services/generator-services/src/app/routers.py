@@ -43,7 +43,9 @@ async def get_events(payload: schemas.Request):
     client_ips = await database.load_data_from_db("ips")
     subscribers = await database.load_data_from_db("subscribers")
     servers = await database.load_data_from_db("servers")
-    events = await repositories.generate_events(
+    events, servers = await repositories.generate_events(
         interval_min_ts, interval_max_ts, trx_count, servers, subscribers, client_ips
     )
+    await database.delete_table("servers")
+    await database.load_data_to_db("servers", servers)
     return events

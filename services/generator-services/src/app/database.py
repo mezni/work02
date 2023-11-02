@@ -74,6 +74,13 @@ async def load_data_from_db(table_name):
     return result
 
 
+async def delete_table(table_name):
+    conn = await aiosqlite.connect(db_name)
+    cursor = await conn.execute("DELETE FROM " + table_name)
+    await conn.commit()
+    await conn.close()
+
+
 async def init_db():
     await create_db()
     client_ips = await generate_ips(ip_count)

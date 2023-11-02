@@ -223,4 +223,4 @@ async def generate_events(
             "srttMsServer": trx_info["rtt_server"],
         }
         events.append(event)
-    return events
+    return events, servers
