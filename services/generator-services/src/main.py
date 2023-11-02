@@ -1,16 +1,19 @@
+import logging
 from fastapi import FastAPI
 from app.database import init_db
 from app.routers import event_router
 
 service_name = "Generator"
 
+logging.config.fileConfig("logging.conf", disable_existing_loggers=False)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title=service_name)
 
 
 @app.on_event("startup")
 async def startup():
-    # create db tables
+    logger.info("service start")
     await init_db()
 
 

@@ -1,12 +1,16 @@
 import datetime
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Response
 from app import schemas, repositories, database
+
+logger = logging.getLogger(__name__)
 
 event_router = APIRouter()
 
 
 @event_router.post("/", status_code=status.HTTP_200_OK)
 async def get_events(payload: schemas.Request):
+    logger.info("start request")
     r = payload.dict()
     try:
         interval_min_ts = int(
@@ -48,4 +52,5 @@ async def get_events(payload: schemas.Request):
     )
     await database.delete_table("servers")
     await database.load_data_to_db("servers", servers)
+    logger.info("end request")
     return events

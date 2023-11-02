@@ -1,7 +1,10 @@
 import aiosqlite
 import random
+import logging
 from app.config import settings
 from app.repositories import generate_ips, generate_subscribers, generate_server_info
+
+logger = logging.getLogger(__name__)
 
 db_name = settings.DB_NAME
 subscriber_count = settings.SUBSCRIBER_COUNT
@@ -82,10 +85,18 @@ async def delete_table(table_name):
 
 
 async def init_db():
+    logger.info("db init start")
     await create_db()
+    logger.info("generate ips")
     client_ips = await generate_ips(ip_count)
+    logger.info("load ips")
     await load_data_to_db("ips", client_ips)
+    logger.info("generate subscribers")
     subscribers = await generate_subscribers(subscriber_prefix, subscriber_count)
+    logger.info("load subscribers")
     await load_data_to_db("subscribers", subscribers)
+    logger.info("generate servers")
     servers = await generate_server_info()
+    logger.info("load servers")
     await load_data_to_db("servers", servers)
+    logger.info("db init end")
