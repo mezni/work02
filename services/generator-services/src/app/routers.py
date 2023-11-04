@@ -3,11 +3,16 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from app import schemas, repositories, database
 
-instance_id = str(uuid.uuid4())[:8]
 
 logger = logging.getLogger(__name__)
 
+health_router = APIRouter()
 event_router = APIRouter()
+
+
+@event_router.post("/", status_code=status.HTTP_200_OK)
+async def health():
+    return {"status": "OK"}
 
 
 @event_router.post("/", status_code=status.HTTP_200_OK)
@@ -54,9 +59,7 @@ async def get_events(payload: schemas.Request):
     )
     await database.delete_table("servers")
     await database.load_data_to_db("servers", servers)
-    
-    response = {
-        "instanceID":instance_id,
-        "Records": events}
+
+    response = {"Records": events}
     logger.info("end request")
     return response

@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.database import init_db
-from app.routers import event_router
+from app.routers import event_router, health_router
 
 service_name = "Generator"
 
@@ -22,4 +22,5 @@ async def startup():
     await init_db()
 
 
+app.include_router(health_router, tags=["Health"], prefix="/api/v1/health")
 app.include_router(event_router, tags=["Event"], prefix="/api/v1/event")
