@@ -57,6 +57,6 @@ async def get_events(payload: schemas.Request):
     
     response = {
         "instanceID":instance_id,
-        "events": events}
+        "Records": events}
     logger.info("end request")
     return response
