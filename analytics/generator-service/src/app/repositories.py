@@ -211,7 +211,7 @@ async def generate_events(
             "bytesToClient": trx_info["bytes_in"],
             "bytesFromServer": trx_info["bytes_in"],
             "bytesToServer": trx_info["bytes_out"],
-            "SubscriberID": "",
+            "subscriberID": new_subscriber["subscriber"],
             "applicationProtocol": servers[server_id]["app_protocol"],
             "applicationName": servers[server_id]["app_name"],
             "domain": servers[server_id]["domain"],

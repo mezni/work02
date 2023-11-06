@@ -10,7 +10,7 @@ health_router = APIRouter()
 event_router = APIRouter()
 
 
-@event_router.post("/", status_code=status.HTTP_200_OK)
+@health_router.get("/", status_code=status.HTTP_200_OK)
 async def health():
     return {"status": "OK"}
 
