@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from confluent_kafka import Producer
 
 headers = {"Content-type": "application/json", "Accept": "text/plain"}
-url = "http://172.18.0.5:8000/api/events"
+url = "http://172.18.0.2:8000/api/v1/event/"
 
 
 data = {"interval_start": "29/10/2023 17:00:00", "interval_mins": 5, "trx_count": 5}
