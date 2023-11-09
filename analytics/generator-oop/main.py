@@ -20,9 +20,13 @@ class Event:
     def __init__(self) -> None:
         self.event_id = uuid.uuid4()
 
+    def generate(self) -> None:
+        self.xxxx = 3
+
     def print(self) -> str:
-        print(self.event_id)
+        print(self.xxxx)
 
 
 event = Event()
+event.generate()
 event.print()
