@@ -1,0 +1,53 @@
+Website 
+Video
+Social Media
+Gaming
+Content Downstream
+Content Upstream
+VOIP
+Others
+
+Website: 'HTTP' 'GOOGLE' 'HTTP_CONNECT' 'SSL' 'SSL_NO_CERT' 'HTTP_PROXY' 'CONTENT_FLASH'  'DROPBOX' 'MICROSOFT'
+'GMAIL' 'YAHOO' 'MSN'   'MS_ONE_DRIVE' 'APPLE'  'EBAY' 'GOOGLE_MAPS' 'APPLE_ICLOUD'  'CLOUDFLARE'  'OFFICE_365'
+'HTTP_DOWNLOAD' 'APPLE_ITUNES'  'WIKIPEDIA' 'WAZE' 'SPOTIFY' 'EASYTAXI'
+/Video: 'NETFLIX' 'AMAZON' 'YOUTUBE'
+/Social Media: 'FACEBOOK' TWITTER'  'INSTAGRAM' 
+/Gaming: XBOX 'TWITCH' 'Nintindo' 'Ubisoft'
+/Content Downstream: 'WINDOWS_UPDATE' 'MSSQL'  'UBUNTUONE' 'MQTT' 'NTP' 'DNS' 'IP_ICMP' 
+Content Upstream: 'TOR' 'MAIL_IMAPS' 'SSH' 'TEAMVIEWER' 'EDONKEY' 'CITRIX' 'FTP_DATA'
+/VOIP: 'SKYPE' 'WHATSAPP' 'SIGNAL' 
+
+
+service_category,app_name,protocol,app_protocol,domain,content_type
+
+servers=
+Content Upstream:tor,UDP,Quick,Web,5
+Content Upstream:edonkey,UDP,Quick,Web,5
+Content Upstream:mail imaps,UDP,,Web,5
+Content Upstream:edonkey,UDP,Quick,Web,5
+
+
+
+Social Media,Facebook,TCP,https,facebook.com,Web,5
+Social Media,Facebook,TCP,https,app.facebook.com,Web,10
+Social Media,Twitter,TCP,https,twitter.com,Web,5
+Social Media,Instagram,TCP,https,instagram.com,Web,5
+Gaming,Xbox,UDP,Quick,xbox.com,Web,5
+Gaming,Twitch,UDP,Quick,twitch.com,Web,5
+Gaming,Twitch,UDP,Quick,app.twitch.com,Web,5
+Gaming,Nintindo,UDP,Quick,nintindo.com,Web,5
+Gaming,Ubisoft,UDP,Quick,ubisoft.com,Web,5
+VOIP,skype,TCP,https,skype.com,Web,10
+VOIP,whatsapp,TCP,https,whatsapp.com,Web,10
+VOIP,signal,TCP,https,signal.com,Web,5
+Video,netflix,TCP,https,netflix.com,video,10
+Video,amazon,TCP,https,amazon.com,video,5
+Video,youtube,TCP,https,netflix.com,video,10
+Content Downstream:Windows update,UDP,Quick,Web,10
+Content Downstream:ubuntuone,UDP,Quick,Web,9
+Content Downstream:mqtt,UDP,Mqtt,Text,1
+Content Downstream:dns,UDP,Dns,Text,1
+Content Downstream:ntp,UDP,Ntp,Text,1
+Content Downstream:icmp,UDP,Icmp,Text,1
+Content Downstream:mysql,UDP,Sql,Text,1
+Content Downstream:mariadb,UDP,Sql,Text,1

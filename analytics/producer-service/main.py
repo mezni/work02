@@ -18,4 +18,4 @@ r = requests.post(url, data=json.dumps(data), headers=headers)
 status = r.status_code
 result = r.json()
 
-print(result)
+print(status)
