@@ -1,0 +1,39 @@
+
+
+metrics:
+- latency  (ms)
+- packet loss  (%)
+- throughput (Mbps)
+- volume ()
+- score
+- nbr sessions
+- nbr subscribers
+
+dimensions
+ - category (gaming, ....)
+ - application (facebook, ...)
+ - rtt
+ - device
+ - location
+
+
+300000sessions/secondes 
+1.8M / minutes
+
+
+PK
+t#2023111118#00
+l#XYZTT#2023111118
+s#0021650015001#2023111118 
+
+SK
+ts
+
+table 
+event_key 
+ts
+
+
+
+Access patterns 
+
