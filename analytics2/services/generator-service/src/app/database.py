@@ -55,28 +55,16 @@ async def load_data_to_db(table_name, data):
     await conn.close()
 
 
-async def load_data_to_db(table_name, data):
-    """Load data"""
-    conn = await aiosqlite.connect(db_name)
-    for d in data:
-        placeholders = ", ".join(["?"] * len(d))
-        columns = ", ".join(d.keys())
-        sql = "INSERT INTO %s ( %s ) VALUES ( %s )" % (
-            table_name,
-            columns,
-            placeholders,
-        )
-        await conn.execute(sql, list(d.values()))
-    await conn.commit()
-    await conn.close()
-
-
 async def load_data_from_db(table_name):
     """Load data"""
     result = []
     conn = await aiosqlite.connect(db_name)
     async with conn.execute("SELECT * FROM " + table_name) as cursor:
         async for row in cursor:
+            if table_name == "locations":
+                key = "location"
+                res = {key: row[0]}
+                result.append(res)
             if table_name == "ips":
                 key = "ip"
                 res = {key: row[0], "min_ts": row[1], "max_ts": row[2]}
@@ -87,13 +75,13 @@ async def load_data_from_db(table_name):
                 result.append(res)
             if table_name == "servers":
                 res = {
-                    "domain": row[0],
-                    "app_name": row[1],
-                    "protocol": row[2],
-                    "app_protocol": row[3],
+                    "app_name": row[0],
+                    "protocol": row[1],
+                    "app_protocol": row[2],
+                    "domain": row[3],
                     "content_type": row[4],
-                    "server_ip": row[5],
-                    "server_port": row[6],
+                    "category": row[5],
+                    "server_ip": row[6],
                 }
                 result.append(res)
     await conn.close()
@@ -116,12 +104,14 @@ async def init_db():
     logger.info("load locations")
     locations = await generate_locations(location_count)
     await load_data_to_db("locations", locations)
-
-    subscribers = await generate_subscribers(subscriber_prefix, 10)
-    ips = await generate_ips(10)
+    logger.info("load subscribers")
+    subscribers = await generate_subscribers(subscriber_prefix, subscriber_count)
+    await load_data_to_db("subscribers", subscribers)
+    logger.info("load ips")
+    ips = await generate_ips(ip_count)
+    await load_data_to_db("ips", ips)
+    logger.info("db init end")
 
 
 #    trx = await generate_trx(10000000, 10009000)
 #    app = await generate_app_info()
-
-#    await create_db()

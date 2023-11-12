@@ -56,3 +56,28 @@ server_keys = [
     "category",
     "server_ip",
 ]
+
+devices = [
+    "iphone",
+    "iphone 12",
+    "iphone 13",
+    "iphone 14",
+    "iphone 15",
+    "iphone 14 pro",
+    "iphone 15 pro",
+    "samsung",
+    "samsung s19",
+    "samsung s20",
+    "samsung s21",
+    "samsung s22",
+    "samsung s23",
+    "nokia",
+    "xioami",
+    "pixel",
+    "htc",
+    "blackberry",
+    "motorolla",
+    "-",
+]
+
+networks = ["2g", "3g", "4g", "5g", "-"]
