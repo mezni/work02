@@ -1,0 +1,36 @@
+version: '3'
+networks:
+  datapipeline:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.0.0/16"
+
+services:
+  cassandra:
+    image: cassandra:latest
+    container_name: cassandra
+    ports:
+      - "9042:9042"
+    environment:
+      - "MAX_HEAP_SIZE=256M"
+      - "HEAP_NEWSIZE=128M"
+    restart: always
+    volumes:
+      - ./cassandra_data:/var/lib/cassandra
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.2
+
+  cassandra-load-keyspace:
+    container_name: cassandra-load-keyspace
+    image: cassandra:latest
+    depends_on:
+      - cassandra
+    volumes:
+      - ../src/cassandra_schema.sql:/schema.cql
+    command: /bin/bash -c "sleep 120 && echo loading cassandra keyspace && cqlsh cassandra -f /schema.cql"
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.3

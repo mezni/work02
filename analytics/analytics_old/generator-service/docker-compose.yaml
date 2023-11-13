@@ -1,0 +1,19 @@
+version: '3'
+networks:
+  datapipeline:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.0.0/16"
+services:
+  generator:
+    image: dali/generator:latest
+    hostname: generator
+    container_name: generator
+    restart: always
+    ports:
+      - "8000:8000"
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.2
