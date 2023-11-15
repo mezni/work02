@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+pydantic-settings
+aiosqlite
+prometheus-fastapi-instrumentator
+
