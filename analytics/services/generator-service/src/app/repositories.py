@@ -192,7 +192,7 @@ async def add_subscriber(interval_min_ts, interval_max_ts, trx_info, subscribers
 
 
 async def generate_events(
-    interval_min_ts, interval_max_ts, trx_count, servers, subscribers, client_ips
+    interval_min_ts, interval_max_ts, trx_count, servers, subscribers, client_ips, locations
 ):
     app_info = await generate_app_info()
 
@@ -228,6 +228,7 @@ async def generate_events(
             "probeID": app_info["probe_id"],
             "eventID": str(uuid.uuid4()),
             "correletionID": random.randint(1000000000, 9990000000),
+            "locationID": locations[random.randint(0, len(locations) - 1)]["location"],
             "transactionStart": trx_info["trx_start"],
             "transactionEnd": trx_info["trx_end"],
             "transactionDuration": trx_info["trx_duration"],

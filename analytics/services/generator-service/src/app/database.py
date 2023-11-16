@@ -6,8 +6,6 @@ from app.repositories import (
     generate_locations,
     generate_subscribers,
     generate_ips,
-    generate_trx,
-    generate_app_info,
 )
 from app.data import subscriber_prefix, servers_list, server_keys
 
@@ -111,7 +109,3 @@ async def init_db():
     ips = await generate_ips(ip_count)
     await load_data_to_db("ips", ips)
     logger.info("db init end")
-
-
-#    trx = await generate_trx(10000000, 10009000)
-#    app = await generate_app_info()
