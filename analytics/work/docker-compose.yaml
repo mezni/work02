@@ -144,58 +144,57 @@ services:
       datapipeline:
         ipv4_address: 172.18.0.8
 
-  airflow-db:
-    image: postgres:9.6
-    hostname: airflow-db
-    container_name: airflow-db
+  events-db:
+    image: cassandra:latest
+    container_name: events-db
+    hostname: events-db
+    ports:
+      - 9042:9042
     environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-    logging:
-      options:
-        max-size: 10m
-        max-file: "3"
+      - MAX_HEAP_SIZE=512M
+      - HEAP_NEWSIZE=100M
+      - CASSANDRA_USERNAME=cassandra
+      - CASSANDRA_PASSWORD=cassandra
+    volumes:
+      - ./cdata:/var/lib/cassandra
     networks:
       datapipeline:
         ipv4_address: 172.18.0.10
 
-  airflow:
-    image: puckel/docker-airflow:1.10.9
-    hostname: airflow
-    container_name: airflow
-    restart: always
-    depends_on:
-      - airflow-db
+  spark-master:
+    image: bitnami/spark:3.3.1
+    hostname: spark-master
+    container_name: spark-master
     environment:
-      - LOAD_EX=n
-      - EXECUTOR=Local
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
-    logging:
-      options:
-        max-size: 10m
-        max-file: "3"
-    volumes:
-      - ./dags:/usr/local/airflow/dags
-      - ./requirements.txt:/usr/local/airflow/requirements.txt
-      # - ./plugins:/usr/local/airflow/plugins
+      - SPARK_MODE=master
     ports:
-      - "8080:8080"
-    command: webserver
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "[ -f /usr/local/airflow/airflow-webserver.pid ]"
-        ]
-      interval: 30s
-      timeout: 30s
-      retries: 3
+      - '8080:8080'
+      - '7077:7077'
+    volumes:
+      - ./data:/data
+      - ./src:/src
     networks:
       datapipeline:
-        ipv4_address: 172.18.0.11
+        ipv4_address: 172.18.0.20
+
+  spark-worker:
+    image: bitnami/spark:3.3.1
+    hostname: spark-worker
+    container_name: spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_EXECUTOR_MEMORY=2G
+      - SPARK_WORKER_CORES=2
+    ports:
+      - '8881:8081'
+    volumes:
+      - ./data:/data
+      - ./src:/src
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.21
 
   jupyter:
     image: jupyter/pyspark-notebook:spark-3.3.1
