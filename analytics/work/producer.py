@@ -46,7 +46,7 @@ topic = "events"
 
 producer = Producer(**conf)
 
-events_start_date = "15/11/2023 19:00:00"
+events_start_date = "19/11/2023 19:00:00"
 interval_mins = 5
 trx_count = 1000
 
