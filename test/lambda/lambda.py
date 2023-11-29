@@ -221,3 +221,7 @@ if checkpoint["execution"]["status"] == "success":
 
 checkpoint["execution"]["run_end"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 write_s3_jsonfile(bucket_name, file_name, checkpoint)
+
+
+# Clean Up > 45days
+# Rename file // add client finops_quebec_emploi_aws_20231128.csv
