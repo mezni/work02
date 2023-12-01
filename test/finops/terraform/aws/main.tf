@@ -20,6 +20,7 @@ resource "aws_lambda_layer_version" "lambda_dependency_layer" {
   source_code_hash    = data.archive_file.lambda_dependency_layer_zip.output_base64sha256
 }
 
+
 /*
 # Create lambda
 resource "aws_lambda_function" "finops_lambda" {
