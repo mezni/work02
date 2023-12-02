@@ -28,4 +28,4 @@ CREATE TABLE events.events_raw(
     "lostBytesServer" bigint,
     "srttMsClient" bigint,
     "srttMsServer" bigint,        
-    PRIMARY KEY (bucket, transactionStart));
+    PRIMARY KEY (bucket, "transactionStart"));
