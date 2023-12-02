@@ -1,3 +1,4 @@
+# pip install azure-storage-blob
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
 

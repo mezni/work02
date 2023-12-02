@@ -1,6 +1,18 @@
 import json, uuid
 from datetime import datetime, timedelta
+from azure.storage.blob import BlobServiceClient
 import pprint
+
+
+def upload_to_azure_blob(account_name, account_key, container_name, file_name):
+    blob_name = file_name.split("/")[-1]
+    connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
+
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+    container_client = blob_service_client.get_container_client(container_name)
+    with open(file_name, "rb") as data:
+        blob_client = container_client.get_blob_client(blob_name)
+        blob_client.upload_blob(data)
 
 
 def init_state(params):
@@ -39,7 +51,8 @@ def init_state(params):
             "client_name": params["client_name"],
             "cloud_provider": params["cloud_provider"],
             "bucket_store": bucket_store,
-            "bucket_sink": params["bucket_sink"],
+            "sink_account_name": params["sink_account_name"],
+            "sink_container_name": params["sink_container_name"],
         },
     }
     return state
@@ -93,7 +106,9 @@ def get_query_dates(state):
 
 params = {
     "data_format": "csv",
-    "bucket_sink": "",
+    "sink_account_name": "finopsstorageaccount2003",
+    "sink_container_name": "finopscontainer",
+    "sink_account_key": "MDPnx/y+PPsv63rnYL1kiepAtc/w196OIwu1dZHrCqBI1Kjz562Ja/iUDqdk9a2zExLWaKJGKLMn+AStEaNtfg==",
     "client_name": "client1",
     "cloud_provider": "aws",
     "granularity": "DAILY",
@@ -115,5 +130,11 @@ else:
     pass
 
 state["execution"]["end_time"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
+upload_to_azure_blob(
+    state["params"]["sink_account_name"],
+    params["sink_account_key"],
+    state["params"]["sink_container_name"],
+    "/tmp/test.txt",
+)
+# upload_to_azure_blob(account_name, account_key, container_name, file_name)
 pprint.pprint(state)
