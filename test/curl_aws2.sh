@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Replace these values with your AWS credentials
-AWS_ACCESS_KEY="AKIAUWWMWB6LACI5COUO"
-AWS_SECRET_KEY="boXxViBNDrGIP2dCRSFb8rYT8PoQmH/nEBTi1hVg"
+AWS_ACCESS_KEY=""
+AWS_SECRET_KEY=""
 AWS_REGION="us-east-1"
 
 # AWS Cost Explorer API information

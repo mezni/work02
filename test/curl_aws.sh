@@ -1,6 +1,6 @@
 # Set your AWS credentials and region
-export AWS_ACCESS_KEY_ID="AKIAUWWMWB6LACI5COUO"
-export AWS_SECRET_ACCESS_KEY="boXxViBNDrGIP2dCRSFb8rYT8PoQmH/nEBTi1hVg"
+export AWS_ACCESS_KEY_ID=""
+export AWS_SECRET_ACCESS_KEY=""
 export AWS_REGION="us-east-1"
 
 # Set your AWS service and endpoint
