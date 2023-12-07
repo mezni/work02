@@ -1,59 +1,55 @@
-import requests
 from azure.identity import DefaultAzureCredential
-from azure.mgmt.resource import SubscriptionClient, ResourceManagementClient
-from azure.mgmt.consumption import ConsumptionManagementClient
-from datetime import datetime, timedelta
+from azure.mgmt.costmanagement import CostManagementClient
 
 
-def get_subscriptions(credential):
-    subscription_client = SubscriptionClient(credential)
-    subscriptions = list(subscription_client.subscriptions.list())
-    return subscriptions
+def get_azure_cost_data(subscription_id, start_date, end_date):
+    # Use Azure Default Credential for authentication
+    credential = DefaultAzureCredential()
 
+    # Create a CostManagementClient
+    cost_client = CostManagementClient(credential, subscription_id)
 
-def get_resource_groups(credential, subscription_id):
-    resource_client = ResourceManagementClient(credential, subscription_id)
-    resource_groups = list(resource_client.resource_groups.list())
-    return resource_groups
+    # Set the time period for the query
+    timeframe = {"start": start_date, "end": end_date}
 
+    # Set the granularity of the query
+    granularity = "Daily"
 
-def get_azure_costs(credential, subscription_id, scope, start_date, end_date):
-    consumption_client = ConsumptionManagementClient(credential, subscription_id)
+    # Specify the metrics to retrieve
+    metrics = ["AmortizedCost"]
 
-    filter_date_range = "usageEnd eq {} and usageStart eq {}".format(
-        end_date, start_date
-    )
-    usage_details = consumption_client.usage_details.list(
-        scope=scope, filter=filter_date_range
-    )
-    for usage_detail in usage_details:
-        print(f"Resource ID: {usage_detail.resource_id}")
-        print(f"Usage Start: {usage_detail.usage_start}")
-        print(f"Usage End: {usage_detail.usage_end}")
-        print(f"Meter ID: {usage_detail.meter_id}")
-        print(f"Quantity: {usage_detail.quantity}")
-        print(f"Meter Details: {usage_detail.meter_details}")
-        print("------------------------------")
+    # Specify the dimension to group by (optional)
+    dimensions = ["ResourceId"]
 
+    # Build the query
+    query_body = {
+        "type": "Usage",
+        "timeframe": timeframe,
+        "dataset": {
+            "granularity": granularity,
+            "aggregation": {"totalCost": {"name": "PreTaxCost", "function": "Sum"}},
+        },
+        "metrics": metrics,
+        "dimensions": dimensions,
+    }
 
-credential = DefaultAzureCredential()
-subscription_client = SubscriptionClient(credential)
-subscriptions = list(subscription_client.subscriptions.list())
-for subscription in subscriptions:
-    #    print(subscription)
-    #    print(subscription.display_name)
-    #    print(subscription.subscription_id)
-    #    print(subscription.tenant_id)
-    #    print(subscription.state)
-    resource_groups = get_resource_groups(credential, subscription.subscription_id)
-    for resource_group in resource_groups:
-        print(resource_group)
-        print(resource_group.name)
-        print(resource_group.location)
-        print(resource_group.tags)
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=30)
-        scope = "/subscriptions/{subscription.subscription_id}/resourceGroups/{resource_group.name}"
-        get_azure_costs(
-            credential, subscription.subscription_id, scope, start_date, end_date
+    # Retrieve the data
+    result = cost_client.query.usage(subscription_id, parameters=query_body)
+
+    # Print the results
+    for row in result.rows:
+        print(
+            f"Resource ID: {row.dimension_values[0]}, Cost: {row.values[0]} {result.columns[0].unit}"
         )
+
+
+if __name__ == "__main__":
+    # Set your Azure subscription ID
+    subscription_id = "a4a618df-464b-4b87-acbe-ccb077930906"
+
+    # Set the start and end dates for the query
+    start_date = "2023-12-01"
+    end_date = "2023-12-31"
+
+    # Call the function to get cost data
+    get_azure_cost_data(subscription_id, start_date, end_date)
