@@ -70,7 +70,7 @@ services = [
 
 config = {
     "start_date": "2023-06-01",
-    "end_date": "2023-12-12",
+    "end_date": "2023-12-11",
 }
 
 
