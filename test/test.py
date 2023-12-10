@@ -1,55 +1,34 @@
-from azure.identity import DefaultAzureCredential
-from azure.mgmt.costmanagement import CostManagementClient
+import boto3
 
+ce_client = boto3.client("ce")
+start_date = "2023-11-01"
+end_date = "2023-12-01"
 
-def get_azure_cost_data(subscription_id, start_date, end_date):
-    # Use Azure Default Credential for authentication
-    credential = DefaultAzureCredential()
+dimensions = [
+    {"Type": "DIMENSION", "Key": "SERVICE"},
+    {"Type": "TAG", "Key": "user.projet"},
+]
+filter = {"Dimensions": {"Key": "LINKED_ACCOUNT", "Values": ["323625553814"]}}
 
-    # Create a CostManagementClient
-    cost_client = CostManagementClient(credential, subscription_id)
+response = ce_client.get_cost_and_usage(
+    TimePeriod={
+        "Start": start_date,
+        "End": end_date,
+    },
+    Granularity="DAILY",
+    Metrics=["BlendedCost"],
+    GroupBy=dimensions,
+    Filter=filter,
+)
 
-    # Set the time period for the query
-    timeframe = {"start": start_date, "end": end_date}
+for result_by_time in response["ResultsByTime"]:
+    #    print(result_by_time)
+    for group in result_by_time["Groups"]:
+        print(group)
 
-    # Set the granularity of the query
-    granularity = "Daily"
-
-    # Specify the metrics to retrieve
-    metrics = ["AmortizedCost"]
-
-    # Specify the dimension to group by (optional)
-    dimensions = ["ResourceId"]
-
-    # Build the query
-    query_body = {
-        "type": "Usage",
-        "timeframe": timeframe,
-        "dataset": {
-            "granularity": granularity,
-            "aggregation": {"totalCost": {"name": "PreTaxCost", "function": "Sum"}},
-        },
-        "metrics": metrics,
-        "dimensions": dimensions,
-    }
-
-    # Retrieve the data
-    result = cost_client.query.usage(subscription_id, parameters=query_body)
-
-    # Print the results
-    for row in result.rows:
-        print(
-            f"Resource ID: {row.dimension_values[0]}, Cost: {row.values[0]} {result.columns[0].unit}"
-        )
-
-
-if __name__ == "__main__":
-    # Set your Azure subscription ID
-    subscription_id = "a4a618df-464b-4b87-acbe-ccb077930906"
-
-    # Set the start and end dates for the query
-    start_date = "2023-12-01"
-    end_date = "2023-12-31"
-
-    # Call the function to get cost data
-    get_azure_cost_data(subscription_id, start_date, end_date)
+# {'TimePeriod': {'Start': '2023-11-01', 'End': '2023-11-02'}, 'Total': {}, 'Groups': [{'Keys': ['Tax', 'user.projet$'], 'Metrics': {'BlendedCost': {'Amount': '2.13', 'Unit': 'USD'}}}], 'Estimated': False}
+# {'Keys': ['Tax', 'user.projet$'], 'Metrics': {'BlendedCost': {'Amount': '2.13', 'Unit': 'USD'}}}
+# {'TimePeriod': {'Start': '2023-11-02', 'End': '2023-11-03'}, 'Total': {'BlendedCost': {'Amount': '0', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}
+# {'TimePeriod': {'Start': '2023-11-03', 'End': '2023-11-04'}, 'Total': {'BlendedCost': {'Amount': '0', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}
+# {'TimePeriod': {'Start': '2023-11-04', 'End': '2023-11-05'}, 'Total': {'BlendedCost': {'Amount': '0', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}
+# {'TimePeriod': {'Start': '2023-11-05', 'End': '2023-11-06'}, 'Total': {'BlendedCost': {'Amount': '0', 'Unit': 'USD'}}, 'Groups': [], 'Estimated': False}
