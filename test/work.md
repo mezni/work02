@@ -1,3 +1,21 @@
+docker run -p 8888:8888 -v $(pwd):/home/jovyan/work jupyter/minimal-notebook
+
+cost_df = pd.read_csv('work/finsops_horizoninnovations_aws_20231211.csv')
+cost_df['mois']=cost_df['periode'].map(lambda x: x[:7]) 
+
+grouped_single = cost_df.groupby(['mois','compte']).agg({'cout': ['sum']})
+grouped_single.columns = ['cout']
+grouped_single = grouped_single.reset_index()
+grouped_single.head()
+
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+
+ax1.scatter(grouped_single.loc[grouped_single['compte'] == 311653278753]['mois'], grouped_single.loc[grouped_single['compte'] == 311653278753]["cout"], s=10, c='b', marker="s", label='first')
+ax1.scatter(grouped_single.loc[grouped_single['compte'] == 322653477654]['mois'],grouped_single.loc[grouped_single['compte'] == 322653477654]["cout"], s=10, c='r', marker="o", label='second')
+plt.legend(loc='upper left')
+plt.show()
+
 import boto3
 
 start_date = '2022-07-01'
