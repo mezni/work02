@@ -93,28 +93,24 @@ def cost_data_aws(config):
     return data
 
 
-def generate(cost_data, file_name):
-    file_path = "temp.tmp"
+def generate(cost_data):
+    columns = list(cost_data[0].keys())
+    cost_header = ",".join(columns)
+    for item in cost_data:
+        line = []
+        for col in columns:
+            line.append(item[col])
+        cost_line = ",".join(line)
+    print(cost_line)
 
-    with open(file_path, "w") as file:
-        columns = list(cost_data[0].keys())
-        cost_header = ",".join(columns)
-        file.write(cost_header + "\n")
-        for item in cost_data:
-            line = []
-            for col in columns:
-                line.append(item[col])
-            cost_line = ",".join(line)
-            file.write(cost_line + "\n")
 
-    blob_client = BlobClient.from_connection_string(
-        conn_str="DefaultEndpointsProtocol=https;AccountName=finopsblobstorageaccount;AccountKey=XXXXXXXXX;EndpointSuffix=core.windows.net",
-        container_name="bronze",
-        blob_name=file_name,
-    )
+#    blob_client = BlobClient.from_connection_string(
+#            conn_str='DefaultEndpointsProtocol=https;AccountName=finopsblobstorageaccount;AccountKey=TzhCJWAxMwBfJlEB6ZXYMEaS+AQImXYMO8y7cIcHpZrfo0qMuAzEXXz+ZsKvGjwguraPd2VkBrpk+ASthWcOCw==;EndpointSuffix=core.windows.net',
+#            container_name='bronze',
+#            blob_name='test.csv')
 
-    with open("temp.tmp", "rb") as data:
-        blob_client.upload_blob(data)
+#    with open("./generator.py", "rb") as data:
+#            blob_client.upload_blob(data)
 
 
 def process_account(config):
@@ -132,22 +128,12 @@ def process_account(config):
 
     if client.get("cloud_name") == "aws":
         print(state)
-        file_name = (
-            "finops_"
-            + client["client_code"]
-            + "_"
-            + client["cloud_name"]
-            + "_"
-            + client["account_id"]
-            + "_"
-            + datetime.now().strftime("%Y%m%d")
-            + ".csv"
-        )
+        file_name = ""
         if fake_data:
             cost_data = cost_data_aws_fake(config)
         else:
             cost_data = cost_data_aws(config)
-        generate(cost_data, file_name)
+        generate(cost_data)
 
     state["execution"]["end_time"] = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
 
