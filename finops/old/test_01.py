@@ -26,5 +26,5 @@ class BlobManager:
             blob_client.upload_blob(data)
 
 
-blob_manager = BlobManager("XXXX", "YYYY")
-blob_manager.read_blob("bronze", "zigzig", "./test.txt")
+# blob_manager = BlobManager("XXXX", "YYYY")
+# blob_manager.read_blob("bronze", "zigzig", "./test.txt")

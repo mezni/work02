@@ -1,6 +1,8 @@
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 import os
 
+# connection_string = "DefaultEndpointsProtocol=https;AccountName=youraccountname;AccountKey=youraccountkey;EndpointSuffix=core.windows.net"
+
 
 class AzureBlobStorage:
     def __init__(self, connection_string, container_name):
