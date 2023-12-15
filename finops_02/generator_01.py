@@ -105,7 +105,7 @@ def generate(cost_data):
 
 
 #    blob_client = BlobClient.from_connection_string(
-#            conn_str='DefaultEndpointsProtocol=https;AccountName=finopsblobstorageaccount;AccountKey=TzhCJWAxMwBfJlEB6ZXYMEaS+AQImXYMO8y7cIcHpZrfo0qMuAzEXXz+ZsKvGjwguraPd2VkBrpk+ASthWcOCw==;EndpointSuffix=core.windows.net',
+#            conn_str='DefaultEndpointsProtocol=https;AccountName=finopsblobstorageaccount;AccountKey=XXXXXXXXXXXX;EndpointSuffix=core.windows.net',
 #            container_name='bronze',
 #            blob_name='test.csv')
 
