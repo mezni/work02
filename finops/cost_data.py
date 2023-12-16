@@ -8,5 +8,6 @@ config = ConfigManager("config.yaml")
 accounts = config.get_accounts()
 for account in accounts:
     context = ContextManager(account)
-    print(context.start_time)
-    print(context.account_config)
+    context.set_end_time()
+    context_json = context.get_state()
+    print(context_json)
