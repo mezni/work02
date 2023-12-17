@@ -1,5 +1,10 @@
 import boto3
 
+# subscription_id = 'your_subscription_id'
+# client_id = 'your_client_id'
+# client_secret = 'your_client_secret'
+# tenant_id = 'your_tenant_id'
+
 
 class CostAws:
     def __init__(self, credentials, params) -> None:
@@ -29,3 +34,6 @@ class CostAws:
             )
         else:
             return None
+
+    def get_cost_data(self):
+        client_ce = self.create_connection()
