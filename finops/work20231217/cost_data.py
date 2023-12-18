@@ -1,7 +1,7 @@
 # pip install azure-identity
 
 from azure.identity import DefaultAzureCredential
-from core import StorageManager
+from finops.work20231217.core_01 import StorageManager
 
 TENANT_ID = ""
 CLIENT_ID = ""

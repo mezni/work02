@@ -1,3 +1,4 @@
+import os
 import boto3
 from datetime import datetime, timedelta
 
@@ -31,10 +32,12 @@ class CostAws:
         start_date = self.params.get("start_date")
         end_date = self.params.get("end_date")
         granularity = self.params.get("granularity")
-        dimensions = self.params.get("dimensions")
+        dimensions = [
+            {"Type": "DIMENSION", "Key": d} for d in self.params.get("dimensions")
+        ]
         metrics = self.params.get("metrics")
         filters = self.params.get("filters")
-        print(dimensions)
+
         token = None
         while True:
             if token:
@@ -65,13 +68,14 @@ class CostAws:
 
 context = {
     "credentials": {
-        "access_key_id": "XXXX",
-        "secret_access_key": "XXXX",
-        "region": "canada",
+        "access_key_id": os.getenv("access_key_id"),
+        "secret_access_key": os.getenv("secret_access_key"),
+        "region": os.getenv("region"),
     },
     "params": {
-        "start_date": "",
-        "end_date": "",
+        "start_date": "2023-12-16",
+        "end_date": "2023-12-17",
+        "client_name": "test",
         "granularity": "DAILY",
         "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
         "metrics": ["BlendedCost"],
@@ -80,5 +84,7 @@ context = {
 }
 
 x = CostAws(context)
+y = x.get_cost()
+print(y)
 print(x.status)
 print(x.message)
