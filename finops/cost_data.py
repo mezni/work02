@@ -103,7 +103,7 @@ class StorageManager:
 
     def create_blob_client(self):
         return BlobServiceClient(
-            account_url=self.account_url, credential=self.credential
+            account_url=self.account_url, credential=self.credentials
         )
 
     def upload_blob(self, container_name, local_file_path, blob_name):
@@ -125,3 +125,4 @@ app_config = config.get_config()
 key_vault_name = app_config["key-vault-name"]
 storage_account_name = app_config["storage-account-name"]
 storage = StorageManager(storage_account_name)
+storage.upload_blob(container_finops, "/tmp/test.txt", "test.txt")
