@@ -58,7 +58,7 @@ class ContextManager:
                 "filters": "",
             },
             "execution": {
-                "start_time": self.start_time,
+                "start_time": self.start_time.str,
                 "end_time": self.end_time,
                 "status": self.status,
                 "message": self.message,
