@@ -5,6 +5,9 @@ from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
 
+__author__ = "Mohamed Ali MEZNI"
+__version__ = "2023-12-19"
+
 
 class VaultManager:
     def __init__(self, key_vault_name) -> None:
@@ -63,34 +66,6 @@ class ConfigManager:
         return accounts
 
 
-class ContextManager:
-    def __init__(self, account) -> None:
-        self.start_time = ""
-        self.end_time = ""
-        self.status = ""
-        self.message = ""
-        self.context = self.init_context()
-
-    def init_context(self):
-        context = {
-            "credentials": {
-                "access_key_id": "",
-                "secret_access_value": "",
-                "region": "",
-            },
-            "params": {
-                "start_date": "",
-                "end_date": "",
-                "client_name": "",
-                "granularity": "DAILY",
-                "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
-                "metrics": ["BlendedCost"],
-                "filters": "",
-            },
-        }
-        return context
-
-
 class StorageManager:
     def __init__(self, account_name) -> None:
         account_url = f"https://{account_name}.blob.core.windows.net"
@@ -106,34 +81,96 @@ class StorageManager:
             account_url=self.account_url, credential=self.credentials
         )
 
-    def upload_blob(self, container_name, local_file_path, blob_name):
+    def upload_blob(self, container_name, content, blob_name):
         blob_client = self.blob_service_client.get_blob_client(
             container=container_name, blob=blob_name
         )
-        with open(local_file_path, "rb") as data:
-            blob_client.upload_blob(data, overwrite=True)
+        blob_client.upload_blob(content, overwrite=True)
 
-    def download_blob(self, container_name, blob_name, local_file_path):
+    def download_blob(self, container_name, blob_name, content):
         blob_client = self.blob_service_client.get_blob_client(
             container=container_name, blob=blob_name
         )
-        with open(local_file_path, "wb") as data:
-            data.write(blob_client.download_blob().readall())
+        return blob_client.download_blob().readall()
+
+
+class ContextManager:
+    def __init__(self, account) -> None:
+        self.start_time = datetime.now()
+        self.end_time = ""
+        self.status = "success"
+        self.message = ""
+        self.credentials = self.init_credentials(account)
+        self.params = self.init_params(account)
+
+    def set_attribute(self, attribute, value):
+        setattr(self, attribute, value)
+
+    def init_credentials(self, account):
+        credentials = {
+            "account_name": account["account_name"],
+            "access_key_id": account["access_key_id"],
+            "secret_access_key": account["secret_access_key"],
+            "secret_access_value": "",  # get key vault
+        }
+        return credentials
+
+    def init_params(self, account):
+        params = {
+            "start_date": "",
+            "end_date": "",
+            "client_name": account["client_name"],
+            "granularity": "DAILY",
+            "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
+            "metrics": ["BlendedCost"],
+            "filters": "",
+        }
+        return params
+
+    def get_context(self):
+        context = {"credentials": self.credentials, "params": self.params}
+        return context
+
+    def get_state(self):
+        state = {
+            "execution": {
+                "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "end_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "status": self.status,
+                "message": self.message,
+            },
+            "params": self.params,
+        }
+        return state
 
 
 ##
 container_finops = "finops"
-f = open("/tmp/test.txt", "w")
-f.write("Now the file has more content!")
-f.close()
+container_bronze = "bronze"
 ##
 config = ConfigManager("config.yaml")
 app_config = config.get_config()
 key_vault_name = app_config["key-vault-name"]
 storage_account_name = app_config["storage-account-name"]
-storage = StorageManager(storage_account_name)
-storage.upload_blob(container_finops, "/tmp/test.txt", "test.txt")
-storage.download_blob(container_finops, "last_exec.txt", "/tmp/last_exec.txt")
+# key_vault = VaultManager(key_vault_name)
+# storage = StorageManager(storage_account_name)
 
-f = open("/tmp/last_exec.txt", "r")
-print(f.read())
+accounts = config.get_accounts()
+for account in accounts:
+    #    print(account)
+    context_mgr = ContextManager(account)
+    context = context_mgr.get_context()
+    print(context)
+    context_mgr.set_attribute("end_time", datetime.now())
+    state = context_mgr.get_state()
+    print(state)
+
+#    print(context.start_time)
+#    print(context.end_time)
+#    print(context.credentials)
+#    print(context.params)
+
+
+# storage = StorageManager(storage_account_name)
+# content = b"test test\nggggg"
+# storage.upload_blob(container_finops, content, "logs/test.txt")
