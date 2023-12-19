@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from azure.storage.blob import BlobServiceClient
 
 
 class VaultManager:
@@ -90,9 +91,37 @@ class ContextManager:
         return context
 
 
+class StorageManager:
+    def __init__(self, account_name) -> None:
+        account_url = f"https://{account_name}.blob.core.windows.net"
+        self.account_name = account_name
+        self.status = ""
+        self.message = ""
+        self.account_url = account_url
+        self.credentials = DefaultAzureCredential()
+        self.blob_service_client = self.create_blob_client()
+
+    def create_blob_client(self):
+        return BlobServiceClient(
+            account_url=self.account_url, credential=self.credential
+        )
+
+    def upload_blob(self, container_name, local_file_path, blob_name):
+        blob_client = self.blob_service_client.get_blob_client(
+            container=container_name, blob=blob_name
+        )
+        with open(local_file_path, "rb") as data:
+            blob_client.upload_blob(data, overwrite=True)
+
+
+##
+container_finops = "finops"
+f = open("/tmp/test.txt", "w")
+f.write("Now the file has more content!")
+f.close()
+##
 config = ConfigManager("config.yaml")
 app_config = config.get_config()
 key_vault_name = app_config["key-vault-name"]
 storage_account_name = app_config["storage-account-name"]
-print(key_vault_name)
-print(storage_account_name)
+storage = StorageManager(storage_account_name)
