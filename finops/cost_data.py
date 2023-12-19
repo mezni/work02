@@ -113,6 +113,13 @@ class StorageManager:
         with open(local_file_path, "rb") as data:
             blob_client.upload_blob(data, overwrite=True)
 
+    def download_blob(self, container_name, blob_name, local_file_path):
+        blob_client = self.blob_service_client.get_blob_client(
+            container=container_name, blob=blob_name
+        )
+        with open(local_file_path, "wb") as data:
+            data.write(blob_client.download_blob().readall())
+
 
 ##
 container_finops = "finops"
@@ -126,3 +133,7 @@ key_vault_name = app_config["key-vault-name"]
 storage_account_name = app_config["storage-account-name"]
 storage = StorageManager(storage_account_name)
 storage.upload_blob(container_finops, "/tmp/test.txt", "test.txt")
+storage.download_blob(container_finops, "last_exec.txt", "/tmp/last_exec.txt")
+
+f = open("/tmp/last_exec.txt", "r")
+print(f.read())
