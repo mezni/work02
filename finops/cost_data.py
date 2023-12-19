@@ -1,4 +1,4 @@
-import yaml
+import yaml, json
 from datetime import datetime, timedelta
 
 from azure.identity import DefaultAzureCredential
@@ -152,8 +152,8 @@ config = ConfigManager("config.yaml")
 app_config = config.get_config()
 key_vault_name = app_config["key-vault-name"]
 storage_account_name = app_config["storage-account-name"]
-# key_vault = VaultManager(key_vault_name)
-# storage = StorageManager(storage_account_name)
+key_vault = VaultManager(key_vault_name)
+storage = StorageManager(storage_account_name)
 
 accounts = config.get_accounts()
 for account in accounts:
@@ -161,16 +161,8 @@ for account in accounts:
     context_mgr = ContextManager(account)
     context = context_mgr.get_context()
     print(context)
+    # appel Cost
     context_mgr.set_attribute("end_time", datetime.now())
     state = context_mgr.get_state()
-    print(state)
-
-#    print(context.start_time)
-#    print(context.end_time)
-#    print(context.credentials)
-#    print(context.params)
-
-
-# storage = StorageManager(storage_account_name)
-# content = b"test test\nggggg"
-# storage.upload_blob(container_finops, content, "logs/test.txt")
+    content = json.dumps(state, indent=2)
+    storage.upload_blob(container_finops, content, "logs/state.json")
