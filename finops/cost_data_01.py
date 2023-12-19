@@ -90,9 +90,13 @@ class ContextManager:
         return context
 
 
-config = ConfigManager("config.yaml")
-app_config = config.get_config()
-key_vault_name = app_config["key-vault-name"]
-storage_account_name = app_config["storage-account-name"]
-print(key_vault_name)
-print(storage_account_name)
+app_config = ConfigManager("config.yaml")
+# key_vault_name = app_config.get_config()["key-vault-name"]
+# key_vault = VaultManager(key_vault_name)
+accounts = app_config.get_accounts()
+for account in accounts:
+    print(account)
+    #    account["secret_access_value"] = key_vault.get_secret(account["secret_access_key"])
+    context = ContextManager(account)
+    print(context.context)
+#    if account["cloud_name"] == "aws":
