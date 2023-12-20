@@ -7,6 +7,6 @@ clients:
 - client_name: Quantum Innovations
   client_code: quantuminnovations
   cloud_name: aws
-  account_name: momentum-test
+  account_name: momentum_test
   access_key_id: 1111111111
   secret_access_key: secret-momentum-test

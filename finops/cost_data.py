@@ -1,34 +1,13 @@
 import yaml, json
 from datetime import datetime, timedelta
-
+import boto3
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
 from azure.storage.blob import BlobServiceClient
+from azure.core.exceptions import ResourceNotFoundError
 
 __author__ = "Mohamed Ali MEZNI"
 __version__ = "2023-12-19"
-
-
-class VaultManager:
-    def __init__(self, key_vault_name) -> None:
-        keyvault_url = f"https://{key_vault_name}.vault.azure.net"
-        self.status = ""
-        self.message = ""
-        self.keyvault_url = keyvault_url
-        self.credentials = DefaultAzureCredential()
-        self.secret_client = self.create_secret_client()
-
-    def create_secret_client(self):
-        return SecretClient(vault_url=self.keyvault_url, credential=self.credentials)
-
-    def get_secret(self, secret_name):
-        try:
-            secret = self.secret_client.get_secret(secret_name)
-            return secret.value
-        except Exception as e:
-            self.status = "failed"
-            self.message = e
-            return None
 
 
 class ConfigManager:
@@ -66,6 +45,28 @@ class ConfigManager:
         return accounts
 
 
+class VaultManager:
+    def __init__(self, key_vault_name) -> None:
+        keyvault_url = f"https://{key_vault_name}.vault.azure.net"
+        self.status = ""
+        self.message = ""
+        self.keyvault_url = keyvault_url
+        self.credentials = DefaultAzureCredential()
+        self.secret_client = self.create_secret_client()
+
+    def create_secret_client(self):
+        return SecretClient(vault_url=self.keyvault_url, credential=self.credentials)
+
+    def get_secret(self, secret_name):
+        try:
+            secret = self.secret_client.get_secret(secret_name)
+            return secret.value
+        except Exception as e:
+            self.status = "failed"
+            self.message = e
+            return None
+
+
 class StorageManager:
     def __init__(self, account_name) -> None:
         account_url = f"https://{account_name}.blob.core.windows.net"
@@ -87,39 +88,143 @@ class StorageManager:
         )
         blob_client.upload_blob(content, overwrite=True)
 
-    def download_blob(self, container_name, blob_name, content):
-        blob_client = self.blob_service_client.get_blob_client(
-            container=container_name, blob=blob_name
-        )
-        return blob_client.download_blob().readall()
+    def download_blob(self, container_name, blob_name):
+        return {}
+
+    #    blob_client = self.blob_service_client.get_blob_client(
+    #        container=container_name, blob=blob_name
+    #    )
+    #    return blob_client.download_blob().readall()
+
+
+class CostAws:
+    def __init__(self, context) -> None:
+        self.status = None
+        self.message = None
+        self.credentials = context.get("credentials")
+        self.params = context.get("params")
+        self.ce_client = self.create_ce_client()
+
+    def create_ce_client(self):
+        try:
+            return boto3.client(
+                "ce",
+                aws_access_key_id=self.credentials.get("access_key_id"),
+                aws_secret_access_key=self.credentials.get("secret_access_value"),
+                region_name=self.credentials.get("region"),
+            )
+        except Exception as e:
+            self.status = "failed"
+            self.message = e
+            return None
+
+    def get_cost(self):
+        results = []
+
+        start_date = self.params.get("start_date")
+        end_date = self.params.get("end_date")
+        granularity = self.params.get("granularity")
+        dimensions = [
+            {"Type": "DIMENSION", "Key": d} for d in self.params.get("dimensions")
+        ]
+        metrics = self.params.get("metrics")
+        filters = self.params.get("filters")
+
+        token = None
+        while True:
+            if token:
+                kwargs = {"NextPageToken": token}
+            else:
+                kwargs = {}
+
+            try:
+                if filters:
+                    data = self.ce_client.get_cost_and_usage(
+                        TimePeriod={"Start": start_date, "End": end_date},
+                        Granularity=granularity,
+                        Metrics=metrics,
+                        GroupBy=dimensions,
+                        Filters=filters,
+                        **kwargs,
+                    )
+                else:
+                    data = self.ce_client.get_cost_and_usage(
+                        TimePeriod={"Start": start_date, "End": end_date},
+                        Granularity=granularity,
+                        Metrics=metrics,
+                        GroupBy=dimensions,
+                        **kwargs,
+                    )
+
+                results += data["ResultsByTime"]
+                token = data.get("NextPageToken")
+            except Exception as e:
+                self.status = "failed"
+                self.message = e
+
+            if not token:
+                break
+
+        return results
 
 
 class ContextManager:
-    def __init__(self, account) -> None:
+    def __init__(self, account, key_vault, storage) -> None:
         self.start_time = datetime.now()
         self.end_time = ""
         self.status = "success"
         self.message = ""
         self.credentials = self.init_credentials(account)
+        self.variables = self.init_variables(account)
         self.params = self.init_params(account)
 
     def set_attribute(self, attribute, value):
         setattr(self, attribute, value)
 
+    def init_variables(self, account):
+        variables = {
+            "client_name": account["client_name"],
+            "client_code": account["client_code"],
+            "account_name": account["account_name"],
+            "file_name": "finops"
+            + "_"
+            + account["client_code"]
+            + "_"
+            + account["account_name"]
+            + "_"
+            + self.start_time.strftime("%Y%m%d")
+            + "."
+            + "csv",
+            "state_last_name": "last_state_" + account["account_name"] + ".json",
+            "state_prev_name": "prev_state_" + account["account_name"] + ".json",
+        }
+        return variables
+
     def init_credentials(self, account):
+        try:
+            # secret_access_value = key_vault.get_secret(account["secret_access_key"])
+            secret_access_value = ""
+        except Exception as e:
+            secret_access_value = ""
+
         credentials = {
             "account_name": account["account_name"],
             "access_key_id": account["access_key_id"],
             "secret_access_key": account["secret_access_key"],
-            "secret_access_value": "",  # get key vault
+            "secret_access_value": secret_access_value,
         }
         return credentials
 
     def init_params(self, account):
+        state_last_file = self.variables["state_last_name"]
+        state_prev_file = self.variables["state_prev_name"]
+        state_last_content = storage.download_blob(container_finops, state_last_file)
+        state_prev_content = storage.download_blob(container_finops, state_prev_file)
+        start_date, end_date = self.get_dates(state_last_content, state_prev_content)
         params = {
-            "start_date": "",
-            "end_date": "",
-            "client_name": account["client_name"],
+            "start_date": start_date,
+            "end_date": end_date,
+            "client_name": self.variables["client_name"],
             "granularity": "DAILY",
             "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
             "metrics": ["BlendedCost"],
@@ -127,11 +232,20 @@ class ContextManager:
         }
         return params
 
+    def get_dates(self, state_last_content, state_prev_content):
+        start_date = ""
+        end_date = self.start_time.strftime("%Y-%m-%d")
+        if not state_last_content and not state_prev_content:
+            start_date_dt = self.start_time - timedelta(days=335)
+            start_date = start_date_dt.strftime("%Y-%m") + "-01"
+        return start_date, end_date
+
     def get_context(self):
         context = {"credentials": self.credentials, "params": self.params}
         return context
 
-    def get_state(self):
+    def write_state(self):
+        # write state and manager previous state
         state = {
             "execution": {
                 "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
@@ -142,6 +256,9 @@ class ContextManager:
             "params": self.params,
         }
         return state
+
+    def write_cost(self, cost_data):
+        self.end_time = datetime.now()
 
 
 ##
@@ -157,12 +274,7 @@ storage = StorageManager(storage_account_name)
 
 accounts = config.get_accounts()
 for account in accounts:
-    #    print(account)
-    context_mgr = ContextManager(account)
-    context = context_mgr.get_context()
-    print(context)
-    # appel Cost
-    context_mgr.set_attribute("end_time", datetime.now())
-    state = context_mgr.get_state()
-    content = json.dumps(state, indent=2)
-    storage.upload_blob(container_finops, content, "logs/state.json")
+    context_mgr = ContextManager(account, key_vault, storage)
+    if account["cloud_name"] == "aws":
+        cost_data = CostAws(context_mgr.get_context())
+    context_mgr.write_cost(cost_data)
