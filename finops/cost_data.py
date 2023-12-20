@@ -7,7 +7,7 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2023-12-19"
+__version__ = "2023-12-20"
 
 
 class ConfigManager:
@@ -89,12 +89,10 @@ class StorageManager:
         blob_client.upload_blob(content, overwrite=True)
 
     def download_blob(self, container_name, blob_name):
-        return {}
-
-    #    blob_client = self.blob_service_client.get_blob_client(
-    #        container=container_name, blob=blob_name
-    #    )
-    #    return blob_client.download_blob().readall()
+        blob_client = self.blob_service_client.get_blob_client(
+            container=container_name, blob=blob_name
+        )
+        return blob_client.download_blob().readall()
 
 
 class CostAws:
@@ -202,8 +200,7 @@ class ContextManager:
 
     def init_credentials(self, account):
         try:
-            # secret_access_value = key_vault.get_secret(account["secret_access_key"])
-            secret_access_value = ""
+            secret_access_value = key_vault.get_secret(account["secret_access_key"])
         except Exception as e:
             secret_access_value = ""
 
@@ -276,5 +273,7 @@ accounts = config.get_accounts()
 for account in accounts:
     context_mgr = ContextManager(account, key_vault, storage)
     if account["cloud_name"] == "aws":
-        cost_data = CostAws(context_mgr.get_context())
+        context = context_mgr.get_context()
+        context["params"]["end_date"] = "2023-02-01"
+        cost_data = CostAws(context)
     context_mgr.write_cost(cost_data)
