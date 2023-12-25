@@ -58,6 +58,6 @@ class ConfigManager:
         return iter(self.accounts)
 
 
-cfg = ConfigManager("config.yaml")
+cfg = ConfigManager("config1.yaml")
 for c in cfg:
     print(c)
