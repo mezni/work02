@@ -1,0 +1,11 @@
+app:
+  name: finops
+  version: 1.0.0
+  key-vault-name: finops-keyvault5
+  storage-account-name: finopsmomstorageaccount  
+clients:
+- client_name: momentum tech
+  cloud_name: aws
+  account_name: momentumtech
+  access_key_id: 1111111111
+  secret_access_key: secret-momentum-tech
