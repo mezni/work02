@@ -2,6 +2,7 @@ __author__ = "Mohamed Ali MEZNI"
 __version__ = "2023-12-26"
 
 import yaml, json, uuid
+from datetime import datetime
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -56,7 +57,7 @@ class StorageManager:
     def __init__(self) -> None:
         pass
 
-    def get_content(self):
+    def get_content(self, file_name) -> dict:
         return {}
 
     def upload_data(self, data):
@@ -65,17 +66,34 @@ class StorageManager:
 
 class ContextManager:
     def __init__(self, account, last_state, prev_state) -> None:
-        self.cloud_name = "aws"
+        self.context_id = str(uuid.uuid4())
+        self.start_time = datetime.now()
+        self.end_time = None
+        self.status = "success"
+        self.message = ""
+        self.cloud_name = account["cloud_name"]
+        self.credentials = self.init_credentials(account)
+        self.variables = self.init_variables(account)
+        self.params = self.init_params(account)
+
+    def init_credentials(self, account):
+        pass
+
+    def init_variables(self, account):
+        pass
+
+    def init_params(self, account):
         pass
 
     def get_states(self):
         return {}, {}
 
     def get_context(self):
-        return {}
+        context = {}
+        return context
 
     def exit(self):
-        pass
+        self.end_time = datetime.now()
 
 
 class CostAws:
@@ -102,8 +120,10 @@ keyvault_mgr = VaultManager(key_vault_name)
 config = ConfigManager(config_file)
 
 for account_cfg in config.get_accounts():
-    last_state = storage_mgr.get_content()
-    prev_state = storage_mgr.get_content()
+    last_state_file = account_cfg["account_name"] + "_last.state"
+    prev_state_file = account_cfg["account_name"] + "_prev.state"
+    last_state = storage_mgr.get_content(last_state_file)
+    prev_state = storage_mgr.get_content(prev_state_file)
     ctx = ContextManager(account_cfg, last_state, prev_state)
     if ctx.cloud_name == "aws":
         cost_data = CostAws(ctx.get_context())
