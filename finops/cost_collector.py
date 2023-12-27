@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2023-12-26"
+__version__ = "2023-12-27"
 
 import yaml, json, uuid
 from datetime import datetime
