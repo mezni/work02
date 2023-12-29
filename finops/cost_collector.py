@@ -1,9 +1,11 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2023-12-27"
+__version__ = "2023-12-29"
 
 import yaml, json, uuid
 from datetime import datetime
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 
 
 class Settings(BaseSettings):
@@ -50,7 +52,22 @@ class ConfigManager:
 
 class VaultManager:
     def __init__(self, key_vault_name) -> None:
-        pass
+        keyvault_url = f"https://{key_vault_name}.vault.azure.net"
+        self.status = ""
+        self.message = ""
+        self.keyvault_url = keyvault_url
+        self.credentials = DefaultAzureCredential()
+        self.secret_client = self.create_secret_client()
+
+    def create_secret_client(self):
+        return SecretClient(vault_url=self.keyvault_url, credential=self.credentials)
+
+    def get_secret(self, ctx):
+        try:
+            secret = self.key_vault.get_secret(ctx["credentials"]["secret_access_key"])
+        except Exception as e:
+            secret = ""
+        return secret
 
 
 class StorageManager:
@@ -75,9 +92,18 @@ class ContextManager:
         self.credentials = self.init_credentials(account)
         self.variables = self.init_variables(account)
         self.params = self.init_params(account)
+        self.last_state = last_state
+        self.prev_state = prev_state
 
     def init_credentials(self, account):
-        pass
+        secret_access_value = ""
+        credentials = {
+            "account_name": account["account_name"],
+            "access_key_id": account["access_key_id"],
+            "secret_access_key": account["secret_access_key"],
+            "secret_access_value": secret_access_value,
+        }
+        return credentials
 
     def init_variables(self, account):
         pass
@@ -85,8 +111,26 @@ class ContextManager:
     def init_params(self, account):
         pass
 
+    def set_secret(self, secret):
+        self.credentials["secret_access_value"] = secret
+        if secret == "":
+            self.status = "failed"
+            self.message = "secret is null"
+
     def get_states(self):
-        return {}, {}
+        current_state = {
+            "execution": {
+                "context_id": self.context_id,
+                "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "end_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "status": self.status,
+                "message": self.message,
+            },
+            "params": self.params,
+        }
+        last_state = self.last_state
+
+        return current_state, {}
 
     def get_context(self):
         context = {}
@@ -125,6 +169,8 @@ for account_cfg in config.get_accounts():
     last_state = storage_mgr.get_content(last_state_file)
     prev_state = storage_mgr.get_content(prev_state_file)
     ctx = ContextManager(account_cfg, last_state, prev_state)
+    secret = keyvault_mgr.get_secret(ctx)
+    ctx.set_secret(secret)
     if ctx.cloud_name == "aws":
         cost_data = CostAws(ctx.get_context())
     if ctx.cloud_name == "azure":
@@ -132,5 +178,6 @@ for account_cfg in config.get_accounts():
     ctx.exit()
     storage_mgr.upload_data(cost_data)
     current_state, last_state = ctx.get_states()
+    print(current_state, last_state)
     storage_mgr.upload_data(current_state)
     storage_mgr.upload_data(last_state)
