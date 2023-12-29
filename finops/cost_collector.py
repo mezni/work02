@@ -130,7 +130,7 @@ class ContextManager:
         }
         last_state = self.last_state
 
-        return current_state, {}
+        return current_state, last_state
 
     def get_context(self):
         context = {}
