@@ -12,5 +12,3 @@ bronze_container = settings.BRONZE_CONTAINER
 silver_container = settings.SILVER_CONTAINER
 
 config = ConfigManager(config_file)
-
-print(key_vault_name)
