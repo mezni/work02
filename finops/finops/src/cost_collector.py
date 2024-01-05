@@ -8,18 +8,19 @@ logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 logging.info("Start")
 
 settings, status = Settings().get_settings()
-
-if not status["error"]:
+if status["error"]:
     logging.error(status["message"])
     logging.info("End")
     sys.exit(1)
 
 config = ConfigManager(settings["config_file_name"])
 accounts, status = config.get_accounts()
-if not status["error"]:
+if status["error"]:
     logging.error(status["message"])
     logging.info("End")
     sys.exit(1)
+
+print(accounts)
 
 logging.info("End")
 sys.exit(0)
