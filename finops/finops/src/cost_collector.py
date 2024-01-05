@@ -1,13 +1,25 @@
 __author__ = "Mohamed Ali MEZNI"
 __version__ = "2024-01-05"
 
+import logging, sys
 from cost_core import Settings, ConfigManager
 
+logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logging.info("Start")
+
 settings, status = Settings().get_settings()
+
 if not status["error"]:
-    print(status["message"])
-else:
-    pass
+    logging.error(status["message"])
+    logging.info("End")
+    sys.exit(1)
 
 config = ConfigManager(settings["config_file_name"])
-print(config.get_accounts())
+accounts, status = config.get_accounts()
+if not status["error"]:
+    logging.error(status["message"])
+    logging.info("End")
+    sys.exit(1)
+
+logging.info("End")
+sys.exit(0)
