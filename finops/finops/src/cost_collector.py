@@ -2,7 +2,7 @@ __author__ = "Mohamed Ali MEZNI"
 __version__ = "2024-01-05"
 
 import logging, sys
-from cost_core import Settings, ConfigManager
+from cost_core import Settings, ConfigManager, VaultManager
 
 logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
 logging.info("Start")
@@ -20,7 +20,10 @@ if status["error"]:
     logging.info("End")
     sys.exit(1)
 
+
 print(accounts)
+
+# keyvault_mgr = VaultManager(settings["key_vault_name"])
 
 logging.info("End")
 sys.exit(0)

@@ -3,6 +3,8 @@ __version__ = "2024-01-05"
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
 
 
 class Settings(BaseSettings):
@@ -29,6 +31,32 @@ class Settings(BaseSettings):
             status["error"] = True
             status["message"] = "get settings"
         return settings, status
+
+
+class VaultManager:
+    def __init__(self, key_vault_name) -> None:
+        keyvault_url = f"https://{key_vault_name}.vault.azure.net"
+        self.status = {}
+        self.keyvault_url = keyvault_url
+        self.credentials = self.get_credentials()
+        self.secret_client = self.create_secret_client()
+
+    def get_credentials(self):
+        try:
+            credentials = DefaultAzureCredential()
+        except:
+            credentials = None
+        return credentials
+
+    def create_secret_client(self):
+        return SecretClient(vault_url=self.keyvault_url, credential=self.credentials)
+
+    def get_secret(self, secret_access_key):
+        try:
+            secret = self.key_vault.get_secret(secret_access_key)
+        except Exception as e:
+            secret = ""
+        return secret
 
 
 class ConfigManager:
