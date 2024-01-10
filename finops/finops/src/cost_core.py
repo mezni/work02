@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-09"
+__version__ = "2024-01-10"
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -113,8 +113,15 @@ class StorageManager:
         )
         return blob_service_client
 
-    def upload_blob(self, container_name, content, blob_name):
+    def upload_content(self, container_name, content, blob_name):
         blob_client = self.blob_service_client.get_blob_client(
             container=container_name, blob=blob_name
         )
         blob_client.upload_blob(content, overwrite=True)
+
+    def upload_blob(self, container_name, file_name, blob_name):
+        container_client = self.blob_service_client.get_container_client(
+            container=container_name
+        )
+        with open(file_name, "rb") as data:
+            container_client.upload_blob(name=blob_name, data=data)

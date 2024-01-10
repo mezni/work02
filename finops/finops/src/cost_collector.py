@@ -175,17 +175,22 @@ class CostAws:
 
 # MAIN
 
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logging.info("Start")
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
+fh = logging.StreamHandler()
+fh_formatter = logging.Formatter("%(asctime)s %(levelname)s - %(message)s")
+fh.setFormatter(fh_formatter)
+logger.addHandler(fh)
+
+
+logger.info("Start")
 
 query_history_days = 180
 
 settings, status = Settings().get_settings()
 if status["error"]:
-    logging.error(status["message"])
-    logging.info("End")
+    logger.error(status["message"])
+    logger.info("End")
     sys.exit(1)
 bronze_container = settings["bronze_container"]
 silver_container = settings["silver_container"]
@@ -198,12 +203,12 @@ storage_mgr = StorageManager(
 config = ConfigManager(settings["config_file_name"])
 accounts, status = config.get_accounts()
 if status["error"]:
-    logging.error(status["message"])
-    logging.info("End")
+    logger.error(status["message"])
+    logger.info("End")
     sys.exit(1)
 
 for account in accounts:
-    logging.info(f"generate cost for : client=<{account['client_name']}>")
+    logger.info(f"generate cost for : client=<{account['client_name']}>")
     if account["cloud_name"] == "aws":
         secret_access_key = None
         #        secret_access_key = keyvault_mgr.create_secret_client(
@@ -222,6 +227,14 @@ for account in accounts:
         }
         cost_aws = CostAws(account_cfg)
         state = cost_aws.generate_csv()
-        storage_mgr.upload_blob(bronze_container, json.dumps(state), "state.json")
-
-logging.info("End")
+        blob_name = (
+            "state"
+            + "_"
+            + account["account_name"]
+            + "_"
+            + account["cloud_name"]
+            + ".json"
+        )
+#        storage_mgr.upload_content(bronze_container, json.dumps(state), blob_name)
+#        storage_mgr.upload_blob(bronze_container, "config.yaml", "config.yaml")
+logger.info("End")
