@@ -2,9 +2,9 @@ __author__ = "Mohamed Ali MEZNI"
 __version__ = "2024-01-10"
 
 import boto3
-import uuid, logging, sys
+import uuid, logging, sys, json
 from datetime import datetime, timedelta
-from cost_core import Settings, ConfigManager, VaultManager
+from cost_core import Settings, ConfigManager, VaultManager, StorageManager
 
 
 class CostAws:
@@ -187,7 +187,12 @@ if status["error"]:
     logging.error(status["message"])
     logging.info("End")
     sys.exit(1)
+bronze_container = settings["bronze_container"]
+silver_container = settings["silver_container"]
 
+storage_mgr = StorageManager(
+    settings["storage_account_name"], settings["storage_account_key"]
+)
 # keyvault_mgr = VaultManager(settings["key_vault_name"])
 
 config = ConfigManager(settings["config_file_name"])
@@ -217,5 +222,6 @@ for account in accounts:
         }
         cost_aws = CostAws(account_cfg)
         state = cost_aws.generate_csv()
+        storage_mgr.upload_blob(bronze_container, json.dumps(state), "state.json")
 
 logging.info("End")

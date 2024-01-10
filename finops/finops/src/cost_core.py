@@ -5,6 +5,7 @@ import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
+from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
 
 
 class Settings(BaseSettings):
@@ -97,3 +98,23 @@ class VaultManager:
         except Exception as e:
             secret = ""
         return secret
+
+
+class StorageManager:
+    def __init__(self, account_name, account_key) -> None:
+        self.account_name = account_name
+        self.account_key = account_key  # DefaultAzureCredential()
+        self.blob_service_client = self.create_blob_client()
+
+    def create_blob_client(self):
+        account_url = f"https://{self.account_name}.blob.core.windows.net"
+        blob_service_client = BlobServiceClient(
+            account_url=account_url, credential=self.account_key
+        )
+        return blob_service_client
+
+    def upload_blob(self, container_name, content, blob_name):
+        blob_client = self.blob_service_client.get_blob_client(
+            container=container_name, blob=blob_name
+        )
+        blob_client.upload_blob(content, overwrite=True)
