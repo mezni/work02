@@ -1,11 +1,11 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-10"
+__version__ = "2024-01-11"
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from azure.identity import DefaultAzureCredential
 from azure.keyvault.secrets import SecretClient
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient
+from azure.storage.blob import BlobServiceClient
 
 
 class Settings(BaseSettings):
@@ -113,15 +113,40 @@ class StorageManager:
         )
         return blob_service_client
 
-    def upload_content(self, container_name, content, blob_name):
-        blob_client = self.blob_service_client.get_blob_client(
-            container=container_name, blob=blob_name
+    #    def upload_content(self, container_name, content, blob_name):
+    #        blob_client = self.blob_service_client.get_blob_client(
+    #            container=container_name, blob=blob_name
+    #        )
+    #        blob_client.upload_blob(content, overwrite=True)
+
+    def download_blob(self, container_name, blob_name, file_name):
+        container_client = self.blob_service_client.get_container_client(
+            container=container_name
         )
-        blob_client.upload_blob(content, overwrite=True)
+        try:
+            blob_client = container_client.get_blob_client(blob_name)
+            with open(file_name, "wb") as local_file:
+                blob_data = blob_client.download_blob()
+                local_file.write(blob_data.readall())
+        except:
+            pass
 
     def upload_blob(self, container_name, file_name, blob_name):
         container_client = self.blob_service_client.get_container_client(
             container=container_name
         )
-        with open(file_name, "rb") as data:
-            container_client.upload_blob(name=blob_name, data=data)
+        try:
+            with open(file_name, "rb") as data:
+                container_client.upload_blob(name=blob_name, data=data)
+        except:
+            pass
+
+    def list_blobs(self, container_name):
+        blobs = []
+        container_client = self.blob_service_client.get_container_client(
+            container=container_name
+        )
+        result = container_client.list_blobs()
+        for r in result:
+            blobs.append(r.name)
+        return blobs
