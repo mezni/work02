@@ -1,8 +1,8 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-10"
+__version__ = "2024-01-11"
 
 import boto3
-import uuid, logging, sys, json
+import os, sys, json, uuid, logging
 from datetime import datetime, timedelta
 from cost_core import Settings, ConfigManager, VaultManager, StorageManager
 
@@ -124,7 +124,7 @@ class CostAws:
             output_dir
             + "/"
             + "finops_"
-            + client_name
+            + client_code
             + "_"
             + cloud_name
             + "_"
@@ -227,14 +227,9 @@ for account in accounts:
         }
         cost_aws = CostAws(account_cfg)
         state = cost_aws.generate_csv()
-        blob_name = (
-            "state"
-            + "_"
-            + account["account_name"]
-            + "_"
-            + account["cloud_name"]
-            + ".json"
-        )
-#        storage_mgr.upload_content(bronze_container, json.dumps(state), blob_name)
-#        storage_mgr.upload_blob(bronze_container, "config.yaml", "config.yaml")
-logger.info("End")
+        file_name = cost_aws.output_file_name
+        blob_name = os.path.basename(file_name)
+        if os.path.isfile(file_name):
+            storage_mgr.upload_blob(
+                bronze_container, cost_aws.output_file_name, blob_name
+            )

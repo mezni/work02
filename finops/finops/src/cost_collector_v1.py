@@ -1,6 +1,10 @@
+__author__ = "Mohamed Ali MEZNI"
+__version__ = "2024-01-10"
+
 import boto3
-import uuid
+import uuid, logging, sys, json
 from datetime import datetime, timedelta
+from cost_core import Settings, ConfigManager, VaultManager, StorageManager
 
 
 class CostAws:
@@ -86,7 +90,7 @@ class CostAws:
                             {"Type": "DIMENSION", "Key": "LINKED_ACCOUNT"},
                             {"Type": "DIMENSION", "Key": "SERVICE"},
                         ],
-                        **kwargs
+                        **kwargs,
                     )
                     results += data["ResultsByTime"]
                     token = data.get("NextPageToken")
@@ -169,22 +173,68 @@ class CostAws:
         return state
 
 
-account_cfg = {
-    "client_name": "test",
-    "client_code": "test",
-    "account_name": "test",
-    "cloud_name": "aws",
-    "region": "ca-central-1",
-    "access_key_id": "",
-    "secret_access_key": "",
-    "last_start_date": "",
-    "last_end_date": "",
-}
-
 # MAIN
+
+logger = logging.getLogger(__name__)
+logger.setLevel(level=logging.INFO)
+fh = logging.StreamHandler()
+fh_formatter = logging.Formatter("%(asctime)s %(levelname)s - %(message)s")
+fh.setFormatter(fh_formatter)
+logger.addHandler(fh)
+
+
+logger.info("Start")
+
 query_history_days = 180
 
-if account_cfg["cloud_name"] == "aws":
-    cost_aws = CostAws(account_cfg)
-    state = cost_aws.generate_csv()
-    print(state)
+settings, status = Settings().get_settings()
+if status["error"]:
+    logger.error(status["message"])
+    logger.info("End")
+    sys.exit(1)
+bronze_container = settings["bronze_container"]
+silver_container = settings["silver_container"]
+
+storage_mgr = StorageManager(
+    settings["storage_account_name"], settings["storage_account_key"]
+)
+# keyvault_mgr = VaultManager(settings["key_vault_name"])
+
+config = ConfigManager(settings["config_file_name"])
+accounts, status = config.get_accounts()
+if status["error"]:
+    logger.error(status["message"])
+    logger.info("End")
+    sys.exit(1)
+
+for account in accounts:
+    logger.info(f"generate cost for : client=<{account['client_name']}>")
+    if account["cloud_name"] == "aws":
+        secret_access_key = None
+        #        secret_access_key = keyvault_mgr.create_secret_client(
+        #            account["secret_access_key_name"]
+        #        )
+        account_cfg = {
+            "client_name": account["client_name"],
+            "client_code": account["client_name"].replace(" ", ""),
+            "account_name": account["account_name"],
+            "cloud_name": account["cloud_name"],
+            "region": "ca-central-1",
+            "access_key_id": account["access_key_id"],
+            "secret_access_key": secret_access_key,
+            "last_start_date": "",
+            "last_end_date": "",
+        }
+        cost_aws = CostAws(account_cfg)
+        state = cost_aws.generate_csv()
+        blob_name = (
+            "state"
+            + "_"
+            + account["account_name"]
+            + "_"
+            + account["cloud_name"]
+            + ".json"
+        )
+#        storage_mgr.upload_content(bronze_container, json.dumps(state), blob_name)
+#        storage_mgr.upload_blob(bronze_container, "config.yaml", "config.yaml")
+logger.info("End")
