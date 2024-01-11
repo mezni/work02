@@ -41,7 +41,7 @@ class CostAws:
                 "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
                 "end_time": self.end_time.strftime("%d-%m-%Y %H:%M:%S"),
                 "error": self.error,
-                "message": self.message,
+                "error": self.message,
                 "output_file": self.output_file_name,
             },
             "params": {
@@ -173,33 +173,7 @@ class CostAws:
         return state
 
 
-def get_query_dates(account):
-    start_date = ""
-    end_date = ""
-    client_code = account["client_name"].replace(" ", "")
-    prev_state_file_name = (
-        "state"
-        + "_"
-        + client_code
-        + "_"
-        + account["cloud_name"]
-        + "_"
-        + account["account_name"]
-        + ".json"
-    )
-    storage_mgr.download_blob(
-        bronze_container, prev_state_file_name, tmp_dir + "/" + prev_state_file_name
-    )
-    state = json.load(tmp_dir + "/" + prev_state_file_name)
-    if not state["execution"]["error"]:
-        start_date = ""
-        end_date = ""
-    return start_date, end_date
-
-
 # MAIN
-query_history_days = 180
-tmp_dir = "/tmp"
 
 logger = logging.getLogger(__name__)
 logger.setLevel(level=logging.INFO)
@@ -208,7 +182,10 @@ fh_formatter = logging.Formatter("%(asctime)s %(levelname)s - %(message)s")
 fh.setFormatter(fh_formatter)
 logger.addHandler(fh)
 
+
 logger.info("Start")
+
+query_history_days = 180
 
 settings, status = Settings().get_settings()
 if status["error"]:
@@ -237,10 +214,9 @@ for account in accounts:
         #        secret_access_key = keyvault_mgr.create_secret_client(
         #            account["secret_access_key_name"]
         #        )
-
         account_cfg = {
             "client_name": account["client_name"],
-            "client_code": client_code,
+            "client_code": account["client_name"].replace(" ", ""),
             "account_name": account["account_name"],
             "cloud_name": account["cloud_name"],
             "region": "ca-central-1",
@@ -249,3 +225,21 @@ for account in accounts:
             "last_start_date": "",
             "last_end_date": "",
         }
+        cost_aws = CostAws(account_cfg)
+        state = cost_aws.generate_csv()
+        file_name = cost_aws.output_file_name
+        blob_name = os.path.basename(file_name)
+        if os.path.isfile(file_name):
+            storage_mgr.upload_blob(
+                bronze_container, cost_aws.output_file_name, blob_name
+            )
+        state_file_name = (
+            output_dir
+            + "/"
+            + client_code
+            + "_"
+            + cloud_name
+            + "_"
+            + account_name
+            + ".json"
+        )
