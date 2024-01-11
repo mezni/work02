@@ -233,3 +233,13 @@ for account in accounts:
             storage_mgr.upload_blob(
                 bronze_container, cost_aws.output_file_name, blob_name
             )
+        state_file_name = (
+            output_dir
+            + "/"
+            + client_code
+            + "_"
+            + cloud_name
+            + "_"
+            + account_name
+            + ".json"
+        )
