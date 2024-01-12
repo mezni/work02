@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-11"
+__version__ = "2024-01-12"
 
 import boto3
 import os, sys, json, uuid, logging
@@ -333,3 +333,5 @@ for account in accounts:
         storage_mgr.upload_blob(
             bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
         )
+
+logger.info("End")
