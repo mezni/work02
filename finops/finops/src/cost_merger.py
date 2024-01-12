@@ -50,7 +50,7 @@ if status["error"]:
 
 
 first_load = True
-df_result = None
+df_result = pd.DataFrame()
 input_files = storage_mgr.list_blobs(bronze_container)
 for file_name in input_files:
     if file_name.startswith("finops"):
@@ -81,7 +81,9 @@ if not df_result.empty:
 
     df_finops = df_finops.drop_duplicates(subset=duplicate_cols, keep="last")
     df_finops.to_csv(tmp_dir + "/" + finops_file_new_name, index=False)
-    storage_mgr.upload_blob(silver_container, finops_file_new_name, finops_file_name)
+    storage_mgr.upload_blob(
+        silver_container, tmp_dir + "/" + finops_file_new_name, finops_file_name
+    )
 
     for file_name in input_files:
         if file_name.startswith("finops"):
