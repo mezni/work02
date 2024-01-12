@@ -238,10 +238,7 @@ def get_query_dates(account):
 
 
 def get_account_config(account):
-    secret_access_key = None
-    #    secret_access_key = keyvault_mgr.create_secret_client(
-    #        account["secret_access_key_name"]
-    #    )
+    secret_access_key = keyvault_mgr.get_secret(account["secret_access_key_name"])
 
     client_code = account["client_name"].replace(" ", "")
     last_start_date, last_end_date = get_query_dates(account)
@@ -283,7 +280,7 @@ silver_container = settings["silver_container"]
 storage_mgr = StorageManager(
     settings["storage_account_name"], settings["storage_account_key"]
 )
-# keyvault_mgr = VaultManager(settings["key_vault_name"])
+keyvault_mgr = VaultManager(settings["key_vault_name"])
 
 config = ConfigManager(settings["config_file_name"])
 accounts, status = config.get_accounts()
@@ -298,7 +295,8 @@ for account in accounts:
         account_conf = get_account_config(account)
         cost_aws = CostAws(account_conf)
         state = cost_aws.generate_csv()
-
+        if cost_aws.error:
+            logger.error(cost_aws.message)
         state_file_name = (
             "state"
             + "_"

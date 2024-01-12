@@ -6,4 +6,4 @@ clients:
   cloud_name: aws
   account_name: momentumtech
   access_key_id: AKIAVLD2GWDASFY3WNLY
-  secret_access_key_name: secret-momentum-tech
+  secret_access_key_name: secret-aws-momentumtech

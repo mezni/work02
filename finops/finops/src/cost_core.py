@@ -94,7 +94,7 @@ class VaultManager:
 
     def get_secret(self, secret_access_key):
         try:
-            secret = self.key_vault.get_secret(secret_access_key)
+            secret = self.secret_client.get_secret(secret_access_key)
         except Exception as e:
             secret = ""
         return secret
