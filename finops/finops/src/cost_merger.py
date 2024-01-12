@@ -83,8 +83,8 @@ if not df_result.empty:
     df_finops.to_csv(tmp_dir + "/" + finops_file_new_name, index=False)
     storage_mgr.upload_blob(silver_container, finops_file_new_name, finops_file_name)
 
-for file_name in input_files:
-    if file_name.startswith("finops"):
-        storage_mgr.delete_blob(bronze_container, file_name)
+    for file_name in input_files:
+        if file_name.startswith("finops"):
+            storage_mgr.delete_blob(bronze_container, file_name)
 
 logger.info("End")
