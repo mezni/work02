@@ -150,3 +150,10 @@ class StorageManager:
         for r in result:
             blobs.append(r.name)
         return blobs
+
+    def delete_blob(self, container_name, blob_name):
+        container_client = self.blob_service_client.get_container_client(
+            container=container_name
+        )
+        blob_client = container_client.get_blob_client(blob_name)
+        blob_client.delete_blob()
