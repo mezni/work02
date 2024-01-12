@@ -65,7 +65,7 @@ for file_name in input_files:
             first_load = False
         else:
             df_result = pd.concat([df_result, df])
-if df_result:
+if not df_result.empty:
     df_result = df_result.drop_duplicates()
 
     storage_mgr.download_blob(
