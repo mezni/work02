@@ -73,8 +73,12 @@ if df_result:
         finops_file_name,
         tmp_dir + "/" + finops_file_name,
     )
-    df_finops = pd.read_csv(tmp_dir + "/" + finops_file_name)
-    df_finops = pd.concat([df_finops, df_result])
+    try:
+        df_finops = pd.read_csv(tmp_dir + "/" + finops_file_name)
+        df_finops = pd.concat([df_finops, df_result])
+    except:
+        df_finops = df_result
+
     df_finops = df_finops.drop_duplicates(subset=duplicate_cols, keep="last")
     df_finops.to_csv(tmp_dir + "/" + finops_file_new_name, index=False)
     storage_mgr.upload_blob(silver_container, finops_file_new_name, finops_file_name)
