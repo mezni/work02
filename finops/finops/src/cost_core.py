@@ -137,7 +137,7 @@ class StorageManager:
         )
         try:
             with open(file_name, "rb") as data:
-                container_client.upload_blob(name=blob_name, data=data)
+                container_client.upload_blob(name=blob_name, data=data, overwrite=True)
         except:
             pass
 
