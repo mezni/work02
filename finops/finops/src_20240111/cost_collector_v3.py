@@ -15,23 +15,10 @@ class CostAws:
         self.error = False
         self.message = ""
         self.config = config
-        self.end_date = datetime.now().strftime("%Y-%m-%d")
-        self.start_date = self.get_query_start_date()
+        self.start_date = ""
+        self.end_date = ""
         self.output_file_name = ""
         self.ce_client = self.create_client()
-
-    def get_query_start_date(self):
-        last_end_date = self.config["last_end_date"]
-        if last_end_date == "":
-            date_history = (
-                datetime.utcnow() - timedelta(days=query_history_days)
-            ).strftime("%Y-%m-%d")
-            start_date = date_history[:-2] + "01"
-        else:
-            start_date = last_end_date
-        if start_date[5:7] != self.end_date[5:7]:
-            start_date = start_date[:-2] + "01"
-        return start_date
 
     def create_client(self):
         try:
@@ -48,7 +35,7 @@ class CostAws:
             return None
 
     def get_state(self):
-        state = {
+        context = {
             "execution": {
                 "context_id": self.context_id,
                 "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
@@ -65,13 +52,29 @@ class CostAws:
                 "filter": "",
             },
         }
-        return state
+        return context
+
+    def get_query_dates(self):
+        last_end_date = self.config["last_end_date"]
+        end_date = datetime.now().strftime("%Y-%m-%d")
+        if last_end_date == "":
+            date_history = (
+                datetime.utcnow() - timedelta(days=query_history_days)
+            ).strftime("%Y-%m-%d")
+            start_date = date_history[:-2] + "01"
+        else:
+            start_date = last_end_date
+        if start_date[5:7] != end_date[5:7]:
+            start_date = start_date[:-2] + "01"
+        self.start_date = start_date
+        self.end_date = end_date
 
     def get_cost_data(self):
         results = []
         token = None
         if not self.error:
             try:
+                self.get_query_dates()
                 start_date = self.start_date
                 end_date = self.end_date
                 while True:
@@ -101,24 +104,14 @@ class CostAws:
 
     def generate_csv(self):
         columns = [
-            "Client",
-            "Date",
-            "Provider",
-            "SubscriptionName",
-            "SubscriptionId",
-            "ServiceName",
-            "ServiceTier",
-            "Resource",
-            "ResourceId",
-            "ResourceType",
-            "ResourceGroupName",
-            "ResourceGroupId",
-            "Product",
-            "Meter",
-            "Tags",
-            "Cost",
-            "CostUSD",
-            "Currency",
+            "periode",
+            "client",
+            "cloud",
+            "compte",
+            "service",
+            "cout",
+            "devise",
+            "estimation",
         ]
 
         output_dir = "/tmp"
@@ -141,6 +134,7 @@ class CostAws:
             + ".csv"
         )
         self.output_file_name = output_file_name
+
         cost_data = self.get_cost_data()
         if not self.error:
             try:
@@ -148,42 +142,28 @@ class CostAws:
                     file.write(",".join(columns) + "\n")
                     for result_by_time in cost_data:
                         for group in result_by_time["Groups"]:
-                            line = {
-                                "Client": "",
-                                "Date": "",
-                                "Provider": "",
-                                "SubscriptionName": "",
-                                "SubscriptionId": "",
-                                "ServiceName": "",
-                                "ServiceTier": "",
-                                "Resource": "",
-                                "ResourceId": "",
-                                "ResourceType": "",
-                                "ResourceGroupName": "",
-                                "ResourceGroupId": "",
-                                "Product": "",
-                                "Meter": "",
-                                "Tags": [],
-                                "Cost": "",
-                                "CostUSD": "",
-                                "Currency": "",
-                            }
-
                             period = result_by_time["TimePeriod"]["Start"]
                             account = group["Keys"][0]
                             service = group["Keys"][1]
                             amount = group["Metrics"]["UnblendedCost"]["Amount"]
                             unit = group["Metrics"]["UnblendedCost"]["Unit"]
                             estimated = result_by_time["Estimated"]
-                            line["Client"] = client_name
-                            line["Date"] = period
-                            line["Provider"] = cloud_name
-                            line["SubscriptionName"] = account
-                            line["SubscriptionId"] = account
-                            line["ServiceName"] = service
-                            line["CostUSD"] = amount
-                            line["Currency"] = unit
-                            file.write(",".join(line.keys()) + "\n")
+                            line = (
+                                period
+                                + ","
+                                + client_code
+                                + ","
+                                + account
+                                + ","
+                                + service
+                                + ","
+                                + amount
+                                + ","
+                                + unit
+                                + ","
+                                + str(estimated)
+                            )
+                            file.write(line + "\n")
             except:
                 self.error = True
                 self.message = "Cannot generate file"
@@ -193,26 +173,11 @@ class CostAws:
         return state
 
 
-def get_state(state_file_name):
-    storage_mgr.download_blob(
-        bronze_container,
-        "logs/" + state_file_name,
-        tmp_dir + "/" + state_file_name,
-    )
-
-    try:
-        with open(tmp_dir + "/" + state_file_name) as fp:
-            state = json.load(fp)
-    except:
-        state = {}
-    return state
-
-
 def get_query_dates(account):
-    last_start_date = ""
-    last_end_date = ""
+    start_date = ""
+    end_date = ""
     client_code = account["client_name"].replace(" ", "")
-    state_file_prefix = (
+    prev_state_file_name = (
         "state"
         + "_"
         + client_code
@@ -220,43 +185,16 @@ def get_query_dates(account):
         + account["cloud_name"]
         + "_"
         + account["account_name"]
+        + ".json"
     )
-    last_state_file_name = state_file_prefix + ".json"
-    prev_state_file_name = state_file_prefix + "_prev.json"
-    last_state = get_state(last_state_file_name)
-    prev_state = get_state(prev_state_file_name)
-    try:
-        if not last_state["execution"]["error"]:
-            last_start_date = last_state["params"]["start_date"]
-            last_end_date = last_state["params"]["end_date"]
-        else:
-            last_start_date = prev_state["params"]["start_date"]
-            last_end_date = prev_state["params"]["end_date"]
-    except:
-        pass
-    return last_start_date, last_end_date
-
-
-def get_account_config(account):
-    secret_access_key = None
-    #    secret_access_key = keyvault_mgr.create_secret_client(
-    #        account["secret_access_key_name"]
-    #    )
-
-    client_code = account["client_name"].replace(" ", "")
-    last_start_date, last_end_date = get_query_dates(account)
-    config = {
-        "client_name": account["client_name"],
-        "client_code": client_code,
-        "account_name": account["account_name"],
-        "cloud_name": account["cloud_name"],
-        "region": "ca-central-1",
-        "access_key_id": account["access_key_id"],
-        "secret_access_key": secret_access_key,
-        "last_start_date": last_start_date,
-        "last_end_date": last_end_date,
-    }
-    return config
+    storage_mgr.download_blob(
+        bronze_container, prev_state_file_name, tmp_dir + "/" + prev_state_file_name
+    )
+    state = json.load(tmp_dir + "/" + prev_state_file_name)
+    if not state["execution"]["error"]:
+        start_date = ""
+        end_date = ""
+    return start_date, end_date
 
 
 # MAIN
@@ -295,41 +233,19 @@ if status["error"]:
 for account in accounts:
     logger.info(f"generate cost for : client=<{account['client_name']}>")
     if account["cloud_name"] == "aws":
-        account_conf = get_account_config(account)
-        cost_aws = CostAws(account_conf)
-        state = cost_aws.generate_csv()
+        secret_access_key = None
+        #        secret_access_key = keyvault_mgr.create_secret_client(
+        #            account["secret_access_key_name"]
+        #        )
 
-        state_file_name = (
-            "state"
-            + "_"
-            + account_conf["client_code"]
-            + "_"
-            + account_conf["cloud_name"]
-            + "_"
-            + account_conf["account_name"]
-            + ".json"
-        )
-        if not state["execution"]["error"]:
-            cost_file = cost_aws.output_file_name
-            storage_mgr.upload_blob(
-                bronze_container, cost_file, os.path.basename(cost_file)
-            )
-        else:
-            storage_mgr.download_blob(
-                bronze_container,
-                "logs/" + state_file_name,
-                tmp_dir + "/" + state_file_name,
-            )
-            storage_mgr.upload_blob(
-                bronze_container,
-                tmp_dir + "/" + state_file_name,
-                "logs/" + state_file_name.replace(".json", "_last.json"),
-            )
-
-        with open(tmp_dir + "/" + state_file_name, "w") as fp:
-            state_str = json.dumps(state, indent=4)
-            print(state_str, file=fp)
-
-        storage_mgr.upload_blob(
-            bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
-        )
+        account_cfg = {
+            "client_name": account["client_name"],
+            "client_code": client_code,
+            "account_name": account["account_name"],
+            "cloud_name": account["cloud_name"],
+            "region": "ca-central-1",
+            "access_key_id": account["access_key_id"],
+            "secret_access_key": secret_access_key,
+            "last_start_date": "",
+            "last_end_date": "",
+        }
