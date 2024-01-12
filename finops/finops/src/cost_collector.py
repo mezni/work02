@@ -183,7 +183,7 @@ class CostAws:
                             line["ServiceName"] = service
                             line["CostUSD"] = amount
                             line["Currency"] = unit
-                            file.write(",".join(line.keys()) + "\n")
+                            file.write(",".join(line.values()) + "\n")
             except:
                 self.error = True
                 self.message = "Cannot generate file"
