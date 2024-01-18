@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-12"
+__version__ = "2024-01-18"
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -65,6 +65,7 @@ class ConfigManager:
                     "account_name": acc["account_name"],
                     "access_key_id": acc["access_key_id"],
                     "secret_access_key_name": acc["secret_access_key_name"],
+                    "region": acc["region"],
                 }
                 accounts.append(account)
         except:
