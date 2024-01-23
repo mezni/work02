@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-18"
+__version__ = "2024-01-23"
 
 import boto3
 import os, sys, json, uuid, logging
@@ -212,4 +212,5 @@ for account in accounts:
         state = cost_azure.generate_csv()
     else:
         logger.info(f"cloud=<account['cloud_name']> is not defined")
+        
 logger.info("End")

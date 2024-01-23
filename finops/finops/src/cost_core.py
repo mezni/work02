@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-01-18"
+__version__ = "2024-01-23"
 
 import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
