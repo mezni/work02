@@ -2,7 +2,7 @@ __author__ = "Mohamed Ali MEZNI"
 __version__ = "2024-02-04"
 
 import os, sys, logging
-from cost_core import Settings
+from cost_core import Settings, ConfigManager
 
 
 def get_logger():
@@ -31,5 +31,27 @@ logger = get_logger()
 logger.info("Debut")
 check_file_existance(env_file)
 check_file_existance(clients_file)
-settings = Settings()
+settings = Settings().get_settings()
+if not settings:
+    logger.error(f"cannot read settings")
+    logger.info("End")
+    sys.exit(1)
+config = ConfigManager(clients_file)
+if not config:
+    logger.error(f"cannot read clients config")
+    logger.info("End")
+    sys.exit(1)
+
+accounts = config.get_accounts()
+for account in accounts:
+    logger.info(
+        f"> traitement client=<{account['client']}>  account=<{account['account']}>"
+    )
+    if account["cloud"] == "aws":
+        logger.info(f"  status=SUCCESS")
+    elif account["cloud"] == "azure":
+        logger.info(f"  status=SUCCESS")
+    else:
+        logger.info(f"  status=FAIL  cloud <{account['cloud']}> non implemente")
+    logger.info("")
 logger.info("Fin")

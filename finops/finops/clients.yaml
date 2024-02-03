@@ -1,0 +1,35 @@
+---
+app:
+  name: finops
+  version: '1.0'
+clients:
+  - name: momentum tech
+    accounts:
+      - name: momentum-aws
+        cloud: aws
+        credentials:
+          - key: access_key
+            store: inline
+            value: AKIAVLD2GWDASFY3WNLY
+          - key: access_secret
+            store: keystore
+            value: secret-aws-momentumtech
+      - name: momentum-azure
+        cloud: azure
+        credentials:
+          - key: subscription_id
+            store: inline
+            value: AKIAVLD2GWDASFY3WNLYXXXXXXXXXXXXXXXX
+  - name: client fake
+    accounts:
+      - name: fake-azure
+        cloud: azure
+      - name: fake-oci
+        cloud: oci
+        credentials:
+          - key: subscription_id
+            store: inline
+            value: AKIAVLD2GWDASFY3WNLYXXXXXXXXXXXXXXXX
+          - key: tenant_id
+            store: inline
+            value: AKIAVLD2GWDASFY3WNLYXXXXXXXXXXXXXXXX
