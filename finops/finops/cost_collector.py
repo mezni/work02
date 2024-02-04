@@ -106,6 +106,36 @@ class CostAzure:
     def create_client(self):
         return None
 
+    def get_cost_data(self):
+        cost_data = None
+        return cost_data
+
+    def get_state(self):
+        state = {
+            "execution": {
+                "context_id": self.context_id,
+                "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "end_time": self.end_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "error": self.error,
+                "message": self.message,
+                "output_file": self.output_file_name,
+            },
+            "params": {
+                "start_date": self.start_date,
+                "end_date": self.end_date,
+                "granularity": "DAILY",
+                "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
+                "filter": "",
+            },
+        }
+        return state
+
+    def generate_csv(self):
+        cost_data = self.get_cost_data()
+        self.end_time = datetime.now()
+        state = self.get_state()
+        return state
+
 
 # Main
 env_file = "env"
@@ -149,6 +179,8 @@ for account in accounts:
         logger.info(f"   status=SUCCESS")
     elif account["cloud"] == "azure":
         cost_data = CostAzure(account_conf)
+        state = cost_data.generate_csv()
+        print(state)
         logger.info(f"   status=SUCCESS")
     else:
         logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
