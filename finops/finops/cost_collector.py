@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from cost_core import Settings, ConfigManager, StorageManager, VaultManager
 
 
-def get_logger():
-    logger = logging.getLogger(__name__)
+def get_logger(name):
+    logger = logging.getLogger(name)
     logger.setLevel(level=logging.INFO)
     fh = logging.StreamHandler()
     fh_formatter = logging.Formatter("%(asctime)s %(levelname)s - %(message)s")
@@ -137,13 +137,35 @@ class CostAzure:
         return state
 
 
+cost_record = {
+    "Client": "",
+    "Date": "",
+    "Provider": "",
+    "SubscriptionName": "",
+    "SubscriptionId": "",
+    "ServiceName": "",
+    "ServiceTier": "",
+    "Resource": "",
+    "ResourceId": "",
+    "ResourceLocation": "",
+    "ResourceType": "",
+    "ResourceGroupName": "",
+    "ResourceGroupId": "",
+    "Product": "",
+    "Meter": "",
+    "Tags": "[]",
+    "Cost": "",
+    "CostUSD": "",
+    "Currency": "",
+}
+
 # Main
 env_file = "env"
 clients_file = "clients.yaml"
 tmp_dir = "/tmp"
 query_history_days = 90
 
-logger = get_logger()
+logger = get_logger(__name__)
 logger.info("Debut")
 check_file_existance(env_file)
 check_file_existance(clients_file)
