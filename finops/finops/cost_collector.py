@@ -87,7 +87,6 @@ class CostAzure:
         self.config = config
         self.end_date = datetime.now().strftime("%Y-%m-%d")
         self.start_date = self.get_query_start_date()
-        self.output_file_name = ""
         self.ce_client = self.create_client()
 
     def get_query_start_date(self):
@@ -118,7 +117,7 @@ class CostAzure:
                 "end_time": self.end_time.strftime("%d-%m-%Y %H:%M:%S"),
                 "error": self.error,
                 "message": self.message,
-                "output_file": self.output_file_name,
+                "output_file": self.config["cost_file_name"],
             },
             "params": {
                 "start_date": self.start_date,
@@ -196,15 +195,45 @@ for account in accounts:
     )
     account_conf = get_secrets(account)
     account_conf = get_dates(account_conf)
-    print(account_conf)
+
     if account["cloud"] == "aws":
-        logger.info(f"   status=SUCCESS")
+        pass
     elif account["cloud"] == "azure":
         cost_data = CostAzure(account_conf)
         state = cost_data.generate_csv()
-        print(state)
+    else:
+        state = {}
+        logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
+
+    try:
+        state_error = state["execution"]["error"]
+    except:
+        state_error = True
+
+    state_file_name = account_conf["last_state_file_name"]
+    prev_state_file_name = account_conf["prev_state_file_name"]
+    if not state_error:
+        storage_mgr.download_blob(
+            bronze_container,
+            "logs/" + state_file_name,
+            tmp_dir + "/" + state_file_name,
+        )
+        storage_mgr.upload_blob(
+            bronze_container,
+            tmp_dir + "/" + state_file_name,
+            "logs/" + prev_state_file_name,
+        )
         logger.info(f"   status=SUCCESS")
     else:
-        logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
+        logger.info(f"   status=FAIL")
+
+    with open(tmp_dir + "/" + state_file_name, "w") as fp:
+        state_str = json.dumps(state, indent=4)
+        print(state_str, file=fp)
+
+    storage_mgr.upload_blob(
+        bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
+    )
+
     logger.info("")
 logger.info("Fin")
