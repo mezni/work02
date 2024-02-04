@@ -1,5 +1,5 @@
 __author__ = "Mohamed Ali MEZNI"
-__version__ = "2024-02-04"
+__version__ = "2024-02-05"
 
 import os, sys, logging
 from cost_core import Settings, ConfigManager
@@ -20,6 +20,23 @@ def check_file_existance(file_name):
         logger.error(f"file <{file_name}> does not exists")
         logger.info("End")
         sys.exit(1)
+
+
+def get_secrets(account):
+    secrets = []
+    credentials = account.get("credentials", {})
+    for cre in credentials:
+        if cre.get("store", "") == "inline":
+            sec = {cre.get("key", ""): cre.get("value", "")}
+            secrets.append(sec)
+        elif cre.get("store", "") == "keystore":
+            sec = {cre.get("key", ""): cre.get("value", "")}
+            secrets.append(sec)
+        else:
+            pass
+
+    account["secrets"] = secrets
+    return account
 
 
 # Main
@@ -45,13 +62,14 @@ if not config:
 accounts = config.get_accounts()
 for account in accounts:
     logger.info(
-        f"> traitement client=<{account['client']}>  account=<{account['account']}>"
+        f"-> traitement client=<{account['client']}>  account=<{account['account']}>"
     )
+    account = get_secrets(account)
     if account["cloud"] == "aws":
-        logger.info(f"  status=SUCCESS")
+        logger.info(f"   status=SUCCESS")
     elif account["cloud"] == "azure":
-        logger.info(f"  status=SUCCESS")
+        logger.info(f"   status=SUCCESS")
     else:
-        logger.info(f"  status=FAIL  cloud <{account['cloud']}> non implemente")
+        logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
     logger.info("")
 logger.info("Fin")
