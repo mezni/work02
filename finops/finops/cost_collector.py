@@ -4,7 +4,9 @@ __version__ = "2024-02-05"
 import os, sys, logging, uuid, json
 from datetime import datetime, timedelta
 from cost_core import Settings, ConfigManager, StorageManager, VaultManager
-
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.mgmt.costmanagement import CostManagementClient 
+from azure.mgmt.costmanagement.models import QueryDefinition, QueryDataset, QueryTimePeriod
 
 def get_logger(name):
     logger = logging.getLogger(name)
@@ -77,6 +79,41 @@ def get_dates(account):
     return account
 
 
+def state_backup(account_conf, state):
+    try:
+        state_error = state["execution"]["error"]
+    except:
+        state_error = True
+
+    state_file_name = account_conf["last_state_file_name"]
+    prev_state_file_name = account_conf["prev_state_file_name"]
+    if not state_error:
+        storage_mgr.download_blob(
+            bronze_container,
+            "logs/" + state_file_name,
+            tmp_dir + "/" + state_file_name,
+        )
+        storage_mgr.upload_blob(
+            bronze_container,
+            tmp_dir + "/" + state_file_name,
+            "logs/" + prev_state_file_name,
+        )
+        logger.info(f"   status=SUCCESS")
+    else:
+        logger.info(f"   status=FAIL")
+
+
+def state_copy(account_conf, state):
+    state_file_name = account_conf["last_state_file_name"]
+    with open(tmp_dir + "/" + state_file_name, "w") as fp:
+        state_str = json.dumps(state, indent=4)
+        print(state_str, file=fp)
+    print(state)
+    storage_mgr.upload_blob(
+        bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
+    )
+
+
 class CostAzure:
     def __init__(self, config) -> None:
         self.start_time = datetime.now()
@@ -103,6 +140,13 @@ class CostAzure:
         return start_date
 
     def create_client(self):
+        secrets = self.config["secrets"]
+        client_id = secrets.get("client_id","")
+        client_secret = secrets.get("client_secret","")
+        tenant_id = secrets.get("tenant_id","")
+        subscription_id = secrets.get("subscription_id","")
+        if client_id == "":
+            
         return None
 
     def get_cost_data(self):
@@ -204,36 +248,8 @@ for account in accounts:
     else:
         state = {}
         logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
-
-    try:
-        state_error = state["execution"]["error"]
-    except:
-        state_error = True
-
-    state_file_name = account_conf["last_state_file_name"]
-    prev_state_file_name = account_conf["prev_state_file_name"]
-    if not state_error:
-        storage_mgr.download_blob(
-            bronze_container,
-            "logs/" + state_file_name,
-            tmp_dir + "/" + state_file_name,
-        )
-        storage_mgr.upload_blob(
-            bronze_container,
-            tmp_dir + "/" + state_file_name,
-            "logs/" + prev_state_file_name,
-        )
-        logger.info(f"   status=SUCCESS")
-    else:
-        logger.info(f"   status=FAIL")
-
-    with open(tmp_dir + "/" + state_file_name, "w") as fp:
-        state_str = json.dumps(state, indent=4)
-        print(state_str, file=fp)
-
-    storage_mgr.upload_blob(
-        bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
-    )
+    state_backup(account_conf, state)
+    state_copy(account_conf, state)
 
     logger.info("")
 logger.info("Fin")
