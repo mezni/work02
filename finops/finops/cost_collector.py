@@ -204,7 +204,7 @@ class CostAzure:
         ]
 
         querydataset = QueryDataset(
-            granularity=None,
+            granularity="Daily",
             configuration=None,
             aggregation=query_aggregation,
             grouping=query_grouping,
@@ -219,6 +219,7 @@ class CostAzure:
 
         result = self.client.query.usage(scope=scope, parameters=query)
         for row in result.as_dict()["rows"]:
+            print(row)
             cost_data.append(row)
         return cost_data
 
