@@ -10,4 +10,4 @@ clients:
         credentials:
           - key: subscription_id
             store: inline
-            value: AKIAVLD2GWDASFY3WNLYXXXXXXXXXXXXXXXX
+            value: 1ebabb15-8364-4ada-8de3-a26abeb7ad59

@@ -1,12 +1,19 @@
 __author__ = "Mohamed Ali MEZNI"
 __version__ = "2024-02-05"
 
-import os, sys, logging, uuid, json
-from datetime import datetime, timedelta
+import os, sys, logging, uuid, json, time
+from datetime import datetime, timedelta, timezone
 from cost_core import Settings, ConfigManager, StorageManager, VaultManager
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
-from azure.mgmt.costmanagement import CostManagementClient 
-from azure.mgmt.costmanagement.models import QueryDefinition, QueryDataset, QueryTimePeriod
+from azure.mgmt.costmanagement import CostManagementClient
+from azure.mgmt.costmanagement.models import (
+    QueryDefinition,
+    QueryDataset,
+    QueryTimePeriod,
+    QueryAggregation,
+    QueryGrouping,
+)
+
 
 def get_logger(name):
     logger = logging.getLogger(name)
@@ -108,7 +115,7 @@ def state_copy(account_conf, state):
     with open(tmp_dir + "/" + state_file_name, "w") as fp:
         state_str = json.dumps(state, indent=4)
         print(state_str, file=fp)
-    print(state)
+
     storage_mgr.upload_blob(
         bronze_container, tmp_dir + "/" + state_file_name, "logs/" + state_file_name
     )
@@ -124,7 +131,7 @@ class CostAzure:
         self.config = config
         self.end_date = datetime.now().strftime("%Y-%m-%d")
         self.start_date = self.get_query_start_date()
-        self.ce_client = self.create_client()
+        self.client = self.create_client()
 
     def get_query_start_date(self):
         last_end_date = self.config["last_end_date"]
@@ -141,16 +148,78 @@ class CostAzure:
 
     def create_client(self):
         secrets = self.config["secrets"]
-        client_id = secrets.get("client_id","")
-        client_secret = secrets.get("client_secret","")
-        tenant_id = secrets.get("tenant_id","")
-        subscription_id = secrets.get("subscription_id","")
-        if client_id == "":
-            
-        return None
+        client_id = ""
+        client_secret = ""
+        tenant_id = ""
+        for s in secrets:
+            if "client_id" in s.keys():
+                client_id = s["client_id"]
+            elif "client_secret" in s.keys():
+                client_secret = s["client_secret"]
+            elif "tenant_id" in s.keys():
+                tenant_id = s["tenant_id"]
+            else:
+                pass
+        if client_id == "" or client_secret == "" or tenant_id == "":
+            credentials = DefaultAzureCredential()
+        else:
+            credentials = ClientSecretCredential(
+                tenant_id=tenant_id, client_id=client_id, client_secret=client_secret
+            )
+        client = CostManagementClient(credentials)
+        return client
 
     def get_cost_data(self):
-        cost_data = None
+        cost_data = []
+        dt_start = datetime.strptime(self.start_date, "%Y-%m-%d")
+
+        epoch_start = dt_start.timestamp()
+        st_time_start = time.localtime(epoch_start)
+        tz_start = timezone(timedelta(seconds=st_time_start.tm_gmtoff))
+
+        dt_end = datetime.strptime(self.end_date, "%Y-%m-%d")
+
+        epoch_end = dt_end.timestamp()
+        st_time_end = time.localtime(epoch_end)
+        tz_end = timezone(timedelta(seconds=st_time_end.tm_gmtoff))
+
+        time_period = QueryTimePeriod(
+            from_property=dt_start.astimezone(tz_start),
+            to=dt_end.astimezone(tz_end),
+        )
+
+        subscription_id = "1ebabb15-8364-4ada-8de3-a26abeb7ad59"
+        resource_group_name = "bi-opportunite-dev-rg"
+        query_aggregation = dict()
+        query_aggregation["totalCost"] = QueryAggregation(
+            name="Cost", function="Sum"
+        )  # in result, will be column with index = 0
+        query_aggregation["totalCostUSD"] = QueryAggregation(
+            name="CostUSD", function="Sum"
+        )  # in result, will be column with index = 1
+        query_grouping = [
+            QueryGrouping(type="Dimension", name="ResourceId"),
+            QueryGrouping(type="Dimension", name="ChargeType"),
+            QueryGrouping(type="Dimension", name="PublisherType"),
+        ]
+
+        querydataset = QueryDataset(
+            granularity=None,
+            configuration=None,
+            aggregation=query_aggregation,
+            grouping=query_grouping,
+        )
+        query = QueryDefinition(
+            type="ActualCost",
+            timeframe="Custom",
+            time_period=time_period,
+            dataset=querydataset,
+        )
+        scope = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}"
+
+        result = self.client.query.usage(scope=scope, parameters=query)
+        for row in result.as_dict()["rows"]:
+            cost_data.append(row)
         return cost_data
 
     def get_state(self):
