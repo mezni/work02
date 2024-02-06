@@ -13,6 +13,7 @@ from azure.mgmt.costmanagement.models import (
     QueryAggregation,
     QueryGrouping,
 )
+from azure.mgmt.resource import ResourceManagementClient
 
 
 def get_logger(name):
@@ -169,6 +170,36 @@ class CostAzure:
         client = CostManagementClient(credentials)
         return client
 
+    def get_state(self):
+        state = {
+            "execution": {
+                "context_id": self.context_id,
+                "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "end_time": self.end_time.strftime("%d-%m-%Y %H:%M:%S"),
+                "error": self.error,
+                "message": self.message,
+                "output_file": self.config["cost_file_name"],
+            },
+            "params": {
+                "start_date": self.start_date,
+                "end_date": self.end_date,
+                "granularity": "DAILY",
+                "dimensions": [
+                    "SubscriptionName",
+                    "SubscriptionId",
+                    "ServiceName",
+                    "ResourceId",
+                    "ResourceLocation",
+                    "ResourceType",
+                    "ResourceGroupName",
+                    "Product",
+                    "Meter",
+                ],
+                "filter": "",
+            },
+        }
+        return state
+
     def get_cost_data(self):
         cost_data = []
         dt_start = datetime.strptime(self.start_date, "%Y-%m-%d")
@@ -187,64 +218,99 @@ class CostAzure:
             from_property=dt_start.astimezone(tz_start),
             to=dt_end.astimezone(tz_end),
         )
-
-        subscription_id = "1ebabb15-8364-4ada-8de3-a26abeb7ad59"
-        resource_group_name = "bi-opportunite-dev-rg"
-        query_aggregation = dict()
-        query_aggregation["totalCost"] = QueryAggregation(
-            name="Cost", function="Sum"
-        )  # in result, will be column with index = 0
-        query_aggregation["totalCostUSD"] = QueryAggregation(
-            name="CostUSD", function="Sum"
-        )  # in result, will be column with index = 1
-        query_grouping = [
-            QueryGrouping(type="Dimension", name="ResourceId"),
-            QueryGrouping(type="Dimension", name="ChargeType"),
-            QueryGrouping(type="Dimension", name="PublisherType"),
+        dimensions = [
+            "SubscriptionName",
+            "SubscriptionId",
+            "ServiceName",
+            "ResourceId",
+            "ResourceLocation",
+            "ResourceType",
+            "ResourceGroupName",
+            "Product",
+            "Meter",
         ]
 
-        querydataset = QueryDataset(
-            granularity="Daily",
-            configuration=None,
-            aggregation=query_aggregation,
-            grouping=query_grouping,
-        )
-        query = QueryDefinition(
-            type="ActualCost",
-            timeframe="Custom",
-            time_period=time_period,
-            dataset=querydataset,
-        )
-        scope = f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}"
+        #        subscription_id = "1ebabb15-8364-4ada-8de3-a26abeb7ad59"
+        secrets = self.config["secrets"]
+        subscription_id = ""
+        for s in secrets:
+            if "subscription_id" in s.keys():
+                subscription_id = s["subscription_id"]
 
-        result = self.client.query.usage(scope=scope, parameters=query)
-        for row in result.as_dict()["rows"]:
-            print(row)
-            cost_data.append(row)
+        credentials = DefaultAzureCredential()
+        resource_client = ResourceManagementClient(credentials, subscription_id)
+        resource_groups = resource_client.resource_groups.list()
+        resource_group_list = []
+        for resource_group in resource_groups:
+            resource_group_list.append(resource_group.name)
+
+        resource_groups = ["bi-opportunite-dev-rg"]
+        for resource_group_name in resource_groups:
+            query_aggregation = dict()
+            query_aggregation["totalCost"] = QueryAggregation(
+                name="Cost", function="Sum"
+            )  # in result, will be column with index = 0
+            query_aggregation["totalCostUSD"] = QueryAggregation(
+                name="CostUSD", function="Sum"
+            )  # in result, will be column with index = 1
+
+            query_grouping = []
+            for dimension in dimensions:
+                query_grp = QueryGrouping(type="Dimension", name=dimension)
+                query_grouping.append(query_grp)
+
+            querydataset = QueryDataset(
+                granularity="Daily",
+                configuration=None,
+                aggregation=query_aggregation,
+                grouping=query_grouping,
+            )
+            query = QueryDefinition(
+                type="ActualCost",
+                timeframe="Custom",
+                time_period=time_period,
+                dataset=querydataset,
+            )
+            scope = (
+                f"/subscriptions/{subscription_id}/resourceGroups/{resource_group_name}"
+            )
+
+            result = self.client.query.usage(scope=scope, parameters=query)
+            for row in result.as_dict()["rows"]:
+                cost_data.append(row)
         return cost_data
 
-    def get_state(self):
-        state = {
-            "execution": {
-                "context_id": self.context_id,
-                "start_time": self.start_time.strftime("%d-%m-%Y %H:%M:%S"),
-                "end_time": self.end_time.strftime("%d-%m-%Y %H:%M:%S"),
-                "error": self.error,
-                "message": self.message,
-                "output_file": self.config["cost_file_name"],
-            },
-            "params": {
-                "start_date": self.start_date,
-                "end_date": self.end_date,
-                "granularity": "DAILY",
-                "dimensions": ["LINKED_ACCOUNT", "SERVICE"],
-                "filter": "",
-            },
-        }
-        return state
-
     def generate_csv(self):
+        dimensions = [
+            "SubscriptionName",
+            "SubscriptionId",
+            "ServiceName",
+            "ResourceId",
+            "ResourceLocation",
+            "ResourceType",
+            "ResourceGroupName",
+            "Product",
+            "Meter",
+        ]
+        cost_file_name = tmp_dir + "/" + self.config["cost_file_name"]
         cost_data = self.get_cost_data()
+        with open(cost_file_name, "w") as file:
+            file.write(",".join(cost_record.keys()) + "\n")
+            for row in cost_data:
+                line = cost_record
+                line["Client"] = self.config["client"]
+                line["Provider"] = self.config["cloud"]
+                line["Cost"] = str(row[0])
+                line["CostUSD"] = str(row[1])
+                line["Date"] = (
+                    str(row[2])[0:4] + "-" + str(row[2])[4:6] + "-" + str(row[2])[6:]
+                )
+                i = 3
+                for dim in dimensions:
+                    line[dim] = row[i]
+                    i = i + 1
+                line_cost = ",".join(line.values())
+                file.write(line_cost + "\n")
         self.end_time = datetime.now()
         state = self.get_state()
         return state
@@ -315,6 +381,11 @@ for account in accounts:
     elif account["cloud"] == "azure":
         cost_data = CostAzure(account_conf)
         state = cost_data.generate_csv()
+        cost_file_name = tmp_dir + "/" + cost_data.config["cost_file_name"]
+        storage_mgr.upload_blob(
+            bronze_container, cost_file_name, os.path.basename(cost_file_name)
+        )
+
     else:
         state = {}
         logger.info(f"   status=FAIL  cloud <{account['cloud']}> non implemente")
