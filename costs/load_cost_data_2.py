@@ -3,7 +3,7 @@ import pandas as pd
 
 
 class StoreHandler:
-    def __init__(self) -> None:
+    def __init__(self, db_config) -> None:
         self.db_config = db_config
         self.conn = None
         self.cur = None
