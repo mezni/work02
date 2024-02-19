@@ -43,5 +43,17 @@ db_config = {
 }
 
 store_hdl = StoreHandler(db_config)
-df = store_hdl.select_to_df("provider_dimension")
-print(df.head())
+df_store_provider = store_hdl.select_to_df("provider_dimension")
+
+
+list_provider = [(1, "aws"), (2, "azure"), (3, "oci")]
+df_provider = pd.DataFrame(list_provider, columns=["key_id", "name"])
+
+column_list = ["name"]
+merged = pd.merge(
+    df_provider, df_store_provider, on=column_list, how="left", indicator=True
+)
+
+# Filter the rows that are present in df1 but not in df2
+result = merged[merged["_merge"] == "left_only"].drop(columns="_merge")
+print(result["name"].head())
