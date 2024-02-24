@@ -38,6 +38,12 @@ CREATE TABLE account_dimension (
 );
 CREATE INDEX idx_account_dimension_name ON account_dimension (name);
 
+CREATE TABLE service_dimension (
+    key_id SERIAL PRIMARY KEY,
+    name VARCHAR(50) 
+);
+CREATE INDEX idx_service_dimension_name ON service_dimension (name);
+
 
 CREATE TABLE costs (
     key_id SERIAL PRIMARY KEY,
@@ -45,6 +51,7 @@ CREATE TABLE costs (
     client_id INT REFERENCES client_dimension(key_id),
     provider_id INT REFERENCES provider_dimension(key_id),
     account_id INT REFERENCES account_dimension(key_id),
+    service_id INT REFERENCES service_dimension(key_id),
     cost_usd DECIMAL(14, 6)
 );
 
@@ -52,3 +59,4 @@ CREATE INDEX idx_costs_date_id ON costs (date_id);
 CREATE INDEX idx_costs_client_id ON costs (client_id);
 CREATE INDEX idx_costs_provider_id ON costs (provider_id);
 CREATE INDEX idx_costs_account_id ON costs (account_id);
+CREATE INDEX idx_costs_service_id ON costs (service_id);

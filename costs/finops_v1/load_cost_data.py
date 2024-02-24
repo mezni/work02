@@ -57,3 +57,6 @@ merged = pd.merge(
 # Filter the rows that are present in df1 but not in df2
 result = merged[merged["_merge"] == "left_only"].drop(columns="_merge")
 print(result["name"].head())
+
+
+df / table / list colonnes ==> insert diff 
