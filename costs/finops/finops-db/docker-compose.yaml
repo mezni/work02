@@ -10,16 +10,12 @@ services:
     ports:
       - "${DATABASE_PORT}:5432"
     volumes:
-      - ~/WORK/work02/_finops_db:/var/lib/postgresql/data
+      - /home/dali/WORK/work02/_finops_db:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     env_file: ./.env
     networks:
       datapipeline:
         ipv4_address: 172.18.0.2
-
-volumes:
-  _finops_db:
-
 
 networks:
   datapipeline:
