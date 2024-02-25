@@ -1,3 +1,4 @@
+
 CREATE TABLE date_dim (
     key_id SERIAL PRIMARY KEY,
     date_value DATE NOT NULL,
