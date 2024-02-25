@@ -8,7 +8,7 @@ from datetime import datetime
 finops_router = APIRouter()
 
 
-@finops_router.post("/holiday", status_code=status.HTTP_201_CREATED)
-async def add_holiday(payload: schemas.Holiday, conn=Depends(get_connection)):
-    result = await repositories.create_holiday(payload, conn)
+@finops_router.post("/date", status_code=status.HTTP_201_CREATED)
+async def create_date(payload: schemas.DateDim, conn=Depends(get_connection)):
+    result = await repositories.create_dim_date(payload, conn)
     return result
