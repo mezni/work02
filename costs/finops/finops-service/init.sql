@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE TABLE holidays (
     key_id SERIAL PRIMARY KEY,
     date_value DATE NOT NULL,
