@@ -5,5 +5,8 @@ from pydantic import BaseModel
 
 
 class DateDim(BaseModel):
-    start_date: str
-    end_date: str
+    date: date
+
+
+class ClientDim(BaseModel):
+    client_name: str
