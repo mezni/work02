@@ -25,3 +25,6 @@ class BiWorker:
 
 b = BiWorker()
 b.read_table()
+
+
+#
