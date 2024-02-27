@@ -1,4 +1,5 @@
 import uuid
+import pymongo
 import pandas as pd
 
 data = {
@@ -16,4 +17,8 @@ store_records = []
 for r in data_records:
     e = {"meta": {"file_id": file_id}, "record": r}
     store_records.append(e)
-print(store_records)
+
+client = pymongo.MongoClient("mongodb://172.18.0.2:27017/")
+db = client["store"]
+collection = db["cost"]
+collection.insert_many(store_records)
