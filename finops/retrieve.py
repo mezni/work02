@@ -9,5 +9,9 @@ query = {"meta.file_id": {"$eq": "7c140726-aded-4ec2-929f-f13f64a29eb2"}}
 
 results = collection.find(query)
 
+records = []
 for result in results:
-    print(result)
+    records.append(result["record"])
+
+df = pd.DataFrame(records)
+print(df.head())
