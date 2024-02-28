@@ -1,29 +1,40 @@
-import asyncpg
 import asyncio
+import asyncpg
+
 import pandas as pd
 
 
 class Processor:
-    def __init__(self, df: pd.DataFrame) -> None:
-        self.source_df = df
+    def __init__(self, db_config: dict) -> None:
+        self.db_config = db_config
 
-    async def print(self) -> None:
-        print(self.source_df.head())
+    async def connect(self):
+        self.connection = await asyncpg.connect(
+            user=self.db_config["user"],
+            password=self.db_config["password"],
+            database=self.db_config["database"],
+            host=self.db_config["host"],
+        )
+
+    async def disconnect(self):
+        if self.connection:
+            await self.connection.close()
+
+    async def process(self, df: pd.DataFrame):
+        schema_colums = ["org"]
+        for sc in schema_colums:
+            print(df[sc].head())
 
     async def get_df(self, query: str) -> pd.DataFrame:
-        data = {"orga": ["", "momentum", "momentum_stored"]}
-        return pd.DataFrame(data)
+        pass
 
-    async def process(self) -> None:
-        df = self.source_df["org"]
-        df_db = await self.get_df(query="")
-        df_merged = pd.merge(
-            df, df_db, left_on="org", right_on="orga", how="outer", indicator=True
-        )
-        df_diff = df_merged[df_merged["_merge"] == "left_only"]
 
-        print(df_diff["org"].head())
-
+db_config = {
+    "user": "finops",
+    "password": "password123",
+    "database": "finops-db",
+    "host": "172.18.0.2",
+}
 
 data = {
     "date": ["2024-02-27", "2024-02-27", "2024-02-27"],
@@ -36,8 +47,8 @@ df = pd.DataFrame(data)
 
 
 async def main():
-    p = Processor(df)
-    await p.process()
+    p = Processor(db_config)
+    await p.process(df)
 
 
 asyncio.run(main())
