@@ -7,6 +7,7 @@ import pandas as pd
 class Processor:
     def __init__(self, db_config: dict) -> None:
         self.db_config = db_config
+        self.connection = None
 
     async def connect(self):
         self.connection = await asyncpg.connect(
@@ -26,13 +27,20 @@ class Processor:
             print(df[sc].head())
 
     async def get_df(self, query: str) -> pd.DataFrame:
-        pass
+        await self.connect()
+        try:
+            result = await self.connection.fetch(query)
+            return pd.DataFrame(result, columns=result[0].keys())
+        except:
+            return pd.DataFrame()
+        finally:
+            await self.disconnect()
 
 
 db_config = {
-    "user": "finops",
-    "password": "password123",
-    "database": "finops-db",
+    "user": "admin",
+    "password": "passw0rd",
+    "database": "finops",
     "host": "172.18.0.2",
 }
 
@@ -48,7 +56,9 @@ df = pd.DataFrame(data)
 
 async def main():
     p = Processor(db_config)
-    await p.process(df)
+    table_name = "org_dim"
+    df = await p.get_df(f"SELECT * FROM {table_name}")
+    print(df.head())
 
 
 asyncio.run(main())
