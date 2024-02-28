@@ -1,0 +1,26 @@
+version: '3'
+
+services:
+  finops-db:
+    restart: always
+    build:
+      context: .
+      target: finops-db
+    container_name: finops-db
+    ports:
+      - "${DATABASE_PORT}:5432"
+    volumes:
+      - /home/dali/WORK/work02/_finops_db:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    env_file: ./.env
+    networks:
+      datapipeline:
+        ipv4_address: 172.18.0.2
+
+networks:
+  datapipeline:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.0.0/16"
