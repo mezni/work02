@@ -25,3 +25,42 @@ CREATE TABLE org_dim (
     org_name VARCHAR(50)
 );
 CREATE INDEX idx_org_dim_name ON org_dim (org_name);
+
+CREATE TABLE provider_dim (
+    key_id SERIAL PRIMARY KEY,
+    provider_name VARCHAR(50)
+);
+CREATE INDEX idx_provider_dim_provider_name ON provider_dim (provider_name);
+
+CREATE TABLE account_dim (
+    key_id SERIAL PRIMARY KEY,
+    account_name VARCHAR(50),
+    account_id VARCHAR(50)    
+);
+CREATE INDEX idx_account_dim_account_name ON account_dim (account_name);
+CREATE INDEX idx_account_dim_account_id ON account_dim (account_id);
+
+CREATE TABLE service_dim (
+    key_id SERIAL PRIMARY KEY,
+    service_name VARCHAR(50),
+    service_id VARCHAR(50)    
+);
+CREATE INDEX idx_service_dim_service_name ON service_dim (service_name);
+CREATE INDEX idx_service_dim_service_id ON service_dim (service_id);
+
+
+CREATE TABLE costs (
+    key_id SERIAL PRIMARY KEY,
+    date_id INT REFERENCES date_dim(key_id),
+    org_id INT REFERENCES org_dim(key_id),
+    provider_id INT REFERENCES provider_dim(key_id),
+    account_id INT REFERENCES account_dim(key_id),
+    service_id INT REFERENCES service_dim(key_id),
+    cost_usd DECIMAL(14, 6)
+);
+
+CREATE INDEX idx_costs_date_id ON costs (date_id);
+CREATE INDEX idx_costs_org_id ON costs (org_id);
+CREATE INDEX idx_costs_provider_id ON costs (provider_id);
+CREATE INDEX idx_costs_account_id ON costs (account_id);
+CREATE INDEX idx_costs_service_id ON costs (service_id);
