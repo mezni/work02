@@ -77,6 +77,15 @@ class Processor:
                     df_stored = await self.get_df(f"SELECT * FROM {dim_conf['table']}")
                 df_insert = await self.diff_df(df_stored, df_input)
 
+                columns = ", ".join(df_insert.columns)
+                placeholders = ", ".join(
+                    f"${i+1}" for i in range(len(df_insert.columns))
+                )
+                query = f"INSERT INTO {dim_conf['table']} ({columns}) VALUES ({placeholders})"
+                for row in df_insert.values:
+                    stmt = {"query": query, "values": tuple(row)}
+                    print(stmt)
+
             return None
         except Exception as e:
             return f"{e}"
@@ -101,7 +110,7 @@ data = {
 }
 df = pd.DataFrame(data)
 
-meta = {"org": "momentum3", "provider": "aws"}
+meta = {"org": "momentum4", "provider": "azure"}
 
 
 async def main():
