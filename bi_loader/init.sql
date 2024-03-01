@@ -100,14 +100,16 @@ CREATE INDEX idx_costs_service_id
 
 CREATE OR replace VIEW costs_vw
 AS
-  SELECT od.org_name,
-         ad,
-         account_name,
+  SELECT 
+         od.org_name,
+         ad.account_name,
          ad.account_id,
          c.cost_usd
   FROM   costs c,
+         date_dim dd,
          org_dim od,
          account_dim ad
   WHERE  1 = 1
+         AND c.date_id = dd.key_id
          AND c.org_id = od.key_id
          AND c.account_id = ad.key_id; 
