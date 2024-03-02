@@ -1,22 +1,22 @@
-import asyncio
-from database import database, connect_db, disconnect_db
-from sqlmodel import Session
-from models import Provider, ProviderCreate
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from .database import get_db
+
+from models import User as UserModel
 
 
-async def main():
-    await connect_db()
-    provider = Provider(name="xx", code="yy")
-    await create_provider(get_session(), provider)
+class UserSchemaBase(BaseModel):
+    email: str | None = None
+    full_name: str | None = None
 
 
-async def get_session():
-    async with Session.begin():
-        yield Session()
+class UserSchemaCreate(UserSchemaBase):
+    pass
 
 
-async def create_provider(session: Session, provider: ProviderCreate):
-    db_provider = Provider.from_orm(provider)
+class UserSchema(UserSchemaBase):
+    id: str
 
-
-asyncio.run(main())
+    class Config:
+        orm_mode = True
