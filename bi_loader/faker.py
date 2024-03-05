@@ -44,4 +44,4 @@ for owner_id in owner_ids:
                 }
                 expenses.append(expense)
 df_expenses = pd.DataFrame(expenses)
-df_expenses.to_csv("expenses_20240306.csv", index=False)
+df_expenses.to_csv("output/expenses_20240306.csv", index=False)
