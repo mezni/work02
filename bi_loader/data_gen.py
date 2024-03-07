@@ -89,6 +89,20 @@ class ResourceAzure:
             )
             resource_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/{service_type}/virtualMachines/{resource_name}"
             resource_meta = {}
+        if resource_type == "SQL Storage":
+            resource_name = (
+                "db-" + self.project_name + "-" + self.region.replace(" ", "-").lower()
+            )
+            resource_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/{service_type}/virtualMachines/{resource_name}"
+            resource_meta = {}
+        if resource_type == "Bandwidth":
+            resource_name = ""
+            resource_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/{service_type}/virtualMachines/{resource_name}"
+            resource_meta = {"transfer": "Intra Continent Data Transfer Out"}
+        if resource_type == "Table":
+            resource_name = ""
+            resource_id = f"/subscriptions/{self.subscription_id}/resourceGroups/{self.resource_group_name}/providers/{service_type}/virtualMachines/{resource_name}"
+            resource_meta = {"transfer": "RA-GRS Data Stored"}
 
         return resource_name, resource_id, resource_meta
 
@@ -102,6 +116,9 @@ class ResourceAzure:
         other_params = [
             ["Microsoft.Network", "IP Address"],
             ["Microsoft.Storage", "Bucket"],
+            ["Microsoft.Storage", "SQL Storage"],
+            ["Microsoft.Storage", "Table"],
+            ["Microsoft.Network", "Bandwidth"],
         ]
         i = self.resource_count
         while i > 0:
