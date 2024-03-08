@@ -1,5 +1,20 @@
-import random, uuid
+import uuid, random
+from datetime import datetime, timedelta
 import pandas as pd
+
+
+def get_dates(start_date, end_date):
+    dates = []
+    start_date_t = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_t = datetime.strptime(end_date, "%Y-%m-%d")
+
+    delta = timedelta(days=1)
+    while start_date_t <= end_date_t:
+        date = start_date_t.strftime("%Y-%m-%d")
+        start_date_t += delta
+        dates.append(date)
+    return dates
+
 
 class ResourceAzure:
     def __init__(self, config) -> None:
@@ -192,13 +207,34 @@ class ResourceAzure:
         return resources
 
 
-df_accounts = pd.read_csv("accounts.csv")
-df_accounts = df_accounts.fillna("")
+def get_resources(df_accounts):
+    df_accounts = df_accounts.fillna("")
 
-accounts = df_accounts.to_dict("records")
-for acc in accounts:
-    if acc["provider"] == "azure":
-        resource = ResourceAzure(acc)
-        resources = resource.generate_resources()
-        for r in resources:
-            print(r)
+    accounts = df_accounts.to_dict("records")
+    for acc in accounts:
+        if acc["provider"] == "azure":
+            resource = ResourceAzure(acc)
+            resources = resource.generate_resources()
+    return resources
+
+
+start_date = "2024-02-01"
+end_date = "2024-02-29"
+dates = get_dates(start_date, end_date)
+df_accounts = pd.read_csv("accounts.csv")
+resources = get_resources(df_accounts)
+orgs = df_accounts["organization_name"].unique()
+
+for org in orgs:
+    now = datetime.now()
+    file_name = (
+        org.lower().replace(" ", "_") + "_" + now.strftime("%Y%m%d%H%M%S") + ".csv"
+    )
+    file_id = str(uuid.uuid4())
+    for resource in resources:
+        if resource["organization_name"] == org:
+            resource["file_id"] = file_id
+            for date in dates:
+                resource["date"] = date
+                resource["cost"] = 0
+                print(resource)
