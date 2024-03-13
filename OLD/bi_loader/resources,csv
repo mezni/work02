@@ -1,0 +1,13 @@
+organization_name,owner,provider,region,pool,resource_id,resource_name,resource_type,service,meta,tags
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,i-9c33b395324d4350,vm-phenixdev-f44c,Instance,AmazonEC2,Image id=ami-9d3161c78deafc9a|OS=Linux|Size=t2.medium|Preinstalled=NA|VPC id=vpc-f49783f6|VPC name=vpc-phenix,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,snap-856ea84ab345ac70,phenixdev-fdea4a3c,Snapshot,AmazonEC2,State=completed|Size=50 GiB|Volume id=vol-9a426641a8ef9736,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,vol-8d1b442ff16af910,phenixdev-b3405b58,Volume,AmazonEC2,Size=48 GiB|Volume type=gp2|Attached=false,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,eip-94feebf6c45da3e3,,IP Address,AmazonVPC,ip=21.104.156.161,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,i-8f766d4c4c348a16,vm-phenixdev-b0d9,Instance,AmazonEC2,Image id=ami-b4eb63dd1e0e00a0|OS=Windows|Size=t3.medium|Preinstalled=NA|VPC id=vpc-f49783f6|VPC name=vpc-phenix,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,snap-9b712c7df34d5a1a,phenixdev-8442d99d,Snapshot,AmazonEC2,State=completed|Size=30 GiB|Volume id=vol-a5350c001b5999e8,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,vol-b3cb57bb2063bfeb,phenixdev-8b4edcbd,Volume,AmazonEC2,Size=80 GiB|Volume type=gp2|Attached=false,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,phenixdev-f38dfb31,phenixdev-f38dfb31,Bucket,AmazonS3,,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,phenixdev-7a20a892,phenixdev-7a20a892,Bucket,AmazonS3,,project_name=phenix|env=dev
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,92cbdd9ed0037bff,-,Encryption Key,awskms,,
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,86408a98765b5b46,-,Encryption Key,awskms,,
+ByteGenius Solutions,Ava Jones,aws,us-west-1,AWS HQ,AmazonCloudWatch-bbc999841a361197,-,API Request,AmazonCloudWatch,,
