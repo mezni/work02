@@ -1,0 +1,19 @@
+version: '3'
+
+services:
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    ports:
+      - "5672:5672" # RabbitMQ default port
+      - "15672:15672" # RabbitMQ management console port
+    volumes:
+      - ./_data/rabbitmq:/var/lib/rabbitmq # Persist RabbitMQ data
+    environment:
+      RABBITMQ_DEFAULT_USER: "dali"
+      RABBITMQ_DEFAULT_PASS: "dali"
+    networks:
+      - rabbitmq-network
+
+networks:
+  rabbitmq-network:
+    driver: bridge
