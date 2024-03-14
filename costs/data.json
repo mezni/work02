@@ -1,0 +1,102 @@
+{
+    "costs": [
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Registrar",
+            "Cost": 13.0,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Compute Cloud - Compute",
+            "Cost": 0.4436955607,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Container Service for Kubernetes",
+            "Cost": 0.078466973,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Load Balancing",
+            "Cost": 0.0495082359,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Route 53",
+            "Cost": 0.0026116,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Amazon Virtual Private Cloud",
+            "Cost": 0.075888947,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "AmazonCloudWatch",
+            "Cost": 0.0021295112,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-01",
+            "Account": "367475994817",
+            "Service": "Tax",
+            "Cost": 0.0085424,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Compute Cloud - Compute",
+            "Cost": 0.4222953232,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Container Service for Kubernetes",
+            "Cost": 0.098166973,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "Amazon Elastic Load Balancing",
+            "Cost": 0.0541082359,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "Amazon Route 53",
+            "Cost": 0.0112116,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "Amazon Virtual Private Cloud",
+            "Cost": 0.099988947,
+            "Currency": "USD"
+        },
+        {
+            "Date": "2024-03-02",
+            "Account": "367475994817",
+            "Service": "AmazonCloudWatch",
+            "Cost": 0.0034395112,
+            "Currency": "USD"
+        },
+    ]
+}

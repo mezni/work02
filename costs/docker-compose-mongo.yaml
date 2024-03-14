@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  mongodb:
+    image: mongo
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./_data/mongodata:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: costs
+      MONGO_INITDB_ROOT_PASSWORD: costs
+    networks:
+      finops:
+        ipv4_address: 172.18.0.2
+
+networks:
+  finops:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.0.0/16"
+
+volumes:
+  mongodata:
+    driver: local
