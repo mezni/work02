@@ -1,12 +1,3 @@
-VENV/
 *__pycache__/
-*.db
-*.csv
-*.parquet
-*.log
-*.ipynb_checkpoints/*
-*cdata/*
-*cassandra_data/*
-*.lck
-*nohup.out
-*.terraform*
+*venv*
+*_data*
