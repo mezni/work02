@@ -11,4 +11,5 @@ producer = Producer(exchange=exchange, channel=channel, routing_key="BOB")
 queue = Queue(name="example-queue", exchange=exchange, routing_key="BOB")
 queue.maybe_bind(conn)
 queue.declare()
-producer.publish("Hello there!")
+message = {"message": "Hello there!"}
+producer.publish(message)

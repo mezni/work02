@@ -11,8 +11,11 @@ queue = Queue(name="example-queue", exchange=exchange, routing_key="BOB")
 
 def process_message(body, message):
     print("The body is {}".format(body))
+    print(body["message"])
     message.ack()
 
 
-with Consumer(conn, queues=queue, callbacks=[process_message], accept=["text/plain"]):
+with Consumer(
+    conn, queues=queue, callbacks=[process_message], accept=["application/json"]
+):
     conn.drain_events(timeout=2)
