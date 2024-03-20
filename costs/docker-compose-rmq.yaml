@@ -2,18 +2,23 @@ version: '3'
 
 services:
   rabbitmq:
-    image: "rabbitmq:3-management"
+    image: "rabbitmq:3.13-management"
     ports:
       - "5672:5672" # RabbitMQ default port
       - "15672:15672" # RabbitMQ management console port
     volumes:
-      - ./_data/rabbitmq:/var/lib/rabbitmq # Persist RabbitMQ data
+      - ./_data/rmq_data:/var/lib/rabbitmq # Persist RabbitMQ data
     environment:
       RABBITMQ_DEFAULT_USER: "dali"
       RABBITMQ_DEFAULT_PASS: "dali"
     networks:
-      - rabbitmq-network
+      finops:
+        ipv4_address: 172.18.10.2
 
 networks:
-  rabbitmq-network:
+  finops:
     driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.18.0.0/16"
