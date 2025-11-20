@@ -20,18 +20,16 @@ jobs:
         uses: actions/setup-rust@v1
         with:
           rust-version: stable
+          components: clippy
 
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
+      - name: Format
+        run: make format
 
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
+      - name: Clippy
+        run: make clippy
 
-      - name: Run CI checks
-        run: make ci
+      - name: Build
+        run: make build
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage/auth-service/lcov.info,coverage/config-service/lcov.info
+      - name: Test
+        run: make test
