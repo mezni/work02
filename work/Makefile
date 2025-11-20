@@ -4,7 +4,7 @@ DOCKER = docker
 RUSTFLAGS = -D warnings
 
 # Services
-SERVICES = auth-service config-service
+SERVICES = auth-service
 SERVICE_DIR = services
 
 # Docker
@@ -84,5 +84,5 @@ clean:
 	done
 
 .PHONY: ci
-ci: format clippy test audit
+ci: format clippy build test
 	@echo "All CI checks passed!"

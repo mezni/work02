@@ -1,4 +1,4 @@
-name: Rust CI
+name: Rust
 
 on:
   push:
@@ -8,52 +8,30 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUSTFLAGS: "-D warnings"
 
 jobs:
-  test:
+  build-and-test:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Install Rust
+        uses: actions/setup-rust@v1
         with:
-          toolchain: stable
-          components: rustfmt, clippy
-          profile: minimal
+          rust-version: stable
 
-      - name: Cache dependencies
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin
 
-      - name: Check formatting
-        run: cargo fmt --all -- --check
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
 
-      - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Run CI checks
+        run: make ci
 
-      - name: Run tests
-        run: cargo test
-
-      - name: Generate coverage
-        run: |
-          cargo install cargo-tarpaulin
-          cargo tarpaulin --workspace --out Lcov --output-dir ./coverage
-
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
-
+          files: coverage/auth-service/lcov.info,coverage/config-service/lcov.info
