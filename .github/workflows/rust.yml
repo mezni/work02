@@ -8,20 +8,22 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Setup Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
-          rust-version: stable
+          toolchain: stable
           components: rustfmt, clippy
+          profile: minimal
 
       - name: Cache dependencies
         uses: actions/cache@v3
@@ -35,38 +37,30 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Check formatting
-        run: make format
+        run: cargo fmt --all -- --check
 
       - name: Run clippy
-        run: make clippy
-
-      - name: Build services
-        run: make build
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: make test
+        run: cargo test
 
-      - name: Generate test coverage
-        run: make test-coverage
+      - name: Generate coverage
+        run: |
+          cargo install cargo-tarpaulin
+          cargo tarpaulin --workspace --out Lcov --output-dir ./coverage
 
-      - name: Upload coverage to Codecov
+      - name: Upload to Codecov
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          directory: coverage/
+          files: ./coverage/lcov.info
           fail_ci_if_error: false
 
   security:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Run security audit
-        run: make audit
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - run: cargo install cargo-audit
+      - run: cargo audit
