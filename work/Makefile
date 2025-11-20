@@ -3,7 +3,7 @@ CARGO = cargo
 RUSTFLAGS = -D warnings
 
 # Services
-SERVICES = auth-service  # config-service (commented out for now)
+SERVICES = configurator-service  # config-service (commented out for now)
 SERVICE_DIR = services
 
 # Docker (optional - if you need it later)
