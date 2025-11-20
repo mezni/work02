@@ -1,7 +1,7 @@
 CARGO = cargo
 RUSTFLAGS = -D warnings
 
-SERVICES = auth-service config-service
+SERVICES = auth-service #config-service
 SERVICE_DIR = services
 
 .PHONY: all format clippy build test clean
