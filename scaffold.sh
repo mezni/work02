@@ -7,7 +7,6 @@ PROJECT_NAME="configurator-service"
 AUTHOR="M.MEZNI <mamezni@gmail.com>"
 
 # Define your entities here - add or remove as needed
-#ENTITIES=("station" "connector" "network" "company" "individual" "person")
 ENTITIES=("network")
 
 echo "Creating $PROJECT_NAME project structure..."
@@ -220,6 +219,239 @@ chmod +x ${PROJECT_NAME}/scripts/migrate.sh
 chmod +x ${PROJECT_NAME}/scripts/test.sh
 chmod +x ${PROJECT_NAME}/scripts/deploy.sh
 
+echo "Creating module structure and mod.rs files..."
+
+# Create lib.rs
+cat > ${PROJECT_NAME}/src/lib.rs << 'EOF'
+// src/lib.rs
+pub mod api;
+pub mod application;
+pub mod domain;
+pub mod infrastructure;
+pub mod utils;
+
+pub use api::*;
+pub use application::*;
+pub use domain::*;
+pub use infrastructure::*;
+pub use utils::*;
+EOF
+
+# Create main.rs
+cat > ${PROJECT_NAME}/src/main.rs << 'EOF'
+// src/main.rs
+use configurator_service::api;
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    println!("Starting {}...", env!("CARGO_PKG_NAME"));
+    
+    // Initialize logging
+    env_logger::init();
+    
+    // Start HTTP server
+    api::start_server().await
+}
+EOF
+
+# Create domain mod.rs files
+cat > ${PROJECT_NAME}/src/domain/mod.rs << 'EOF'
+// src/domain/mod.rs
+pub mod enums;
+pub mod events;
+pub mod models;
+pub mod services;
+pub mod value_objects;
+EOF
+
+cat > ${PROJECT_NAME}/src/domain/models/mod.rs << 'EOF'
+// src/domain/models/mod.rs
+pub mod network;
+EOF
+
+cat > ${PROJECT_NAME}/src/domain/value_objects/mod.rs << 'EOF'
+// src/domain/value_objects/mod.rs
+pub mod contact_info;
+pub mod email;
+pub mod location;
+pub mod operational_status;
+pub mod phone;
+pub mod tags;
+pub mod verification_status;
+EOF
+
+cat > ${PROJECT_NAME}/src/domain/enums/mod.rs << 'EOF'
+// src/domain/enums/mod.rs
+pub mod company_type;
+pub mod connector_status;
+pub mod network_type;
+pub mod role_type;
+EOF
+
+cat > ${PROJECT_NAME}/src/domain/events/mod.rs << 'EOF'
+// src/domain/events/mod.rs
+pub mod network_events;
+EOF
+
+cat > ${PROJECT_NAME}/src/domain/services/mod.rs << 'EOF'
+// src/domain/services/mod.rs
+pub mod network_service;
+pub mod station_service;
+pub mod verification_service;
+EOF
+
+# Create application mod.rs files
+cat > ${PROJECT_NAME}/src/application/mod.rs << 'EOF'
+// src/application/mod.rs
+pub mod commands;
+pub mod dtos;
+pub mod handlers;
+pub mod queries;
+EOF
+
+cat > ${PROJECT_NAME}/src/application/commands/mod.rs << 'EOF'
+// src/application/commands/mod.rs
+pub mod network_commands;
+EOF
+
+cat > ${PROJECT_NAME}/src/application/queries/mod.rs << 'EOF'
+// src/application/queries/mod.rs
+pub mod network_queries;
+EOF
+
+cat > ${PROJECT_NAME}/src/application/handlers/mod.rs << 'EOF'
+// src/application/handlers/mod.rs
+pub mod command_handlers;
+pub mod query_handlers;
+EOF
+
+cat > ${PROJECT_NAME}/src/application/dtos/mod.rs << 'EOF'
+// src/application/dtos/mod.rs
+pub mod network_dtos;
+EOF
+
+# Create infrastructure mod.rs files
+cat > ${PROJECT_NAME}/src/infrastructure/mod.rs << 'EOF'
+// src/infrastructure/mod.rs
+pub mod config;
+pub mod database;
+pub mod external;
+EOF
+
+cat > ${PROJECT_NAME}/src/infrastructure/database/mod.rs << 'EOF'
+// src/infrastructure/database/mod.rs
+pub mod connection;
+pub mod migrations;
+pub mod repositories;
+EOF
+
+cat > ${PROJECT_NAME}/src/infrastructure/database/repositories/mod.rs << 'EOF'
+// src/infrastructure/database/repositories/mod.rs
+pub mod network_repository;
+EOF
+
+cat > ${PROJECT_NAME}/src/infrastructure/config/mod.rs << 'EOF'
+// src/infrastructure/config/mod.rs
+pub mod settings;
+EOF
+
+cat > ${PROJECT_NAME}/src/infrastructure/external/mod.rs << 'EOF'
+// src/infrastructure/external/mod.rs
+pub mod email_service;
+pub mod sms_service;
+EOF
+
+# Create API mod.rs files
+cat > ${PROJECT_NAME}/src/api/mod.rs << 'EOF'
+// src/api/mod.rs
+pub mod handlers;
+pub mod middleware;
+pub mod responses;
+pub mod routes;
+
+use actix_web::{web, App, HttpServer};
+
+pub async fn start_server() -> std::io::Result<()> {
+    HttpServer::new(|| {
+        App::new()
+            .configure(routes::config)
+    })
+    .bind("127.0.0.1:8080")?
+    .run()
+    .await
+}
+EOF
+
+cat > ${PROJECT_NAME}/src/api/routes/mod.rs << 'EOF'
+// src/api/routes/mod.rs
+pub mod networks;
+
+use actix_web::web;
+
+pub fn config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/api")
+            .configure(networks::config)
+    );
+}
+EOF
+
+cat > ${PROJECT_NAME}/src/api/routes/networks.rs << 'EOF'
+// src/api/routes/networks.rs
+use actix_web::web;
+
+pub fn config(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/networks")
+            // Routes will be added here
+    );
+}
+EOF
+
+cat > ${PROJECT_NAME}/src/api/handlers/mod.rs << 'EOF'
+// src/api/handlers/mod.rs
+pub mod network_handlers;
+EOF
+
+cat > ${PROJECT_NAME}/src/api/middleware/mod.rs << 'EOF'
+// src/api/middleware/mod.rs
+pub mod auth;
+pub mod error_handling;
+pub mod logging;
+EOF
+
+cat > ${PROJECT_NAME}/src/api/responses/mod.rs << 'EOF'
+// src/api/responses/mod.rs
+pub mod api_response;
+pub mod error_response;
+EOF
+
+# Create utils mod.rs
+cat > ${PROJECT_NAME}/src/utils/mod.rs << 'EOF'
+// src/utils/mod.rs
+pub mod datetime;
+pub mod id_generator;
+pub mod validators;
+EOF
+
+# Create test mod.rs files
+cat > ${PROJECT_NAME}/tests/mod.rs << 'EOF'
+// tests/mod.rs
+pub mod integration;
+pub mod unit;
+EOF
+
+cat > ${PROJECT_NAME}/tests/unit/mod.rs << 'EOF'
+// tests/unit/mod.rs
+pub mod domain_tests;
+pub mod service_tests;
+EOF
+
+cat > ${PROJECT_NAME}/tests/integration/mod.rs << 'EOF'
+// tests/integration/mod.rs
+pub mod network_tests;
+EOF
+
 # Create basic Cargo.toml content
 cat > ${PROJECT_NAME}/Cargo.toml << EOF
 [package]
@@ -229,6 +461,10 @@ edition = "2021"
 description = "EV Station Management System"
 authors = ["${AUTHOR}"]
 license = "MIT"
+
+[[bin]]
+name = "${PROJECT_NAME}"
+path = "src/main.rs"
 
 [dependencies]
 actix-web = "4.12.0"
@@ -244,11 +480,6 @@ dotenvy = "0.15.7"
 thiserror = "2.0.17"
 log = "0.4.28"
 env_logger = "0.11.8"
-utoipa = { version = "5.4.0", features = ["actix_extras"] }
-utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
-validator = { version = "0.20.0", features = ["derive"] }
-argon2 = "0.5.3"
-jsonwebtoken = "10.2.0"
 
 [dev-dependencies]
 rstest = "0.26.1"
@@ -296,9 +527,26 @@ done)
 3. Run database migrations: \`./scripts/migrate.sh\`
 4. Start the server: \`cargo run\`
 
+## Project Structure
+
+The project follows Domain-Driven Design (DDD) principles:
+
+- \`domain/\`: Core business logic, entities, value objects
+- \`application/\`: Use cases, commands, queries
+- \`infrastructure/\`: Database, external services, configuration
+- \`api/\`: Web API, routes, handlers
+- \`utils/\`: Shared utilities
+
+## Build
+
+\`\`\`bash
+cargo build
+cargo run
+\`\`\`
+
 ## API Documentation
 
-Once running, access Swagger UI at: http://localhost:8080/swagger-ui/
+Once running, access the API at: http://localhost:8080/api/
 EOF
 
 # Create basic .env file
@@ -340,6 +588,26 @@ echo "Deploying application..."
 echo "Deployment completed!"
 EOF
 
+# Create empty module files with basic structure
+for file in ${PROJECT_NAME}/src/domain/models/*.rs; do
+    if [ -f "$file" ]; then
+        cat > "$file" << 'EOF'
+// Placeholder for domain model
+pub struct Model {
+    // Will be implemented
+}
+
+impl Model {
+    // Will be implemented
+}
+EOF
+    fi
+done
+
 echo "Project structure for '${PROJECT_NAME}' created successfully!"
 echo "Entities created: ${ENTITIES[*]}"
-echo "Navigate to ${PROJECT_NAME}/ and run 'cargo build' to get started."
+echo ""
+echo "To build and run:"
+echo "  cd ${PROJECT_NAME} && cargo build && cargo run"
+echo ""
+echo "The project should compile successfully with all modules wired."

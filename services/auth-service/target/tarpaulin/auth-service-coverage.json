@@ -1,1 +1,0 @@
-{"traces":{"/home/dali/WORK/work02/work/services/auth-service/src/main.rs":[{"line":1,"address":[418688,418736],"length":1,"stats":{"Line":1}},{"line":2,"address":[418692],"length":1,"stats":{"Line":0}}]},"functions":{"/home/dali/WORK/work02/work/services/auth-service/src/main.rs":[{"name":"main","start":1,"end":3}]}}
