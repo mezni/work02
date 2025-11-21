@@ -1,0 +1,41 @@
+[package]
+name = "ms1"
+version = "0.1.0"
+edition = "2021"
+authors = ["M.MEZNI <mamezni@gmail.com>"]
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+tracing = "0.1"
+thiserror = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+anyhow = "1.0"
+
+# Database
+sqlx = { version = "0.7", features = ["postgres", "runtime-tokio-rustls", "macros"] }
+
+# Web framework
+warp = "0.3"
+
+# API documentation
+utoipa = { version = "4.0", features = ["warp"] }
+utoipa-swagger-ui = { version = "4.0", features = ["warp"] }
+
+# Validation
+validator = { version = "0.16", features = ["derive"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Configuration
+config = "0.13"
+
+# Caching
+redis = { version = "0.23", features = ["tokio-comp"] }
+
+[dev-dependencies]
+rstest = "0.18"
+testcontainers = "0.15"
+mockall = "0.11"
