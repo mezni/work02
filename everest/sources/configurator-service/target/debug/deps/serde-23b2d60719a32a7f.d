@@ -1,0 +1,14 @@
+/home/dali/WORK/work02/everest/sources/configurator-service/target/debug/deps/serde-23b2d60719a32a7f.d: /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/dali/WORK/work02/everest/sources/configurator-service/target/debug/build/serde-f38b255d54569d39/out/private.rs
+
+/home/dali/WORK/work02/everest/sources/configurator-service/target/debug/deps/libserde-23b2d60719a32a7f.rlib: /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/dali/WORK/work02/everest/sources/configurator-service/target/debug/build/serde-f38b255d54569d39/out/private.rs
+
+/home/dali/WORK/work02/everest/sources/configurator-service/target/debug/deps/libserde-23b2d60719a32a7f.rmeta: /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/dali/WORK/work02/everest/sources/configurator-service/target/debug/build/serde-f38b255d54569d39/out/private.rs
+
+/home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/dali/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/dali/WORK/work02/everest/sources/configurator-service/target/debug/build/serde-f38b255d54569d39/out/private.rs:
+
+# env-dep:OUT_DIR=/home/dali/WORK/work02/everest/sources/configurator-service/target/debug/build/serde-f38b255d54569d39/out
