@@ -38,7 +38,7 @@ mod tests {
     #[test]
     fn test_username_allows_valid_characters() {
         let valid_usernames = vec!["user-name", "user_name", "user.name", "user123"];
-        
+
         for username in valid_usernames {
             let result = Username::new(username);
             assert!(result.is_ok(), "Failed for: {}", username);
@@ -48,10 +48,14 @@ mod tests {
     #[test]
     fn test_username_rejects_invalid_characters() {
         let invalid_usernames = vec!["user@name", "user name", "user$name", "user#name"];
-        
+
         for username in invalid_usernames {
             let result = Username::new(username);
-            assert!(matches!(result, Err(DomainError::Validation(_))), "Should have failed for: {}", username);
+            assert!(
+                matches!(result, Err(DomainError::Validation(_))),
+                "Should have failed for: {}",
+                username
+            );
         }
     }
 

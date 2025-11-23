@@ -1,8 +1,8 @@
 // src/domain/mod.rs
-pub mod value_objects;
 pub mod entities;
+pub mod error;
 pub mod events;
 pub mod repositories;
-pub mod error;
+pub mod value_objects;
 
 pub use error::DomainError;

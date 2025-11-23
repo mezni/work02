@@ -14,7 +14,7 @@ impl UserDeactivatedEvent {
             occurred_at: chrono::Utc::now(),
         }
     }
-    
+
     pub fn user_id(&self) -> &UserId {
         &self.user_id
     }
@@ -24,7 +24,7 @@ impl super::DomainEvent for UserDeactivatedEvent {
     fn event_type(&self) -> &str {
         "user.deactivated"
     }
-    
+
     fn occurred_at(&self) -> chrono::DateTime<chrono::Utc> {
         self.occurred_at
     }

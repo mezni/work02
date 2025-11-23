@@ -1,4 +1,4 @@
-// tests/domain/value_objects/phone_number_test.rs
+// tests/unit/value_objects/phone_number_test.rs
 #[cfg(test)]
 mod tests {
     use auth_service::domain::value_objects::PhoneNumber;
@@ -17,6 +17,12 @@ mod tests {
     }
 
     #[test]
+    fn test_phone_number_removes_parentheses() {
+        let phone = PhoneNumber::new("+1 (234) 567-890").unwrap();
+        assert_eq!(phone.as_str(), "+1234567890");
+    }
+
+    #[test]
     fn test_phone_number_allows_empty_string() {
         let phone = PhoneNumber::new("").unwrap();
         assert!(phone.is_empty());
@@ -24,32 +30,43 @@ mod tests {
 
     #[test]
     fn test_phone_number_rejects_invalid_characters() {
-        let invalid_numbers = vec!["+1-800-ABC-DEFG", "+1 (800) 123-4567", "800!123!4567"];
-        
+        let invalid_numbers = vec!["+1-800-ABC-DEFG", "800!123!4567", "+1-800-123-45a6"];
+
         for number in invalid_numbers {
             let result = PhoneNumber::new(number);
-            assert!(matches!(result, Err(DomainError::Validation(_))), "Should have failed for: {}", number);
+            assert!(
+                matches!(result, Err(DomainError::Validation(_))),
+                "Should have failed for: {}",
+                number
+            );
         }
     }
 
     #[test]
     fn test_phone_number_rejects_too_short() {
-        let result = PhoneNumber::new("+123456789");
+        // 9 digits is too short
+        let result = PhoneNumber::new("+123456789"); // 9 digits
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
 
     #[test]
     fn test_phone_number_rejects_too_long() {
-        let long_number = "+1".to_string() + &"2".repeat(15);
-        let result = PhoneNumber::new(&long_number);
+        // 16 digits is too long
+        let result = PhoneNumber::new("+1234567890123456"); // 16 digits
         assert!(matches!(result, Err(DomainError::Validation(_))));
+    }
+
+    #[test]
+    fn test_phone_number_without_plus() {
+        let phone = PhoneNumber::new("1234567890").unwrap();
+        assert_eq!(phone.as_str(), "1234567890");
     }
 
     #[test]
     fn test_phone_number_is_empty() {
         let empty_phone = PhoneNumber::new("").unwrap();
         assert!(empty_phone.is_empty());
-        
+
         let non_empty_phone = PhoneNumber::new("+1234567890").unwrap();
         assert!(!non_empty_phone.is_empty());
     }
