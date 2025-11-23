@@ -1,0 +1,51 @@
+{
+  "realm": "auth-service",
+  "enabled": true,
+  "displayName": "Auth Service Realm",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "auth-service-api",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "your-client-secret",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "redirectUris": [
+        "http://localhost:8080/*",
+        "http://auth-service:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080",
+        "http://auth-service:8080"
+      ],
+      "protocol": "openid-connect",
+      "attributes": {
+        "client.secret.creation.time": "0",
+        "backchannel.logout.session.required": "true",
+        "oauth2.device.authorization.grant.enabled": "false"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-auth-service-api",
+      "enabled": true,
+      "serviceAccountClientId": "auth-service-api",
+      "realmRoles": [
+        "offline_access",
+        "uma_authorization"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "view-users",
+          "view-clients"
+        ]
+      }
+    }
+  ]
+}
