@@ -1,0 +1,50 @@
+[package]
+name = "auth_service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Web framework
+actix-web = "4.12.0"
+
+# SQLx for Postgres (async, runtime tokio)
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-native-tls", "macros", "uuid"] }
+tokio = { version = "1.48.0", features = ["full"] }
+
+# Environment variables
+dotenvy = "0.15.7"
+
+# Keycloak client (HTTP requests)
+reqwest = { version = "0.12.24", features = ["json", "native-tls"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.145"
+
+# JWT handling
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+
+# Logging
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.20", features = ["fmt", "env-filter"] }
+
+# UUIDs
+uuid = { version = "1.18.1", features = ["serde", "v4"] }
+
+# Password hashing
+argon2 = "0.5.3"
+
+# CQRS + domain modeling
+anyhow = "1.0.100"
+
+# OpenAPI / Swagger
+utoipa = { version = "5.4.0", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+
+# Optional: for async traits
+async-trait = "0.1.89"
+thiserror = "2.0.17"
+actix-web-httpauth = "0.8.2"
+
+
+config = "0.15.19"
+tracing-actix-web = "0.7.19"
+chrono = "0.4.42"
