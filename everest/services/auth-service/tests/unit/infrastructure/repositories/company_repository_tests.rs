@@ -195,7 +195,7 @@ mod tests {
         let creator_id = Uuid::new_v4();
 
         // Create multiple companies
-        for i in 0..5 {
+        for _ in 0..5 {
             let company = create_test_company(Uuid::new_v4(), creator_id);
             repo.create(&company).await.unwrap();
         }

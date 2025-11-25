@@ -1,6 +1,6 @@
 use actix_web::{dev::ServiceRequest, Error, HttpMessage};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 use crate::domain::enums::UserRole;
 use crate::infrastructure::auth::jwt::Claims;
@@ -14,7 +14,7 @@ impl AuthMiddleware {
         credentials: BearerAuth,
     ) -> Result<ServiceRequest, (Error, ServiceRequest)> {
         let token = credentials.token();
-        
+
         // Get JWT service from app data
         let jwt_service = req
             .app_data::<crate::infrastructure::auth::JwtService>()
@@ -24,7 +24,7 @@ impl AuthMiddleware {
             Ok(claims) => {
                 // Clone claims before moving it
                 let user_id = claims.sub.clone();
-                
+
                 // Add claims to request extensions for use in handlers
                 req.extensions_mut().insert(claims);
                 info!("Token validated successfully for user: {}", user_id);
@@ -66,7 +66,7 @@ impl RoleGuard {
     pub fn authenticated() -> Self {
         Self::new(vec![
             UserRole::Admin,
-            UserRole::Partner, 
+            UserRole::Partner,
             UserRole::Operator,
             UserRole::User,
             UserRole::Guest,
@@ -74,27 +74,24 @@ impl RoleGuard {
     }
 }
 
-pub fn extract_user_role_from_request(req: &ServiceRequest) -> Result<UserRole, InfrastructureError> {
+pub fn extract_user_role_from_request(
+    req: &ServiceRequest,
+) -> Result<UserRole, InfrastructureError> {
     let extensions = req.extensions();
-    let claims = extensions
-        .get::<Claims>()
-        .ok_or_else(|| {
-            InfrastructureError::Authorization("No claims found in request".to_string())
-        })?;
+    let claims = extensions.get::<Claims>().ok_or_else(|| {
+        InfrastructureError::Authorization("No claims found in request".to_string())
+    })?;
 
-    UserRole::from_str(&claims.role)
-        .ok_or_else(|| {
-            InfrastructureError::Authorization(format!("Invalid role in token: {}", claims.role))
-        })
+    UserRole::from_str(&claims.role).ok_or_else(|| {
+        InfrastructureError::Authorization(format!("Invalid role in token: {}", claims.role))
+    })
 }
 
 pub fn extract_user_id_from_request(req: &ServiceRequest) -> Result<String, InfrastructureError> {
     let extensions = req.extensions();
-    let claims = extensions
-        .get::<Claims>()
-        .ok_or_else(|| {
-            InfrastructureError::Authorization("No claims found in request".to_string())
-        })?;
+    let claims = extensions.get::<Claims>().ok_or_else(|| {
+        InfrastructureError::Authorization("No claims found in request".to_string())
+    })?;
 
     Ok(claims.sub.clone())
 }
