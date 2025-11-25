@@ -1,0 +1,25 @@
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[database]
+host = "localhost"
+port = 5433
+username = "auth_user"
+password = "password"
+database_name = "auth_db"
+max_connections = 10
+
+[keycloak]
+server_url = "http://localhost:8080"
+realm = "auth-service-realm"
+client_id = "auth-service-client"
+client_secret = "your-client-secret"
+admin_username = "admin"
+admin_password = "admin"
+
+[jwt]
+secret = "your-jwt-secret"
+issuer = "auth-service"
+audience = "auth-service-users"
+expiration_days = 7

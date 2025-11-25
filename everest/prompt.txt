@@ -1,0 +1,393 @@
+Project Overview
+
+Create a Rust-based authentication and authorization microservice that interfaces with Keycloak as the Identity and Access Management (IAM) system. The service provides user management, company scoping, and business logic while delegating core authentication to Keycloak.
+Core Requirements
+1. Architecture Pattern
+
+    Clean Architecture with clear separation of concerns
+
+    CQRS (Command Query Responsibility Segregation) pattern
+
+    Domain-Driven Design principles
+
+    Keycloak as IAM: Auth service interfaces with Keycloak for core authentication
+
+    Modular structure with clear boundaries
+
+2. Technology Stack
+
+    Framework: Actix-web 4.x
+
+    Database: PostgreSQL with SQLx (using UUID for IDs)
+
+    IAM: Keycloak integration for authentication
+
+    Business Logic: JWT validation and company/user management in auth service
+
+    Documentation: Utoipa for OpenAPI/Swagger
+
+    Validation: Validator crate
+
+    Logging: Tracing and tracing-subscriber
+
+    Error Handling: Thiserror with custom error types
+
+    Testing: Comprehensive unit and integration tests
+
+Project Structure
+text
+
+auth-service/
+├── src/
+│   ├── main.rs                 # Application entry point
+│   ├── lib.rs                  # Library exports and prelude
+│   ├── domain/                 # Core business logic
+│   │   ├── entities/           # Domain entities (User, Company, AuditLog)
+│   │   ├── value_objects/      # Value objects (Email, Password)
+│   │   ├── enums/              # Enums (UserRole, AuditAction)
+│   │   ├── repositories/       # Repository traits
+│   │   └── errors.rs           # Domain errors
+│   ├── application/            # Application business rules
+│   │   ├── commands/           # Command definitions
+│   │   ├── queries/            # Query definitions
+│   │   ├── dto/                # Data Transfer Objects
+│   │   ├── command_handlers.rs # Command handlers
+│   │   ├── queries_handlers.rs # Query handlers
+│   │   ├── services/           # Application services
+│   │   └── errors.rs           # Application errors
+│   ├── infrastructure/         # External concerns
+│   │   ├── config/             # Configuration management
+│   │   ├── database/           # Database implementations
+│   │   ├── auth/               # Keycloak client and JWT validation
+│   │   ├── audit/              # Audit logging
+│   │   └── errors.rs           # Infrastructure errors
+│   └── interfaces/             # External interfaces
+│       ├── controllers/        # HTTP controllers
+│       ├── routes/             # Route configuration
+│       ├── openapi/            # OpenAPI documentation
+│       └── errors.rs           # Interface errors
+├── tests/                      # Test suites
+│   ├── integration/            # Integration tests
+│   └── unit/                   # Unit tests
+├── config/                     # Configuration files
+│   ├── default.toml
+│   ├── development.toml
+│   └── production.toml
+├── migrations/                 # Database migrations
+└── Cargo.toml
+
+Key Features to Implement
+1. Keycloak Integration Architecture
+Auth Service as Business Logic Layer:
+
+    Keycloak handles: User authentication, password management, token issuance
+
+    Auth Service handles: User roles, company assignments, business permissions, audit logging
+
+    JWT Validation: Auth service validates Keycloak-issued tokens and enriches with business context
+
+Keycloak Client Implementation:
+rust
+
+// Keycloak API client for user management
+pub struct KeycloakClient {
+    base_url: String,
+    realm: String,
+    client_id: String,
+    client_secret: String,
+    admin_username: String,
+    admin_password: String,
+}
+
+impl KeycloakClient {
+    // Keycloak Admin API operations
+    pub async fn create_user(&self, username: &str, email: &str, password: &str) -> Result<String>;
+    pub async fn login(&self, username: &str, password: &str) -> Result<KeycloakTokenResponse>;
+    pub async fn refresh_token(&self, refresh_token: &str) -> Result<KeycloakTokenResponse>;
+    pub async fn user_info(&self, access_token: &str) -> Result<KeycloakUserInfo>;
+    pub async fn update_user(&self, user_id: &str, attributes: HashMap<String, String>) -> Result<()>;
+    pub async fn reset_password(&self, user_id: &str, new_password: &str) -> Result<()>;
+}
+
+2. User Roles & Permissions System
+User Roles (Managed in Auth Service DB):
+
+    Admin:
+
+        Can create companies
+
+        Manage all users across all companies
+
+        Assign any role to any user
+
+        Assign users to any company
+
+        Full system access
+
+    Partner / Operator:
+
+        Must be assigned to exactly one company
+
+        Can manage users only within their assigned company
+
+        Cannot create companies
+
+        Cannot assign Admin role
+
+    User:
+
+        Self-registered users (automatic assignment)
+
+        Cannot be assigned to any company
+
+        Limited permissions for personal account management
+
+        Cannot manage other users
+
+    Guest:
+
+        Not assigned to any company
+
+        Read-only access to public resources
+
+        No write operations
+
+User-Company Relationship:
+
+    Each Partner and Operator belongs to exactly one company
+
+    Admin users are not company-scoped (can access all companies)
+
+    User and Guest roles are not company-scoped
+
+    Company represents an organization with multiple users
+
+    Self-registered users automatically get "User" role (no company)
+
+    Guests are created for read-only API access
+
+3. Authentication Flow
+Registration Flow:
+
+    User registers via auth service endpoint
+
+    Auth service calls Keycloak to create user account
+
+    Auth service creates user record in local DB with "User" role
+
+    Keycloak sends email verification (if configured)
+
+Login Flow:
+
+    User provides credentials to auth service
+
+    Auth service calls Keycloak login endpoint
+
+    Keycloak returns access_token and refresh_token
+
+    Auth service validates token and enriches with business roles/company from local DB
+
+    Auth service returns JWT with business claims
+
+Token Validation:
+rust
+
+pub struct JwtService {
+    // Validates Keycloak-issued tokens and adds business context
+    pub fn validate_token(&self, token: &str) -> Result<BusinessClaims>;
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BusinessClaims {
+    // Keycloak standard claims
+    pub sub: String,           // Keycloak user ID
+    pub email: String,
+    pub username: String,
+    
+    // Auth service business claims
+    pub role: UserRole,        // From auth service DB
+    pub company_id: Option<Uuid>, // From auth service DB
+    pub permissions: Vec<String>, // Computed from role + company
+}
+
+4. User Management
+Local User Database:
+
+    Stores business-specific data: role, company_id, profile information
+
+    Maintains relationship with Keycloak via keycloak_id field
+
+    Handles company assignments and role management
+
+Keycloak Synchronization:
+
+    User creation/deletion synchronized between systems
+
+    Password management handled entirely by Keycloak
+
+    Email/username changes synchronized
+
+5. Company Management
+
+    Company CRUD operations (Admin-only for creation)
+
+    Company-user associations managed in auth service
+
+    Company-specific user management
+
+    Transfer company ownership
+
+Database Schema Design
+Users Table (Auth Service)
+sql
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    keycloak_id VARCHAR(255) UNIQUE NOT NULL,  -- Keycloak user ID
+    username VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    role VARCHAR(50) NOT NULL CHECK (role IN ('Admin', 'Partner', 'Operator', 'User', 'Guest')),
+    company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
+    email_verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_company_id ON users(company_id);
+CREATE INDEX idx_users_email ON users(email);
+
+Companies Table
+sql
+
+CREATE TABLE companies (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_by UUID REFERENCES users(id) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+API Endpoints
+Authentication (Keycloak-integrated)
+text
+
+POST   /api/v1/auth/register    # Create user in Keycloak + auth service
+POST   /api/v1/auth/login       # Authenticate via Keycloak
+POST   /api/v1/auth/refresh     # Refresh Keycloak token
+POST   /api/v1/auth/logout      # Keycloak logout
+POST   /api/v1/auth/forgot-password  # Keycloak password reset
+POST   /api/v1/auth/validate-token   # Validate + enrich JWT
+
+User Management (Auth Service Business Logic)
+text
+
+GET    /api/v1/users            # List users (company-scoped)
+POST   /api/v1/users            # Create user (Admin/Partner/Operator)
+GET    /api/v1/users/{id}       # Get user details
+PUT    /api/v1/users/{id}       # Update user (role, company)
+PUT    /api/v1/users/{id}/role  # Change user role
+PUT    /api/v1/users/{id}/company # Assign to company
+
+Company Management
+text
+
+GET    /api/v1/companies        # List companies (scoped by role)
+POST   /api/v1/companies        # Create company (Admin only)
+GET    /api/v1/companies/{id}   # Get company details
+PUT    /api/v1/companies/{id}   # Update company
+GET    /api/v1/companies/{id}/users  # List company users
+
+Implementation Steps
+Phase 1: Foundation & Keycloak Setup
+
+    Set up project structure and dependencies
+
+    Implement Keycloak client for Admin API
+
+    Create database schema with user-company relationships
+
+    Set up configuration management for Keycloak connection
+
+Phase 2: Core Authentication Flow
+
+    Implement user registration with Keycloak integration
+
+    Create login flow with Keycloak token exchange
+
+    Build JWT validation with business context enrichment
+
+    Implement token refresh mechanism
+
+Phase 3: Business Logic & Authorization
+
+    Implement role-based access control middleware
+
+    Create company-scoped permission system
+
+    Build user management with Keycloak synchronization
+
+    Implement company management features
+
+Phase 4: API & Interfaces
+
+    Create Actix-web controllers with Keycloak integration
+
+    Implement route configuration with authentication middleware
+
+    Add OpenAPI documentation
+
+    Set up audit logging
+
+Keycloak Configuration
+Required Keycloak Setup:
+
+    Realm for the application
+
+    Client with appropriate roles
+
+    Admin user for service account
+
+    Email verification flow (optional)
+
+    Password reset flow
+
+Auth Service Keycloak Client:
+rust
+
+pub struct KeycloakConfig {
+    pub server_url: String,      // http://localhost:8080
+    pub realm: String,           // auth-service-realm
+    pub client_id: String,       // auth-service-client
+    pub client_secret: String,
+    pub admin_username: String,  // keycloak admin user
+    pub admin_password: String,
+}
+
+Success Criteria
+
+    Fully functional authentication with Keycloak integration
+
+    Proper role-based authorization with company scoping
+
+    Complete user and company management
+
+    Comprehensive API documentation
+
+    All tests passing
+
+    Proper error handling and security measures
+
+This architecture provides a clean separation where Keycloak handles the heavy lifting of authentication while the auth service focuses on business logic, authorization, and company management.
+
+
+use thiserror , tracing , tracing-subscriber  , jsonwebtoken, utoipa-swagger-ui , utoipa
+
+give me a script that generate 
+1- a seperate shell script that generate the directory template with mod.rs and cargo.toml
+2- a seperate shell script that generate the domain files with their tests and main.rs and lib.rs that works
+3- a seperate shell script that generate the infrastructure files with their tests and main.rs and lib.rs that works
+4- a seperate shell script that generate the application files with their tests and main.rs and lib.rs that works
+5- a seperate shell script that generate the interfaces files with their tests and main.rs and lib.rs that works
