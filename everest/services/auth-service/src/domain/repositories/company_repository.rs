@@ -1,7 +1,8 @@
-use crate::domain::entities::Company;
-use crate::domain::errors::DomainError;
 use async_trait::async_trait;
 use uuid::Uuid;
+
+use crate::domain::entities::Company;
+use crate::domain::errors::DomainError;
 
 #[async_trait]
 pub trait CompanyRepository: Send + Sync {
@@ -12,6 +13,8 @@ pub trait CompanyRepository: Send + Sync {
     async fn delete(&self, company_id: &Uuid) -> Result<(), DomainError>;
 
     async fn find_by_id(&self, company_id: &Uuid) -> Result<Option<Company>, DomainError>;
+
+    async fn find_by_name(&self, name: &str) -> Result<Option<Company>, DomainError>; // Add this method
 
     async fn find_all(&self, page: u32, page_size: u32) -> Result<Vec<Company>, DomainError>;
 

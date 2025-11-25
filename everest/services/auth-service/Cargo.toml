@@ -29,5 +29,7 @@ validator = { version = "0.20.0", features = ["derive"] }
 async-trait = "0.1.89"
 moka = { version = "0.12", features = ["sync"] }
 strum = { version = "0.27.2", features = ["derive"] }
+actix-web-httpauth = "0.8.2"
+mockito = "1.7.0"
 
 
