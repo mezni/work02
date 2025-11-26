@@ -1,14 +1,12 @@
 use async_trait::async_trait;
-use auth_service::application::command_handlers::{
-    CommandHandler, CreateCompanyCommandHandler, CreateUserCommandHandler,
-};
-use auth_service::application::commands::{CreateCompanyCommand, CreateUserCommand};
-use auth_service::application::errors::ApplicationError;
-use auth_service::domain::entities::{AuditLog, Company, User};
-use auth_service::domain::enums::UserRole;
-use auth_service::domain::errors::DomainError;
-use auth_service::domain::repositories::{AuditLogRepository, CompanyRepository, UserRepository};
 use uuid::Uuid;
+use auth_service::application::commands::{CreateUserCommand, CreateCompanyCommand};
+use auth_service::application::command_handlers::{CommandHandler, CreateUserCommandHandler, CreateCompanyCommandHandler};
+use auth_service::application::errors::ApplicationError;
+use auth_service::domain::entities::{User, Company, AuditLog};
+use auth_service::domain::enums::UserRole;
+use auth_service::domain::repositories::{UserRepository, CompanyRepository, AuditLogRepository};
+use auth_service::domain::errors::DomainError;
 
 // Mock UserRepository
 struct MockUserRepository {
@@ -18,10 +16,7 @@ struct MockUserRepository {
 
 impl MockUserRepository {
     fn new(should_fail: bool, admin_user: bool) -> Self {
-        Self {
-            should_fail,
-            admin_user,
-        }
+        Self { should_fail, admin_user }
     }
 }
 
@@ -39,21 +34,14 @@ impl UserRepository for MockUserRepository {
         if self.should_fail {
             Err(DomainError::ValidationError("Mock error".to_string()))
         } else {
-            let role = if self.admin_user {
-                UserRole::Admin
-            } else {
-                UserRole::User
-            };
-            Ok(Some(
-                User::new(
-                    "keycloak-123".to_string(),
-                    "testuser".to_string(),
-                    "test@example.com".to_string(),
-                    role,
-                    None,
-                )
-                .unwrap(),
-            ))
+            let role = if self.admin_user { UserRole::Admin } else { UserRole::User };
+            Ok(Some(User::new(
+                "keycloak-123".to_string(),
+                "testuser".to_string(),
+                "test@example.com".to_string(),
+                role,
+                None,
+            ).unwrap()))
         }
     }
 
@@ -170,9 +158,9 @@ impl AuditLogRepository for MockAuditLogRepository {
 async fn test_create_user_command_handler_success() {
     let user_repo = Box::new(MockUserRepository::new(false, false));
     let audit_repo = Box::new(MockAuditLogRepository::new(false));
-
+    
     let handler = CreateUserCommandHandler::new(user_repo, audit_repo);
-
+    
     let command = CreateUserCommand {
         keycloak_id: "keycloak-123".to_string(),
         username: "testuser".to_string(),
@@ -180,7 +168,7 @@ async fn test_create_user_command_handler_success() {
         role: UserRole::User,
         company_id: None,
     };
-
+    
     let result = handler.handle(command).await;
     assert!(result.is_ok());
 }
@@ -189,9 +177,9 @@ async fn test_create_user_command_handler_success() {
 async fn test_create_user_command_handler_failure() {
     let user_repo = Box::new(MockUserRepository::new(true, false));
     let audit_repo = Box::new(MockAuditLogRepository::new(false));
-
+    
     let handler = CreateUserCommandHandler::new(user_repo, audit_repo);
-
+    
     let command = CreateUserCommand {
         keycloak_id: "keycloak-123".to_string(),
         username: "testuser".to_string(),
@@ -199,7 +187,7 @@ async fn test_create_user_command_handler_failure() {
         role: UserRole::User,
         company_id: None,
     };
-
+    
     let result = handler.handle(command).await;
     assert!(result.is_err());
 }
@@ -209,15 +197,15 @@ async fn test_create_company_command_handler_success() {
     let company_repo = Box::new(MockCompanyRepository::new(false));
     let user_repo = Box::new(MockUserRepository::new(false, true)); // Admin user
     let audit_repo = Box::new(MockAuditLogRepository::new(false));
-
+    
     let handler = CreateCompanyCommandHandler::new(company_repo, user_repo, audit_repo);
-
+    
     let command = CreateCompanyCommand {
         name: "Test Company".to_string(),
         description: Some("Test Description".to_string()),
         created_by: Uuid::new_v4(),
     };
-
+    
     let result = handler.handle(command).await;
     assert!(result.is_ok());
 }
@@ -227,18 +215,18 @@ async fn test_create_company_command_handler_unauthorized() {
     let company_repo = Box::new(MockCompanyRepository::new(false));
     let user_repo = Box::new(MockUserRepository::new(false, false)); // Non-admin user
     let audit_repo = Box::new(MockAuditLogRepository::new(false));
-
+    
     let handler = CreateCompanyCommandHandler::new(company_repo, user_repo, audit_repo);
-
+    
     let command = CreateCompanyCommand {
         name: "Test Company".to_string(),
         description: Some("Test Description".to_string()),
         created_by: Uuid::new_v4(),
     };
-
+    
     let result = handler.handle(command).await;
     assert!(result.is_err());
-
+    
     if let Err(ApplicationError::AuthorizationFailed(msg)) = result {
         assert!(msg.contains("Only admin users can create companies"));
     } else {

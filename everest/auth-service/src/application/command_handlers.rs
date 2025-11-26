@@ -1,11 +1,10 @@
 use async_trait::async_trait;
-use uuid::Uuid;
 
 use crate::application::commands::*;
 use crate::application::errors::ApplicationError;
-use crate::domain::entities::{Company, User};
+use crate::domain::entities::{User, Company};
+use crate::domain::repositories::{UserRepository, CompanyRepository, AuditLogRepository};
 use crate::domain::enums::AuditAction;
-use crate::domain::repositories::{AuditLogRepository, CompanyRepository, UserRepository};
 
 #[async_trait]
 pub trait CommandHandler<C> {
@@ -39,9 +38,9 @@ impl CommandHandler<CreateUserCommand> for CreateUserCommandHandler {
             command.role,
             command.company_id,
         )?;
-
+        
         let created_user = self.user_repository.create(&user).await?;
-
+        
         // Log audit event
         let audit_log = crate::domain::entities::AuditLog::new(
             Some(created_user.id),
@@ -56,9 +55,9 @@ impl CommandHandler<CreateUserCommand> for CreateUserCommandHandler {
             None,
             None,
         );
-
+        
         self.audit_repository.create(&audit_log).await?;
-
+        
         Ok(())
     }
 }
@@ -87,22 +86,24 @@ impl CreateCompanyCommandHandler {
 impl CommandHandler<CreateCompanyCommand> for CreateCompanyCommandHandler {
     async fn handle(&self, command: CreateCompanyCommand) -> Result<(), ApplicationError> {
         // Verify that the creator user exists and is an admin
-        let creator = self
-            .user_repository
-            .find_by_id(command.created_by)
+        let creator = self.user_repository.find_by_id(command.created_by)
             .await?
             .ok_or(ApplicationError::UserNotFound)?;
-
+            
         if !creator.is_admin() {
             return Err(ApplicationError::AuthorizationFailed(
-                "Only admin users can create companies".to_string(),
+                "Only admin users can create companies".to_string()
             ));
         }
-
-        let company = Company::new(command.name, command.description, command.created_by);
-
+        
+        let company = Company::new(
+            command.name,
+            command.description,
+            command.created_by,
+        );
+        
         let created_company = self.company_repository.create(&company).await?;
-
+        
         // Log audit event
         let audit_log = crate::domain::entities::AuditLog::new(
             Some(creator.id),
@@ -115,9 +116,9 @@ impl CommandHandler<CreateCompanyCommand> for CreateCompanyCommandHandler {
             None,
             None,
         );
-
+        
         self.audit_repository.create(&audit_log).await?;
-
+        
         Ok(())
     }
 }

@@ -1,14 +1,19 @@
 use utoipa::OpenApi;
 
 use crate::application::dto::{
-    BusinessClaims, CompanyDto, CreateCompanyDto, CreateUserDto, LoginRequest, LoginResponse,
-    RegisterRequest, UpdateCompanyDto, UpdateUserDto, UserDto,
+    LoginRequest, LoginResponse, RegisterRequest, UserDto, CompanyDto,
+    CreateUserDto, UpdateUserDto, CreateCompanyDto, UpdateCompanyDto,
+    BusinessClaims
+};
+use crate::interfaces::controllers::{
+    ListUsersQuery, ListCompaniesQuery, ListCompanyUsersQuery
 };
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        // Auth routes
+        // Auth routes - we need to document the controller methods directly
+        // since utoipa doesn't work well with wrapper functions
         crate::interfaces::controllers::AuthController::register,
         crate::interfaces::controllers::AuthController::login,
         crate::interfaces::controllers::AuthController::refresh_token,
@@ -33,7 +38,10 @@ use crate::application::dto::{
             LoginRequest, LoginResponse, RegisterRequest, UserDto, CompanyDto,
             CreateUserDto, UpdateUserDto, CreateCompanyDto, UpdateCompanyDto,
             BusinessClaims,
-            crate::domain::enums::UserRole
+            crate::domain::enums::UserRole,
+            ListUsersQuery,
+            ListCompaniesQuery,
+            ListCompanyUsersQuery
         )
     ),
     tags(

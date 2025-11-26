@@ -1,9 +1,9 @@
 pub mod controllers;
-pub mod errors;
-pub mod openapi;
 pub mod routes;
+pub mod openapi;
+pub mod errors;
 
 // Re-exports
-pub use controllers::{AuthController, CompanyController, UserController};
-pub use errors::InterfaceError;
+pub use controllers::{AuthController, UserController, CompanyController};
 pub use routes::configure_routes;
+pub use errors::InterfaceError;

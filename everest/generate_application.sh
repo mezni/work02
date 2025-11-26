@@ -78,6 +78,8 @@ impl ApplicationError {
 }
 EOF
 
+
+# First, let's fix the DTOs to implement Validate trait properly
 cat > src/application/dto.rs << 'EOF'
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -174,9 +176,12 @@ pub struct UpdateCompanyDto {
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct LoginRequest {
+    #[validate(length(min = 3))]
     pub username: String,
+    
+    #[validate(length(min = 8))]
     pub password: String,
 }
 
@@ -189,10 +194,15 @@ pub struct LoginResponse {
     pub user: UserDto,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegisterRequest {
+    #[validate(length(min = 3, max = 100))]
     pub username: String,
+    
+    #[validate(email)]
     pub email: String,
+    
+    #[validate(length(min = 8))]
     pub password: String,
 }
 
@@ -333,10 +343,12 @@ pub struct ValidateTokenQuery {
 }
 EOF
 
-# Command handlers
+
+
+
+# Remove unused imports from command_handlers.rs
 cat > src/application/command_handlers.rs << 'EOF'
 use async_trait::async_trait;
-use uuid::Uuid;
 
 use crate::application::commands::*;
 use crate::application::errors::ApplicationError;
@@ -464,10 +476,9 @@ impl CommandHandler<CreateCompanyCommand> for CreateCompanyCommandHandler {
 // Additional command handlers would be implemented similarly
 EOF
 
-# Query handlers
+# Remove unused imports from query_handlers.rs
 cat > src/application/query_handlers.rs << 'EOF'
 use async_trait::async_trait;
-use uuid::Uuid;
 
 use crate::application::queries::*;
 use crate::application::dto::{UserDto, CompanyDto};
@@ -572,10 +583,9 @@ impl QueryHandler<GetCompanyByIdQuery, Option<CompanyDto>> for GetCompanyByIdQue
 // Additional query handlers would be implemented similarly
 EOF
 
-# Services
+
 cat > src/application/services.rs << 'EOF'
 use async_trait::async_trait;
-use uuid::Uuid;
 
 use crate::application::dto::{LoginResponse, BusinessClaims, UserDto};
 use crate::application::errors::ApplicationError;

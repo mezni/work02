@@ -1,10 +1,9 @@
 use async_trait::async_trait;
-use uuid::Uuid;
 
-use crate::application::dto::{CompanyDto, UserDto};
-use crate::application::errors::ApplicationError;
 use crate::application::queries::*;
-use crate::domain::repositories::{CompanyRepository, UserRepository};
+use crate::application::dto::{UserDto, CompanyDto};
+use crate::application::errors::ApplicationError;
+use crate::domain::repositories::{UserRepository, CompanyRepository};
 
 #[async_trait]
 pub trait QueryHandler<Q, R> {
@@ -25,7 +24,7 @@ impl GetUserByIdQueryHandler {
 impl QueryHandler<GetUserByIdQuery, Option<UserDto>> for GetUserByIdQueryHandler {
     async fn handle(&self, query: GetUserByIdQuery) -> Result<Option<UserDto>, ApplicationError> {
         let user = self.user_repository.find_by_id(query.user_id).await?;
-
+        
         Ok(user.map(|u| UserDto {
             id: u.id,
             keycloak_id: u.keycloak_id,
@@ -58,22 +57,19 @@ impl QueryHandler<ListUsersQuery, Vec<UserDto>> for ListUsersQueryHandler {
         } else {
             self.user_repository.list_all().await?
         };
-
-        let users_dto = users
-            .into_iter()
-            .map(|u| UserDto {
-                id: u.id,
-                keycloak_id: u.keycloak_id,
-                username: u.username,
-                email: u.email,
-                role: u.role,
-                company_id: u.company_id,
-                email_verified: u.email_verified,
-                created_at: u.created_at.to_rfc3339(),
-                updated_at: u.updated_at.to_rfc3339(),
-            })
-            .collect();
-
+        
+        let users_dto = users.into_iter().map(|u| UserDto {
+            id: u.id,
+            keycloak_id: u.keycloak_id,
+            username: u.username,
+            email: u.email,
+            role: u.role,
+            company_id: u.company_id,
+            email_verified: u.email_verified,
+            created_at: u.created_at.to_rfc3339(),
+            updated_at: u.updated_at.to_rfc3339(),
+        }).collect();
+        
         Ok(users_dto)
     }
 }
@@ -90,12 +86,9 @@ impl GetCompanyByIdQueryHandler {
 
 #[async_trait]
 impl QueryHandler<GetCompanyByIdQuery, Option<CompanyDto>> for GetCompanyByIdQueryHandler {
-    async fn handle(
-        &self,
-        query: GetCompanyByIdQuery,
-    ) -> Result<Option<CompanyDto>, ApplicationError> {
+    async fn handle(&self, query: GetCompanyByIdQuery) -> Result<Option<CompanyDto>, ApplicationError> {
         let company = self.company_repository.find_by_id(query.company_id).await?;
-
+        
         Ok(company.map(|c| CompanyDto {
             id: c.id,
             name: c.name,

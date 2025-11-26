@@ -119,20 +119,19 @@ impl ResponseError for InterfaceError {
 pub type WebResult<T> = Result<T, InterfaceError>;
 EOF
 
-# Controllers
+# controllers
 cat > src/interfaces/controllers.rs << 'EOF'
 use actix_web::{web, HttpRequest, HttpResponse};
-use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
+use utoipa::ToSchema;
 
 use crate::application::dto::{
-    LoginRequest, LoginResponse, RegisterRequest, UserDto, CompanyDto, 
+    LoginRequest, RegisterRequest, UserDto, CompanyDto, 
     CreateUserDto, UpdateUserDto, CreateCompanyDto, UpdateCompanyDto
 };
-use crate::application::services::{AuthService, AuthServiceImpl};
-use crate::domain::repositories::{UserRepository, CompanyRepository, AuditLogRepository};
-use crate::infrastructure::auth::KeycloakClient;
+use crate::application::services::AuthService;
+use crate::domain::repositories::{UserRepository, CompanyRepository};
 use crate::interfaces::errors::{WebResult, InterfaceError};
 
 #[derive(Clone)]
@@ -145,11 +144,23 @@ impl AuthController {
         Self { auth_service }
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/auth/register",
+        request_body = RegisterRequest,
+        responses(
+            (status = 201, description = "User registered successfully", body = UserDto),
+            (status = 400, description = "Validation error"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "auth"
+    )]
     pub async fn register(
         &self,
         register_request: web::Json<RegisterRequest>,
     ) -> WebResult<HttpResponse> {
-        register_request.validate()
+        // Validate the inner data, not the Json wrapper
+        register_request.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let user_dto = self.auth_service.register(
@@ -161,11 +172,24 @@ impl AuthController {
         Ok(HttpResponse::Created().json(user_dto))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/auth/login",
+        request_body = LoginRequest,
+        responses(
+            (status = 200, description = "Login successful", body = LoginResponse),
+            (status = 400, description = "Validation error"),
+            (status = 401, description = "Authentication failed"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "auth"
+    )]
     pub async fn login(
         &self,
         login_request: web::Json<LoginRequest>,
     ) -> WebResult<HttpResponse> {
-        login_request.validate()
+        // Validate the inner data
+        login_request.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let login_response = self.auth_service.login(
@@ -176,6 +200,18 @@ impl AuthController {
         Ok(HttpResponse::Ok().json(login_response))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/auth/refresh",
+        request_body = RefreshTokenRequest,
+        responses(
+            (status = 200, description = "Token refreshed successfully", body = LoginResponse),
+            (status = 400, description = "Invalid request"),
+            (status = 401, description = "Invalid token"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "auth"
+    )]
     pub async fn refresh_token(
         &self,
         refresh_request: web::Json<serde_json::Value>,
@@ -189,6 +225,18 @@ impl AuthController {
         Ok(HttpResponse::Ok().json(login_response))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/auth/validate",
+        request_body = ValidateTokenRequest,
+        responses(
+            (status = 200, description = "Token is valid", body = BusinessClaims),
+            (status = 400, description = "Invalid request"),
+            (status = 401, description = "Invalid token"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "auth"
+    )]
     pub async fn validate_token(
         &self,
         token_request: web::Json<serde_json::Value>,
@@ -202,6 +250,15 @@ impl AuthController {
         Ok(HttpResponse::Ok().json(claims))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/auth/logout",
+        responses(
+            (status = 200, description = "Logged out successfully"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "auth"
+    )]
     pub async fn logout(
         &self,
         _request: HttpRequest,
@@ -231,6 +288,21 @@ impl UserController {
         }
     }
     
+    #[utoipa::path(
+        get,
+        path = "/api/v1/users",
+        params(
+            ("company_id" = Option<Uuid>, Query, description = "Filter by company ID"),
+            ("page" = Option<u32>, Query, description = "Page number"),
+            ("page_size" = Option<u32>, Query, description = "Page size")
+        ),
+        responses(
+            (status = 200, description = "List of users", body = [UserDto]),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "users"
+    )]
     pub async fn list_users(
         &self,
         request: HttpRequest,
@@ -275,6 +347,20 @@ impl UserController {
         Ok(HttpResponse::Ok().json(users_dto))
     }
     
+    #[utoipa::path(
+        get,
+        path = "/api/v1/users/{id}",
+        params(
+            ("id" = Uuid, Path, description = "User ID")
+        ),
+        responses(
+            (status = 200, description = "User details", body = UserDto),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 404, description = "User not found"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "users"
+    )]
     pub async fn get_user(
         &self,
         request: HttpRequest,
@@ -314,22 +400,35 @@ impl UserController {
         Ok(HttpResponse::Ok().json(user_dto))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/users",
+        request_body = CreateUserDto,
+        responses(
+            (status = 201, description = "User created successfully", body = UserDto),
+            (status = 400, description = "Validation error"),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 501, description = "Not implemented"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "users"
+    )]
     pub async fn create_user(
         &self,
         request: HttpRequest,
         create_user_dto: web::Json<CreateUserDto>,
     ) -> WebResult<HttpResponse> {
-        create_user_dto.validate()
+        // Validate the inner data
+        create_user_dto.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let current_user = Self::extract_current_user(&request)?;
         
         // Only admins can create users with specific roles
         if !current_user.is_admin() {
-            if let Some(role) = &create_user_dto.role {
-                if matches!(role, crate::domain::enums::UserRole::Admin) {
-                    return Err(InterfaceError::InsufficientPermissions);
-                }
+            // Access the role directly from the DTO (it's not optional in CreateUserDto)
+            if matches!(create_user_dto.role, crate::domain::enums::UserRole::Admin) {
+                return Err(InterfaceError::InsufficientPermissions);
             }
             
             // Partners/Operators can only create users for their company
@@ -347,13 +446,30 @@ impl UserController {
         })))
     }
     
+    #[utoipa::path(
+        put,
+        path = "/api/v1/users/{id}",
+        params(
+            ("id" = Uuid, Path, description = "User ID")
+        ),
+        request_body = UpdateUserDto,
+        responses(
+            (status = 200, description = "User updated successfully", body = UserDto),
+            (status = 400, description = "Validation error"),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 404, description = "User not found"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "users"
+    )]
     pub async fn update_user(
         &self,
         request: HttpRequest,
         user_id: web::Path<Uuid>,
         update_user_dto: web::Json<UpdateUserDto>,
     ) -> WebResult<HttpResponse> {
-        update_user_dto.validate()
+        // Validate the inner data
+        update_user_dto.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let current_user = Self::extract_current_user(&request)?;
@@ -377,12 +493,12 @@ impl UserController {
             target_user.email = email.clone();
         }
         
-        if let Some(role) = &update_user_dto.role {
+        if let Some(role) = update_user_dto.role {
             // Only admins can change roles to admin
             if matches!(role, crate::domain::enums::UserRole::Admin) && !current_user.is_admin() {
                 return Err(InterfaceError::InsufficientPermissions);
             }
-            target_user.role = role.clone();
+            target_user.role = role;
         }
         
         if let Some(company_id) = update_user_dto.company_id {
@@ -411,7 +527,7 @@ impl UserController {
         Ok(HttpResponse::Ok().json(user_dto))
     }
     
-    fn extract_current_user(request: &HttpRequest) -> WebResult<crate::domain::entities::User> {
+    fn extract_current_user(_request: &HttpRequest) -> WebResult<crate::domain::entities::User> {
         // This would extract the user from JWT claims added by middleware
         // For now, return a mock admin user for testing
         Ok(crate::domain::entities::User::new(
@@ -424,8 +540,9 @@ impl UserController {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct ListUsersQuery {
+    #[schema(value_type = Option<String>)]
     pub company_id: Option<Uuid>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
@@ -448,10 +565,24 @@ impl CompanyController {
         }
     }
     
+    #[utoipa::path(
+        get,
+        path = "/api/v1/companies",
+        params(
+            ("page" = Option<u32>, Query, description = "Page number"),
+            ("page_size" = Option<u32>, Query, description = "Page size")
+        ),
+        responses(
+            (status = 200, description = "List of companies", body = [CompanyDto]),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "companies"
+    )]
     pub async fn list_companies(
         &self,
         request: HttpRequest,
-        query: web::Query<ListCompaniesQuery>,
+        _query: web::Query<ListCompaniesQuery>,
     ) -> WebResult<HttpResponse> {
         let current_user = Self::extract_current_user(&request)?;
         
@@ -475,6 +606,20 @@ impl CompanyController {
         Ok(HttpResponse::Ok().json(companies_dto))
     }
     
+    #[utoipa::path(
+        get,
+        path = "/api/v1/companies/{id}",
+        params(
+            ("id" = Uuid, Path, description = "Company ID")
+        ),
+        responses(
+            (status = 200, description = "Company details", body = CompanyDto),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 404, description = "Company not found"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "companies"
+    )]
     pub async fn get_company(
         &self,
         request: HttpRequest,
@@ -504,12 +649,25 @@ impl CompanyController {
         Ok(HttpResponse::Ok().json(company_dto))
     }
     
+    #[utoipa::path(
+        post,
+        path = "/api/v1/companies",
+        request_body = CreateCompanyDto,
+        responses(
+            (status = 201, description = "Company created successfully", body = CompanyDto),
+            (status = 400, description = "Validation error"),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "companies"
+    )]
     pub async fn create_company(
         &self,
         request: HttpRequest,
         create_company_dto: web::Json<CreateCompanyDto>,
     ) -> WebResult<HttpResponse> {
-        create_company_dto.validate()
+        // Validate the inner data
+        create_company_dto.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let current_user = Self::extract_current_user(&request)?;
@@ -540,13 +698,30 @@ impl CompanyController {
         Ok(HttpResponse::Created().json(company_dto))
     }
     
+    #[utoipa::path(
+        put,
+        path = "/api/v1/companies/{id}",
+        params(
+            ("id" = Uuid, Path, description = "Company ID")
+        ),
+        request_body = UpdateCompanyDto,
+        responses(
+            (status = 200, description = "Company updated successfully", body = CompanyDto),
+            (status = 400, description = "Validation error"),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 404, description = "Company not found"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "companies"
+    )]
     pub async fn update_company(
         &self,
         request: HttpRequest,
         company_id: web::Path<Uuid>,
         update_company_dto: web::Json<UpdateCompanyDto>,
     ) -> WebResult<HttpResponse> {
-        update_company_dto.validate()
+        // Validate the inner data
+        update_company_dto.0.validate()
             .map_err(|e| InterfaceError::ValidationError(e.to_string()))?;
         
         let current_user = Self::extract_current_user(&request)?;
@@ -585,11 +760,26 @@ impl CompanyController {
         Ok(HttpResponse::Ok().json(company_dto))
     }
     
+    #[utoipa::path(
+        get,
+        path = "/api/v1/companies/{id}/users",
+        params(
+            ("id" = Uuid, Path, description = "Company ID"),
+            ("page" = Option<u32>, Query, description = "Page number"),
+            ("page_size" = Option<u32>, Query, description = "Page size")
+        ),
+        responses(
+            (status = 200, description = "List of company users", body = [UserDto]),
+            (status = 403, description = "Insufficient permissions"),
+            (status = 500, description = "Internal server error")
+        ),
+        tag = "companies"
+    )]
     pub async fn list_company_users(
         &self,
         request: HttpRequest,
         company_id: web::Path<Uuid>,
-        query: web::Query<ListCompanyUsersQuery>,
+        _query: web::Query<ListCompanyUsersQuery>,
     ) -> WebResult<HttpResponse> {
         let current_user = Self::extract_current_user(&request)?;
         let target_company_id = company_id.into_inner();
@@ -617,7 +807,7 @@ impl CompanyController {
         Ok(HttpResponse::Ok().json(users_dto))
     }
     
-    fn extract_current_user(request: &HttpRequest) -> WebResult<crate::domain::entities::User> {
+    fn extract_current_user(_request: &HttpRequest) -> WebResult<crate::domain::entities::User> {
         // This would extract the user from JWT claims added by middleware
         // For now, return a mock admin user for testing
         Ok(crate::domain::entities::User::new(
@@ -630,20 +820,33 @@ impl CompanyController {
     }
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct ListCompaniesQuery {
     pub page: Option<u32>,
     pub page_size: Option<u32>,
 }
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, utoipa::ToSchema)]
 pub struct ListCompanyUsersQuery {
     pub page: Option<u32>,
     pub page_size: Option<u32>,
 }
+
+// Define request schemas for OpenAPI
+#[derive(utoipa::ToSchema)]
+struct RefreshTokenRequest {
+    refresh_token: String,
+}
+
+#[derive(utoipa::ToSchema)]
+struct ValidateTokenRequest {
+    token: String,
+}
 EOF
 
-# Routes
+
+
+# routes
 cat > src/interfaces/routes.rs << 'EOF'
 use actix_web::web;
 use utoipa::OpenApi;
@@ -651,6 +854,117 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::interfaces::controllers::{AuthController, UserController, CompanyController};
 use crate::interfaces::openapi::ApiDoc;
+
+// Handler functions that work with Actix Web's routing system
+async fn register_handler(
+    auth_controller: web::Data<AuthController>,
+    register_request: web::Json<crate::application::dto::RegisterRequest>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    auth_controller.register(register_request).await
+}
+
+async fn login_handler(
+    auth_controller: web::Data<AuthController>,
+    login_request: web::Json<crate::application::dto::LoginRequest>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    auth_controller.login(login_request).await
+}
+
+async fn refresh_token_handler(
+    auth_controller: web::Data<AuthController>,
+    refresh_request: web::Json<serde_json::Value>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    auth_controller.refresh_token(refresh_request).await
+}
+
+async fn validate_token_handler(
+    auth_controller: web::Data<AuthController>,
+    token_request: web::Json<serde_json::Value>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    auth_controller.validate_token(token_request).await
+}
+
+async fn logout_handler(
+    auth_controller: web::Data<AuthController>,
+    request: actix_web::HttpRequest,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    auth_controller.logout(request).await
+}
+
+async fn list_users_handler(
+    user_controller: web::Data<UserController>,
+    request: actix_web::HttpRequest,
+    query: web::Query<crate::interfaces::controllers::ListUsersQuery>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    user_controller.list_users(request, query).await
+}
+
+async fn get_user_handler(
+    user_controller: web::Data<UserController>,
+    request: actix_web::HttpRequest,
+    user_id: web::Path<uuid::Uuid>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    user_controller.get_user(request, user_id).await
+}
+
+async fn create_user_handler(
+    user_controller: web::Data<UserController>,
+    request: actix_web::HttpRequest,
+    create_user_dto: web::Json<crate::application::dto::CreateUserDto>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    user_controller.create_user(request, create_user_dto).await
+}
+
+async fn update_user_handler(
+    user_controller: web::Data<UserController>,
+    request: actix_web::HttpRequest,
+    user_id: web::Path<uuid::Uuid>,
+    update_user_dto: web::Json<crate::application::dto::UpdateUserDto>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    user_controller.update_user(request, user_id, update_user_dto).await
+}
+
+async fn list_companies_handler(
+    company_controller: web::Data<CompanyController>,
+    request: actix_web::HttpRequest,
+    query: web::Query<crate::interfaces::controllers::ListCompaniesQuery>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    company_controller.list_companies(request, query).await
+}
+
+async fn get_company_handler(
+    company_controller: web::Data<CompanyController>,
+    request: actix_web::HttpRequest,
+    company_id: web::Path<uuid::Uuid>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    company_controller.get_company(request, company_id).await
+}
+
+async fn create_company_handler(
+    company_controller: web::Data<CompanyController>,
+    request: actix_web::HttpRequest,
+    create_company_dto: web::Json<crate::application::dto::CreateCompanyDto>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    company_controller.create_company(request, create_company_dto).await
+}
+
+async fn update_company_handler(
+    company_controller: web::Data<CompanyController>,
+    request: actix_web::HttpRequest,
+    company_id: web::Path<uuid::Uuid>,
+    update_company_dto: web::Json<crate::application::dto::UpdateCompanyDto>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    company_controller.update_company(request, company_id, update_company_dto).await
+}
+
+async fn list_company_users_handler(
+    company_controller: web::Data<CompanyController>,
+    request: actix_web::HttpRequest,
+    company_id: web::Path<uuid::Uuid>,
+    query: web::Query<crate::interfaces::controllers::ListCompanyUsersQuery>,
+) -> Result<actix_web::HttpResponse, crate::interfaces::errors::InterfaceError> {
+    company_controller.list_company_users(request, company_id, query).await
+}
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     // Serve Swagger UI
@@ -664,26 +978,26 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
         web::scope("/api/v1")
             .service(
                 web::scope("/auth")
-                    .route("/register", web::post().to(AuthController::register))
-                    .route("/login", web::post().to(AuthController::login))
-                    .route("/refresh", web::post().to(AuthController::refresh_token))
-                    .route("/validate", web::post().to(AuthController::validate_token))
-                    .route("/logout", web::post().to(AuthController::logout))
+                    .route("/register", web::post().to(register_handler))
+                    .route("/login", web::post().to(login_handler))
+                    .route("/refresh", web::post().to(refresh_token_handler))
+                    .route("/validate", web::post().to(validate_token_handler))
+                    .route("/logout", web::post().to(logout_handler))
             )
             .service(
                 web::scope("/users")
-                    .route("", web::get().to(UserController::list_users))
-                    .route("", web::post().to(UserController::create_user))
-                    .route("/{id}", web::get().to(UserController::get_user))
-                    .route("/{id}", web::put().to(UserController::update_user))
+                    .route("", web::get().to(list_users_handler))
+                    .route("", web::post().to(create_user_handler))
+                    .route("/{id}", web::get().to(get_user_handler))
+                    .route("/{id}", web::put().to(update_user_handler))
             )
             .service(
                 web::scope("/companies")
-                    .route("", web::get().to(CompanyController::list_companies))
-                    .route("", web::post().to(CompanyController::create_company))
-                    .route("/{id}", web::get().to(CompanyController::get_company))
-                    .route("/{id}", web::put().to(CompanyController::update_company))
-                    .route("/{id}/users", web::get().to(CompanyController::list_company_users))
+                    .route("", web::get().to(list_companies_handler))
+                    .route("", web::post().to(create_company_handler))
+                    .route("/{id}", web::get().to(get_company_handler))
+                    .route("/{id}", web::put().to(update_company_handler))
+                    .route("/{id}/users", web::get().to(list_company_users_handler))
             )
     );
     
@@ -706,11 +1020,15 @@ use crate::application::dto::{
     CreateUserDto, UpdateUserDto, CreateCompanyDto, UpdateCompanyDto,
     BusinessClaims
 };
+use crate::interfaces::controllers::{
+    ListUsersQuery, ListCompaniesQuery, ListCompanyUsersQuery
+};
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        // Auth routes
+        // Auth routes - we need to document the controller methods directly
+        // since utoipa doesn't work well with wrapper functions
         crate::interfaces::controllers::AuthController::register,
         crate::interfaces::controllers::AuthController::login,
         crate::interfaces::controllers::AuthController::refresh_token,
@@ -735,7 +1053,10 @@ use crate::application::dto::{
             LoginRequest, LoginResponse, RegisterRequest, UserDto, CompanyDto,
             CreateUserDto, UpdateUserDto, CreateCompanyDto, UpdateCompanyDto,
             BusinessClaims,
-            crate::domain::enums::UserRole
+            crate::domain::enums::UserRole,
+            ListUsersQuery,
+            ListCompaniesQuery,
+            ListCompanyUsersQuery
         )
     ),
     tags(

@@ -4,31 +4,31 @@ use thiserror::Error;
 pub enum ApplicationError {
     #[error("Domain error: {0}")]
     DomainError(#[from] crate::domain::errors::DomainError),
-
+    
     #[error("Infrastructure error: {0}")]
     InfrastructureError(#[from] crate::infrastructure::errors::InfrastructureError),
-
+    
     #[error("Authentication failed")]
     AuthenticationFailed,
-
+    
     #[error("Authorization failed: {0}")]
     AuthorizationFailed(String),
-
+    
     #[error("Invalid token")]
     InvalidToken,
-
+    
     #[error("Token expired")]
     TokenExpired,
-
+    
     #[error("User not found")]
     UserNotFound,
-
+    
     #[error("Company not found")]
     CompanyNotFound,
-
+    
     #[error("Invalid operation: {0}")]
     InvalidOperation(String),
-
+    
     #[error("Validation error: {0}")]
     ValidationError(String),
 }

@@ -36,15 +36,15 @@ pub struct UserDto {
 pub struct CreateUserDto {
     #[validate(length(min = 3, max = 100))]
     pub username: String,
-
+    
     #[validate(email)]
     pub email: String,
-
+    
     #[validate(length(min = 8))]
     pub password: String,
-
+    
     pub role: UserRole,
-
+    
     #[schema(value_type = Option<String>)]
     pub company_id: Option<Uuid>,
 }
@@ -53,12 +53,12 @@ pub struct CreateUserDto {
 pub struct UpdateUserDto {
     #[validate(length(min = 3, max = 100))]
     pub username: Option<String>,
-
+    
     #[validate(email)]
     pub email: Option<String>,
-
+    
     pub role: Option<UserRole>,
-
+    
     #[schema(value_type = Option<String>)]
     pub company_id: Option<Uuid>,
 }
@@ -79,7 +79,7 @@ pub struct CompanyDto {
 pub struct CreateCompanyDto {
     #[validate(length(min = 1, max = 255))]
     pub name: String,
-
+    
     #[validate(length(max = 1000))]
     pub description: Option<String>,
 }
@@ -88,14 +88,17 @@ pub struct CreateCompanyDto {
 pub struct UpdateCompanyDto {
     #[validate(length(min = 1, max = 255))]
     pub name: Option<String>,
-
+    
     #[validate(length(max = 1000))]
     pub description: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct LoginRequest {
+    #[validate(length(min = 3))]
     pub username: String,
+    
+    #[validate(length(min = 8))]
     pub password: String,
 }
 
@@ -108,10 +111,15 @@ pub struct LoginResponse {
     pub user: UserDto,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, Validate, ToSchema)]
 pub struct RegisterRequest {
+    #[validate(length(min = 3, max = 100))]
     pub username: String,
+    
+    #[validate(email)]
     pub email: String,
+    
+    #[validate(length(min = 8))]
     pub password: String,
 }
 

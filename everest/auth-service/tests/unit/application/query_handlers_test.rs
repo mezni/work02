@@ -1,14 +1,12 @@
 use async_trait::async_trait;
-use auth_service::application::dto::{CompanyDto, UserDto};
-use auth_service::application::queries::{GetCompanyByIdQuery, GetUserByIdQuery, ListUsersQuery};
-use auth_service::application::query_handlers::{
-    GetCompanyByIdQueryHandler, GetUserByIdQueryHandler, ListUsersQueryHandler, QueryHandler,
-};
-use auth_service::domain::entities::{Company, User};
-use auth_service::domain::enums::UserRole;
-use auth_service::domain::errors::DomainError;
-use auth_service::domain::repositories::{CompanyRepository, UserRepository};
 use uuid::Uuid;
+use auth_service::application::queries::{GetUserByIdQuery, ListUsersQuery, GetCompanyByIdQuery};
+use auth_service::application::query_handlers::{QueryHandler, GetUserByIdQueryHandler, ListUsersQueryHandler, GetCompanyByIdQueryHandler};
+use auth_service::application::dto::{UserDto, CompanyDto};
+use auth_service::domain::entities::{User, Company};
+use auth_service::domain::enums::UserRole;
+use auth_service::domain::repositories::{UserRepository, CompanyRepository};
+use auth_service::domain::errors::DomainError;
 
 // Mock UserRepository for query tests
 struct MockUserRepository {
@@ -23,8 +21,7 @@ impl MockUserRepository {
             "user1@example.com".to_string(),
             UserRole::User,
             None,
-        )
-        .unwrap();
+        ).unwrap();
 
         let user2 = User::new(
             "keycloak-2".to_string(),
@@ -32,8 +29,7 @@ impl MockUserRepository {
             "user2@example.com".to_string(),
             UserRole::Admin,
             None,
-        )
-        .unwrap();
+        ).unwrap();
 
         Self {
             users: vec![user1, user2],
@@ -140,15 +136,13 @@ impl CompanyRepository for MockCompanyRepository {
 async fn test_get_user_by_id_query_handler() {
     let user_repo = Box::new(MockUserRepository::new());
     let handler = GetUserByIdQueryHandler::new(user_repo);
-
+    
     let users = MockUserRepository::new().users;
     let test_user_id = users[0].id;
-
-    let query = GetUserByIdQuery {
-        user_id: test_user_id,
-    };
+    
+    let query = GetUserByIdQuery { user_id: test_user_id };
     let result = handler.handle(query).await;
-
+    
     assert!(result.is_ok());
     let user_dto = result.unwrap();
     assert!(user_dto.is_some());
@@ -159,12 +153,10 @@ async fn test_get_user_by_id_query_handler() {
 async fn test_get_user_by_id_query_handler_not_found() {
     let user_repo = Box::new(MockUserRepository::new());
     let handler = GetUserByIdQueryHandler::new(user_repo);
-
-    let query = GetUserByIdQuery {
-        user_id: Uuid::new_v4(),
-    }; // Non-existent user
+    
+    let query = GetUserByIdQuery { user_id: Uuid::new_v4() }; // Non-existent user
     let result = handler.handle(query).await;
-
+    
     assert!(result.is_ok());
     assert!(result.unwrap().is_none());
 }
@@ -173,16 +165,16 @@ async fn test_get_user_by_id_query_handler_not_found() {
 async fn test_list_users_query_handler() {
     let user_repo = Box::new(MockUserRepository::new());
     let handler = ListUsersQueryHandler::new(user_repo);
-
+    
     let query = ListUsersQuery {
         company_id: None,
         role: None,
         page: 1,
         page_size: 10,
     };
-
+    
     let result = handler.handle(query).await;
-
+    
     assert!(result.is_ok());
     let users_dto = result.unwrap();
     assert_eq!(users_dto.len(), 2);
@@ -192,15 +184,13 @@ async fn test_list_users_query_handler() {
 async fn test_get_company_by_id_query_handler() {
     let company_repo = Box::new(MockCompanyRepository::new());
     let handler = GetCompanyByIdQueryHandler::new(company_repo);
-
+    
     let companies = MockCompanyRepository::new().companies;
     let test_company_id = companies[0].id;
-
-    let query = GetCompanyByIdQuery {
-        company_id: test_company_id,
-    };
+    
+    let query = GetCompanyByIdQuery { company_id: test_company_id };
     let result = handler.handle(query).await;
-
+    
     assert!(result.is_ok());
     let company_dto = result.unwrap();
     assert!(company_dto.is_some());
