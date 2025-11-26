@@ -1,0 +1,28 @@
+[server]
+host = "127.0.0.1"
+port = 3000
+
+[database]
+host = "localhost"
+port = 5432
+username = "postgres"
+password = "password"
+database_name = "auth_service"
+max_connections = 10
+
+[keycloak]
+server_url = "http://localhost:8080"
+realm = "auth-service-realm"
+client_id = "auth-service-client"
+client_secret = "your-client-secret"
+admin_username = "admin"
+admin_password = "admin"
+
+[jwt]
+secret = "your-jwt-secret"
+issuer = "auth-service"
+audience = "auth-service-users"
+expiration_days = 7
+
+[logging]
+level = "info"
