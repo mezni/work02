@@ -79,12 +79,11 @@ impl DomainError {
 }
 EOF
 
-# Enums
 cat > src/domain/enums.rs << 'EOF'
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum UserRole {
     Admin,
     Partner,
@@ -120,7 +119,7 @@ impl std::fmt::Display for UserRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum AuditAction {
     UserCreated,
     UserUpdated,
@@ -131,6 +130,25 @@ pub enum AuditAction {
     Login,
     Logout,
     PasswordReset,
+}
+
+impl std::str::FromStr for AuditAction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "UserCreated" => Ok(AuditAction::UserCreated),
+            "UserUpdated" => Ok(AuditAction::UserUpdated),
+            "UserDeleted" => Ok(AuditAction::UserDeleted),
+            "CompanyCreated" => Ok(AuditAction::CompanyCreated),
+            "CompanyUpdated" => Ok(AuditAction::CompanyUpdated),
+            "CompanyDeleted" => Ok(AuditAction::CompanyDeleted),
+            "Login" => Ok(AuditAction::Login),
+            "Logout" => Ok(AuditAction::Logout),
+            "PasswordReset" => Ok(AuditAction::PasswordReset),
+            _ => Err(format!("Invalid audit action: {}", s)),
+        }
+    }
 }
 
 impl std::fmt::Display for AuditAction {

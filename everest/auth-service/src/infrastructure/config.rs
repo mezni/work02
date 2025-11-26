@@ -52,21 +52,18 @@ impl KeycloakConfig {
             self.server_url, self.realm
         )
     }
-    
+
     pub fn admin_users_url(&self) -> String {
-        format!(
-            "{}/admin/realms/{}/users",
-            self.server_url, self.realm
-        )
+        format!("{}/admin/realms/{}/users", self.server_url, self.realm)
     }
-    
+
     pub fn token_url(&self) -> String {
         format!(
             "{}/realms/{}/protocol/openid-connect/token",
             self.server_url, self.realm
         )
     }
-    
+
     pub fn user_info_url(&self) -> String {
         format!(
             "{}/realms/{}/protocol/openid-connect/userinfo",
@@ -99,16 +96,19 @@ impl Default for LoggingConfig {
 impl Config {
     pub fn load() -> Result<Self, crate::infrastructure::errors::InfrastructureError> {
         let environment = env::var("APP_ENVIRONMENT").unwrap_or_else(|_| "development".to_string());
-        
+
         let config = config::Config::builder()
             .add_source(config::File::with_name("config/default").required(false))
             .add_source(config::File::with_name(&format!("config/{}", environment)).required(false))
             .add_source(config::Environment::with_prefix("APP"))
             .build()
-            .map_err(|e| crate::infrastructure::errors::InfrastructureError::ConfigError(e.to_string()))?;
-        
-        config.try_deserialize()
-            .map_err(|e| crate::infrastructure::errors::InfrastructureError::ConfigError(e.to_string()))
+            .map_err(|e| {
+                crate::infrastructure::errors::InfrastructureError::ConfigError(e.to_string())
+            })?;
+
+        config.try_deserialize().map_err(|e| {
+            crate::infrastructure::errors::InfrastructureError::ConfigError(e.to_string())
+        })
     }
 
     pub fn environment(&self) -> String {

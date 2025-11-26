@@ -1,6 +1,6 @@
-use validator::Validate;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use validator::Validate;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct Email {
@@ -11,11 +11,12 @@ pub struct Email {
 impl Email {
     pub fn new(value: String) -> Result<Self, crate::domain::errors::DomainError> {
         let email = Email { value };
-        email.validate()
+        email
+            .validate()
             .map_err(|e| crate::domain::errors::DomainError::InvalidEmail(e.to_string()))?;
         Ok(email)
     }
-    
+
     pub fn value(&self) -> &str {
         &self.value
     }
@@ -39,14 +40,14 @@ impl Password {
                 "Password must be at least 8 characters long".to_string(),
             ));
         }
-        
+
         Ok(Password { value })
     }
-    
+
     pub fn value(&self) -> &str {
         &self.value
     }
-    
+
     pub fn into_inner(self) -> String {
         self.value
     }

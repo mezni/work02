@@ -8,7 +8,7 @@ fn test_email_validation() {
     // Valid email
     let email = Email::new("test@example.com".to_string());
     assert!(email.is_ok());
-    
+
     // Invalid email
     let email = Email::new("invalid-email".to_string());
     assert!(email.is_err());
@@ -19,7 +19,7 @@ fn test_password_validation() {
     // Valid password
     let password = Password::new("password123".to_string());
     assert!(password.is_ok());
-    
+
     // Too short password
     let password = Password::new("short".to_string());
     assert!(password.is_err());
@@ -34,7 +34,7 @@ fn test_user_creation() {
         UserRole::User,
         None,
     );
-    
+
     assert!(user.is_ok());
     let user = user.unwrap();
     assert_eq!(user.username, "testuser");
@@ -51,28 +51,31 @@ fn test_user_permissions() {
         "admin@example.com".to_string(),
         UserRole::Admin,
         None,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let partner_user = User::new(
         "keycloak-partner".to_string(),
         "partner".to_string(),
         "partner@example.com".to_string(),
         UserRole::Partner,
         Some(Uuid::new_v4()),
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     let regular_user = User::new(
         "keycloak-user".to_string(),
         "user".to_string(),
         "user@example.com".to_string(),
         UserRole::User,
         None,
-    ).unwrap();
-    
+    )
+    .unwrap();
+
     assert!(admin_user.is_admin());
     assert!(partner_user.is_partner());
     assert!(regular_user.is_regular_user());
-    
+
     let test_company_id = Uuid::new_v4();
     assert!(admin_user.can_manage_company(test_company_id));
     assert!(partner_user.can_manage_company(partner_user.company_id.unwrap()));
@@ -89,7 +92,7 @@ fn test_user_validation() {
         UserRole::User,
         None,
     );
-    
+
     assert!(invalid_user.is_err());
 }
 
@@ -101,10 +104,10 @@ fn test_enum_conversions() {
     assert_eq!("operator".parse::<UserRole>().unwrap(), UserRole::Operator);
     assert_eq!("user".parse::<UserRole>().unwrap(), UserRole::User);
     assert_eq!("guest".parse::<UserRole>().unwrap(), UserRole::Guest);
-    
+
     // Test invalid role
     assert!("invalid".parse::<UserRole>().is_err());
-    
+
     // Test display
     assert_eq!(UserRole::Admin.to_string(), "Admin");
     assert_eq!(UserRole::Partner.to_string(), "Partner");

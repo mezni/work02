@@ -1,6 +1,8 @@
-use auth_service::infrastructure::config::{Config, ServerConfig, DatabaseConfig, KeycloakConfig, JwtConfig, LoggingConfig};
-use std::env;
+use auth_service::infrastructure::config::{
+    Config, DatabaseConfig, JwtConfig, KeycloakConfig, LoggingConfig, ServerConfig,
+};
 use serial_test::serial;
+use std::env;
 
 #[test]
 #[serial]
@@ -116,10 +118,10 @@ fn test_environment_detection() {
 fn test_config_load_fallback() {
     // Remove any existing env var to test fallback behavior
     env::remove_var("APP_ENVIRONMENT");
-    
+
     // This should not panic and should load default config
     let result = Config::load();
-    
+
     // It might fail due to missing config files, but shouldn't panic
     assert!(result.is_ok() || matches!(result, Err(_)));
 }

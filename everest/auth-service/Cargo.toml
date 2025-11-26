@@ -20,7 +20,7 @@ jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 chrono = { version = "0.4.42", features = ["serde"] }
 bcrypt = "0.17.1"
 config = "0.15.19"
-utoipa = { version = "5.4.0", features = ["actix_extras", "chrono"] }
+utoipa = { version = "5.4.0", features = ["actix_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 reqwest = { version = "0.12.24", features = ["json"] }
 futures = "0.3.31"

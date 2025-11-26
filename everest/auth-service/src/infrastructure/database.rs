@@ -2,15 +2,17 @@ use async_trait::async_trait;
 use sqlx::{postgres::PgPoolOptions, PgPool, Row};
 use uuid::Uuid;
 
-use crate::domain::entities::{User, Company, AuditLog};
-use crate::domain::enums::{UserRole, AuditAction};
-use crate::domain::repositories::{UserRepository, CompanyRepository, AuditLogRepository};
+use crate::domain::entities::{AuditLog, Company, User};
+use crate::domain::enums::{AuditAction, UserRole};
 use crate::domain::errors::DomainError;
+use crate::domain::repositories::{AuditLogRepository, CompanyRepository, UserRepository};
 use crate::infrastructure::errors::InfrastructureError;
 
 pub type DatabasePool = PgPool;
 
-pub async fn create_pool(config: &crate::infrastructure::config::DatabaseConfig) -> Result<DatabasePool, InfrastructureError> {
+pub async fn create_pool(
+    config: &crate::infrastructure::config::DatabaseConfig,
+) -> Result<DatabasePool, InfrastructureError> {
     PgPoolOptions::new()
         .max_connections(config.max_connections)
         .connect(&config.connection_string())
@@ -50,20 +52,23 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(User {
             id: row.get("id"),
             keycloak_id: row.get("keycloak_id"),
             username: row.get("username"),
             email: row.get("email"),
-            role: row.get::<String, _>("role").parse().map_err(|e: String| DomainError::InvalidUserRole(e))?,
+            role: row
+                .get::<String, _>("role")
+                .parse()
+                .map_err(|e: String| DomainError::InvalidUserRole(e))?,
             company_id: row.get("company_id"),
             email_verified: row.get("email_verified"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
     }
-    
+
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -74,7 +79,7 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| User {
             id: r.get("id"),
             keycloak_id: r.get("keycloak_id"),
@@ -87,7 +92,7 @@ impl UserRepository for UserRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn find_by_keycloak_id(&self, keycloak_id: &str) -> Result<Option<User>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -98,7 +103,7 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| User {
             id: r.get("id"),
             keycloak_id: r.get("keycloak_id"),
@@ -111,7 +116,7 @@ impl UserRepository for UserRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn find_by_email(&self, email: &str) -> Result<Option<User>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -122,7 +127,7 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| User {
             id: r.get("id"),
             keycloak_id: r.get("keycloak_id"),
@@ -135,7 +140,7 @@ impl UserRepository for UserRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn find_by_username(&self, username: &str) -> Result<Option<User>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -146,7 +151,7 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| User {
             id: r.get("id"),
             keycloak_id: r.get("keycloak_id"),
@@ -159,7 +164,7 @@ impl UserRepository for UserRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn update(&self, user: &User) -> Result<User, DomainError> {
         let row = sqlx::query(
             r#"
@@ -179,20 +184,23 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(User {
             id: row.get("id"),
             keycloak_id: row.get("keycloak_id"),
             username: row.get("username"),
             email: row.get("email"),
-            role: row.get::<String, _>("role").parse().unwrap_or(UserRole::User),
+            role: row
+                .get::<String, _>("role")
+                .parse()
+                .unwrap_or(UserRole::User),
             company_id: row.get("company_id"),
             email_verified: row.get("email_verified"),
             created_at: row.get("created_at"),
             updated_at: row.get("updated_at"),
         })
     }
-    
+
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
         sqlx::query(
             r#"
@@ -203,10 +211,10 @@ impl UserRepository for UserRepositoryImpl {
         .execute(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     async fn list_by_company(&self, company_id: Uuid) -> Result<Vec<User>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -217,20 +225,23 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| User {
-            id: r.get("id"),
-            keycloak_id: r.get("keycloak_id"),
-            username: r.get("username"),
-            email: r.get("email"),
-            role: r.get::<String, _>("role").parse().unwrap_or(UserRole::User),
-            company_id: r.get("company_id"),
-            email_verified: r.get("email_verified"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| User {
+                id: r.get("id"),
+                keycloak_id: r.get("keycloak_id"),
+                username: r.get("username"),
+                email: r.get("email"),
+                role: r.get::<String, _>("role").parse().unwrap_or(UserRole::User),
+                company_id: r.get("company_id"),
+                email_verified: r.get("email_verified"),
+                created_at: r.get("created_at"),
+                updated_at: r.get("updated_at"),
+            })
+            .collect())
     }
-    
+
     async fn list_all(&self) -> Result<Vec<User>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -240,18 +251,21 @@ impl UserRepository for UserRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| User {
-            id: r.get("id"),
-            keycloak_id: r.get("keycloak_id"),
-            username: r.get("username"),
-            email: r.get("email"),
-            role: r.get::<String, _>("role").parse().unwrap_or(UserRole::User),
-            company_id: r.get("company_id"),
-            email_verified: r.get("email_verified"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| User {
+                id: r.get("id"),
+                keycloak_id: r.get("keycloak_id"),
+                username: r.get("username"),
+                email: r.get("email"),
+                role: r.get::<String, _>("role").parse().unwrap_or(UserRole::User),
+                company_id: r.get("company_id"),
+                email_verified: r.get("email_verified"),
+                created_at: r.get("created_at"),
+                updated_at: r.get("updated_at"),
+            })
+            .collect())
     }
 }
 
@@ -284,7 +298,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(Company {
             id: row.get("id"),
             name: row.get("name"),
@@ -294,7 +308,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
             updated_at: row.get("updated_at"),
         })
     }
-    
+
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Company>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -305,7 +319,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| Company {
             id: r.get("id"),
             name: r.get("name"),
@@ -315,7 +329,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn find_by_name(&self, name: &str) -> Result<Option<Company>, DomainError> {
         let row = sqlx::query(
             r#"
@@ -326,7 +340,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_optional(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(row.map(|r| Company {
             id: r.get("id"),
             name: r.get("name"),
@@ -336,7 +350,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
             updated_at: r.get("updated_at"),
         }))
     }
-    
+
     async fn update(&self, company: &Company) -> Result<Company, DomainError> {
         let row = sqlx::query(
             r#"
@@ -353,7 +367,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_one(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(Company {
             id: row.get("id"),
             name: row.get("name"),
@@ -363,7 +377,7 @@ impl CompanyRepository for CompanyRepositoryImpl {
             updated_at: row.get("updated_at"),
         })
     }
-    
+
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
         sqlx::query(
             r#"
@@ -374,10 +388,10 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .execute(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     async fn list_all(&self) -> Result<Vec<Company>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -387,17 +401,20 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| Company {
-            id: r.get("id"),
-            name: r.get("name"),
-            description: r.get("description"),
-            created_by: r.get("created_by"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| Company {
+                id: r.get("id"),
+                name: r.get("name"),
+                description: r.get("description"),
+                created_by: r.get("created_by"),
+                created_at: r.get("created_at"),
+                updated_at: r.get("updated_at"),
+            })
+            .collect())
     }
-    
+
     async fn list_by_user(&self, user_id: Uuid) -> Result<Vec<Company>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -410,15 +427,18 @@ impl CompanyRepository for CompanyRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| Company {
-            id: r.get("id"),
-            name: r.get("name"),
-            description: r.get("description"),
-            created_by: r.get("created_by"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| Company {
+                id: r.get("id"),
+                name: r.get("name"),
+                description: r.get("description"),
+                created_by: r.get("created_by"),
+                created_at: r.get("created_at"),
+                updated_at: r.get("updated_at"),
+            })
+            .collect())
     }
 }
 
@@ -453,10 +473,10 @@ impl AuditLogRepository for AuditLogRepositoryImpl {
         .execute(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
+
         Ok(())
     }
-    
+
     async fn find_by_user(&self, user_id: Uuid) -> Result<Vec<AuditLog>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -467,20 +487,26 @@ impl AuditLogRepository for AuditLogRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| AuditLog {
-            id: r.get("id"),
-            user_id: r.get("user_id"),
-            action: r.get::<String, _>("action").parse().unwrap_or(AuditAction::Login),
-            resource_type: r.get("resource_type"),
-            resource_id: r.get("resource_id"),
-            details: r.get("details"),
-            ip_address: r.get("ip_address"),
-            user_agent: r.get("user_agent"),
-            created_at: r.get("created_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| AuditLog {
+                id: r.get("id"),
+                user_id: r.get("user_id"),
+                action: r
+                    .get::<String, _>("action")
+                    .parse()
+                    .unwrap_or(AuditAction::Login),
+                resource_type: r.get("resource_type"),
+                resource_id: r.get("resource_id"),
+                details: r.get("details"),
+                ip_address: r.get("ip_address"),
+                user_agent: r.get("user_agent"),
+                created_at: r.get("created_at"),
+            })
+            .collect())
     }
-    
+
     async fn find_by_company(&self, company_id: Uuid) -> Result<Vec<AuditLog>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -494,20 +520,26 @@ impl AuditLogRepository for AuditLogRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| AuditLog {
-            id: r.get("id"),
-            user_id: r.get("user_id"),
-            action: r.get::<String, _>("action").parse().unwrap_or(AuditAction::Login),
-            resource_type: r.get("resource_type"),
-            resource_id: r.get("resource_id"),
-            details: r.get("details"),
-            ip_address: r.get("ip_address"),
-            user_agent: r.get("user_agent"),
-            created_at: r.get("created_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| AuditLog {
+                id: r.get("id"),
+                user_id: r.get("user_id"),
+                action: r
+                    .get::<String, _>("action")
+                    .parse()
+                    .unwrap_or(AuditAction::Login),
+                resource_type: r.get("resource_type"),
+                resource_id: r.get("resource_id"),
+                details: r.get("details"),
+                ip_address: r.get("ip_address"),
+                user_agent: r.get("user_agent"),
+                created_at: r.get("created_at"),
+            })
+            .collect())
     }
-    
+
     async fn list_recent(&self, limit: u32) -> Result<Vec<AuditLog>, DomainError> {
         let rows = sqlx::query(
             r#"
@@ -518,17 +550,23 @@ impl AuditLogRepository for AuditLogRepositoryImpl {
         .fetch_all(&self.pool)
         .await
         .map_err(|e| DomainError::ValidationError(e.to_string()))?;
-        
-        Ok(rows.into_iter().map(|r| AuditLog {
-            id: r.get("id"),
-            user_id: r.get("user_id"),
-            action: r.get::<String, _>("action").parse().unwrap_or(AuditAction::Login),
-            resource_type: r.get("resource_type"),
-            resource_id: r.get("resource_id"),
-            details: r.get("details"),
-            ip_address: r.get("ip_address"),
-            user_agent: r.get("user_agent"),
-            created_at: r.get("created_at"),
-        }).collect())
+
+        Ok(rows
+            .into_iter()
+            .map(|r| AuditLog {
+                id: r.get("id"),
+                user_id: r.get("user_id"),
+                action: r
+                    .get::<String, _>("action")
+                    .parse()
+                    .unwrap_or(AuditAction::Login),
+                resource_type: r.get("resource_type"),
+                resource_id: r.get("resource_id"),
+                details: r.get("details"),
+                ip_address: r.get("ip_address"),
+                user_agent: r.get("user_agent"),
+                created_at: r.get("created_at"),
+            })
+            .collect())
     }
 }

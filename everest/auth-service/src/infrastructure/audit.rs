@@ -1,6 +1,6 @@
 use crate::domain::entities::AuditLog;
-use crate::domain::repositories::AuditLogRepository;
 use crate::domain::errors::DomainError;
+use crate::domain::repositories::AuditLogRepository;
 
 pub struct AuditService {
     audit_repository: Box<dyn AuditLogRepository>,
@@ -10,7 +10,7 @@ impl AuditService {
     pub fn new(audit_repository: Box<dyn AuditLogRepository>) -> Self {
         Self { audit_repository }
     }
-    
+
     pub async fn log_event(
         &self,
         user_id: Option<uuid::Uuid>,
@@ -30,7 +30,7 @@ impl AuditService {
             ip_address,
             user_agent,
         );
-        
+
         self.audit_repository.create(&audit_log).await
     }
 }

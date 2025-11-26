@@ -1,21 +1,23 @@
-pub mod domain;
 pub mod application;
+pub mod domain;
 pub mod infrastructure;
 pub mod interfaces;
 
 // Prelude for common imports
 pub mod prelude {
-//    pub use crate::domain::errors::DomainError;
-//    pub use crate::application::errors::ApplicationError;
-//    pub use crate::infrastructure::errors::InfrastructureError;
-//    pub use crate::interfaces::errors::InterfaceError;
-    
+    //    pub use crate::domain::errors::DomainError;
+    //    pub use crate::application::errors::ApplicationError;
+    //    pub use crate::infrastructure::errors::InfrastructureError;
+    //    pub use crate::interfaces::errors::InterfaceError;
+
     pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 }
 
 // Server startup function
-pub async fn start_server(config: infrastructure::config::Config) -> Result<(), Box<dyn std::error::Error>> {
-    use actix_web::{web, App, HttpServer, HttpResponse};
+pub async fn start_server(
+    config: infrastructure::config::Config,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use actix_web::{web, App, HttpResponse, HttpServer};
 
     // Basic health check endpoint
     async fn health_check() -> HttpResponse {
@@ -25,17 +27,24 @@ pub async fn start_server(config: infrastructure::config::Config) -> Result<(), 
         }))
     }
 
-    tracing::info!("Starting HTTP server on {}:{}", config.server.host, config.server.port);
-    
+    tracing::info!(
+        "Starting HTTP server on {}:{}",
+        config.server.host,
+        config.server.port
+    );
+
     HttpServer::new(|| {
         App::new()
             .route("/health", web::get().to(health_check))
-            .route("/", web::get().to(|| async { 
-                HttpResponse::Ok().json(serde_json::json!({
-                    "message": "Welcome to Auth Service!",
-                    "version": env!("CARGO_PKG_VERSION")
-                }))
-            }))
+            .route(
+                "/",
+                web::get().to(|| async {
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "message": "Welcome to Auth Service!",
+                        "version": env!("CARGO_PKG_VERSION")
+                    }))
+                }),
+            )
     })
     .bind(format!("{}:{}", config.server.host, config.server.port))?
     .run()

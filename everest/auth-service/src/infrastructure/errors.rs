@@ -4,25 +4,25 @@ use thiserror::Error;
 pub enum InfrastructureError {
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
-    
+
     #[error("Configuration error: {0}")]
     ConfigError(String),
-    
+
     #[error("Keycloak error: {0}")]
     KeycloakError(String),
-    
+
     #[error("HTTP client error: {0}")]
     HttpClientError(#[from] reqwest::Error),
-    
+
     #[error("JWT error: {0}")]
     JwtError(#[from] jsonwebtoken::errors::Error),
-    
+
     #[error("Serialization error: {0}")]
     SerializationError(#[from] serde_json::Error),
-    
+
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
-    
+
     #[error("Connection pool error: {0}")]
     PoolError(String),
 }

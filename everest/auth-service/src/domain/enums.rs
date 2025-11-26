@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum UserRole {
     Admin,
     Partner,
@@ -37,7 +37,7 @@ impl std::fmt::Display for UserRole {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub enum AuditAction {
     UserCreated,
     UserUpdated,
