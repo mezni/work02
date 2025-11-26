@@ -50,6 +50,25 @@ pub enum AuditAction {
     PasswordReset,
 }
 
+impl std::str::FromStr for AuditAction {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "UserCreated" => Ok(AuditAction::UserCreated),
+            "UserUpdated" => Ok(AuditAction::UserUpdated),
+            "UserDeleted" => Ok(AuditAction::UserDeleted),
+            "CompanyCreated" => Ok(AuditAction::CompanyCreated),
+            "CompanyUpdated" => Ok(AuditAction::CompanyUpdated),
+            "CompanyDeleted" => Ok(AuditAction::CompanyDeleted),
+            "Login" => Ok(AuditAction::Login),
+            "Logout" => Ok(AuditAction::Logout),
+            "PasswordReset" => Ok(AuditAction::PasswordReset),
+            _ => Err(format!("Invalid audit action: {}", s)),
+        }
+    }
+}
+
 impl std::fmt::Display for AuditAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
