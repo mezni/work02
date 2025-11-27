@@ -12,184 +12,7 @@ mkdir -p src/infrastructure/persistence/{database,repositories}
 mkdir -p migrations
 
 
-# 1. Create the missing KeycloakClient in infrastructure/auth
-cat > src/infrastructure/auth/keycloak.rs << 'EOF'
-use serde::{Deserialize, Serialize};
-use reqwest::Client;
-use crate::infrastructure::config::KeycloakConfig;
-use crate::infrastructure::errors::InfrastructureError;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeycloakUserInfo {
-    pub sub: String,
-    pub username: String,
-    pub email: String,
-    pub email_verified: bool,
-    pub given_name: Option<String>,
-    pub family_name: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeycloakTokenResponse {
-    pub access_token: String,
-    pub refresh_token: String,
-    pub expires_in: i64,
-    pub refresh_expires_in: i64,
-    pub token_type: String,
-}
-
-#[derive(Clone)]
-pub struct KeycloakClient {
-    client: Client,
-    config: KeycloakConfig,
-}
-
-impl KeycloakClient {
-    pub fn new(config: KeycloakConfig) -> Self {
-        Self {
-            client: Client::new(),
-            config,
-        }
-    }
-
-    pub async fn login(&self, username: &str, password: &str) -> Result<KeycloakTokenResponse, InfrastructureError> {
-        let params = [
-            ("client_id", self.config.client_id.as_str()),
-            ("client_secret", self.config.client_secret.as_str()),
-            ("username", username),
-            ("password", password),
-            ("grant_type", "password"),
-            ("scope", "openid"),
-        ];
-
-        let response = self.client
-            .post(&self.config.token_url())
-            .form(&params)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(InfrastructureError::ExternalServiceError(
-                format!("Keycloak login failed: {}", response.status())
-            ));
-        }
-
-        let token_response: KeycloakTokenResponse = response.json().await?;
-        Ok(token_response)
-    }
-
-    pub async fn refresh_token(&self, refresh_token: &str) -> Result<KeycloakTokenResponse, InfrastructureError> {
-        let params = [
-            ("client_id", self.config.client_id.as_str()),
-            ("client_secret", self.config.client_secret.as_str()),
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-        ];
-
-        let response = self.client
-            .post(&self.config.token_url())
-            .form(&params)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(InfrastructureError::ExternalServiceError(
-                format!("Keycloak token refresh failed: {}", response.status())
-            ));
-        }
-
-        let token_response: KeycloakTokenResponse = response.json().await?;
-        Ok(token_response)
-    }
-
-    pub async fn user_info(&self, access_token: &str) -> Result<KeycloakUserInfo, InfrastructureError> {
-        let response = self.client
-            .get(&self.config.user_info_url())
-            .bearer_auth(access_token)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(InfrastructureError::ExternalServiceError(
-                format!("Keycloak user info failed: {}", response.status())
-            ));
-        }
-
-        let user_info: KeycloakUserInfo = response.json().await?;
-        Ok(user_info)
-    }
-
-    pub async fn create_user(&self, username: &str, email: &str, password: &str) -> Result<String, InfrastructureError> {
-        // First get admin token
-        let admin_token = self.get_admin_token().await?;
-
-        // Create user in Keycloak
-        let user_representation = serde_json::json!({
-            "username": username,
-            "email": email,
-            "enabled": true,
-            "emailVerified": false,
-            "credentials": [{
-                "type": "password",
-                "value": password,
-                "temporary": false
-            }]
-        });
-
-        let response = self.client
-            .post(&self.config.admin_users_url())
-            .bearer_auth(&admin_token)
-            .json(&user_representation)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(InfrastructureError::ExternalServiceError(
-                format!("Keycloak user creation failed: {}", response.status())
-            ));
-        }
-
-        // Extract user ID from location header
-        if let Some(location) = response.headers().get("Location") {
-            if let Ok(location_str) = location.to_str() {
-                if let Some(user_id) = location_str.split('/').last() {
-                    return Ok(user_id.to_string());
-                }
-            }
-        }
-
-        Err(InfrastructureError::ExternalServiceError(
-            "Failed to extract user ID from Keycloak response".to_string()
-        ))
-    }
-
-    async fn get_admin_token(&self) -> Result<String, InfrastructureError> {
-        let params = [
-            ("client_id", "admin-cli"),
-            ("username", &self.config.admin_username),
-            ("password", &self.config.admin_password),
-            ("grant_type", "password"),
-        ];
-
-        let response = self.client
-            .post(&self.config.admin_token_url())
-            .form(&params)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            return Err(InfrastructureError::ExternalServiceError(
-                format!("Admin token request failed: {}", response.status())
-            ));
-        }
-
-        let token_response: KeycloakTokenResponse = response.json().await?;
-        Ok(token_response.access_token)
-    }
-}
-EOF
-
-# 3. Fix the JWT service to remove the extra parameter
+# 1. Fix the JWT service to use expiration_days instead of expiration_hours
 cat > src/infrastructure/auth/jwt.rs << 'EOF'
 use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
@@ -210,7 +33,6 @@ pub struct Claims {
     pub company_id: Option<String>,
 }
 
-#[derive(Clone)]
 pub struct JwtService {
     encoding_key: EncodingKey,
     decoding_key: DecodingKey,
@@ -450,6 +272,106 @@ impl From<crate::domain::errors::DomainError> for AppError {
 }
 EOF
 
+# 3. Also update the infrastructure config to fix any potential issues
+cat > src/infrastructure/config.rs << 'EOF'
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct DatabaseConfig {
+    pub host: String,
+    pub port: u16,
+    pub username: String,
+    pub password: String,
+    pub database_name: String,
+    pub max_connections: u32,
+}
+
+impl DatabaseConfig {
+    pub fn connection_string(&self) -> String {
+        format!(
+            "postgres://{}:{}@{}:{}/{}",
+            self.username, self.password, self.host, self.port, self.database_name
+        )
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct KeycloakConfig {
+    pub server_url: String,
+    pub realm: String,
+    pub client_id: String,
+    pub client_secret: String,
+    pub admin_username: String,
+    pub admin_password: String,
+}
+
+impl KeycloakConfig {
+    pub fn token_url(&self) -> String {
+        format!("{}/realms/{}/protocol/openid-connect/token", self.server_url, self.realm)
+    }
+    
+    pub fn user_info_url(&self) -> String {
+        format!("{}/realms/{}/protocol/openid-connect/userinfo", self.server_url, self.realm)
+    }
+    
+    pub fn admin_users_url(&self) -> String {
+        format!("{}/admin/realms/{}/users", self.server_url, self.realm)
+    }
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct JwtConfig {
+    pub secret: String,
+    pub issuer: String,
+    pub audience: String,
+    pub expiration_days: u32,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LoggingConfig {
+    pub level: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub database: DatabaseConfig,
+    pub keycloak: KeycloakConfig,
+    pub jwt: JwtConfig,
+    pub logging: LoggingConfig,
+}
+
+impl Config {
+    pub fn from_shared_config(shared_config: &crate::shared::config::AppConfig) -> Self {
+        Self {
+            database: DatabaseConfig {
+                host: shared_config.database.host.clone(),
+                port: shared_config.database.port,
+                username: shared_config.database.username.clone(),
+                password: shared_config.database.password.clone(),
+                database_name: shared_config.database.database_name.clone(),
+                max_connections: shared_config.database.max_connections,
+            },
+            keycloak: KeycloakConfig {
+                server_url: shared_config.keycloak.server_url.clone(),
+                realm: shared_config.keycloak.realm.clone(),
+                client_id: shared_config.keycloak.client_id.clone(),
+                client_secret: shared_config.keycloak.client_secret.clone(),
+                admin_username: shared_config.keycloak.admin_username.clone(),
+                admin_password: shared_config.keycloak.admin_password.clone(),
+            },
+            jwt: JwtConfig {
+                secret: shared_config.jwt.secret.clone(),
+                issuer: shared_config.jwt.issuer.clone(),
+                audience: shared_config.jwt.audience.clone(),
+                expiration_days: shared_config.jwt.expiration_days,
+            },
+            logging: LoggingConfig {
+                level: shared_config.logging.level.clone(),
+            },
+        }
+    }
+}
+EOF
 
 # 2. Create infrastructure/errors.rs
 cat > src/infrastructure/errors.rs << 'EOF'
@@ -516,112 +438,7 @@ impl From<serde_json::Error> for InfrastructureError {
 }
 EOF
 
-# 1. Fix the KeycloakConfig to include admin_token_url method
-cat > src/infrastructure/config.rs << 'EOF'
-use serde::Deserialize;
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct DatabaseConfig {
-    pub host: String,
-    pub port: u16,
-    pub username: String,
-    pub password: String,
-    pub database_name: String,
-    pub max_connections: u32,
-}
-
-impl DatabaseConfig {
-    pub fn connection_string(&self) -> String {
-        format!(
-            "postgres://{}:{}@{}:{}/{}",
-            self.username, self.password, self.host, self.port, self.database_name
-        )
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct KeycloakConfig {
-    pub server_url: String,
-    pub realm: String,
-    pub client_id: String,
-    pub client_secret: String,
-    pub admin_username: String,
-    pub admin_password: String,
-}
-
-impl KeycloakConfig {
-    pub fn token_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/token", self.server_url, self.realm)
-    }
-    
-    pub fn user_info_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/userinfo", self.server_url, self.realm)
-    }
-    
-    pub fn admin_users_url(&self) -> String {
-        format!("{}/admin/realms/{}/users", self.server_url, self.realm)
-    }
-    
-    pub fn admin_token_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/token", self.server_url, self.realm)
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct JwtConfig {
-    pub secret: String,
-    pub issuer: String,
-    pub audience: String,
-    pub expiration_days: u32,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct LoggingConfig {
-    pub level: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct Config {
-    pub database: DatabaseConfig,
-    pub keycloak: KeycloakConfig,
-    pub jwt: JwtConfig,
-    pub logging: LoggingConfig,
-}
-
-impl Config {
-    pub fn from_shared_config(shared_config: &crate::shared::config::AppConfig) -> Self {
-        Self {
-            database: DatabaseConfig {
-                host: shared_config.database.host.clone(),
-                port: shared_config.database.port,
-                username: shared_config.database.username.clone(),
-                password: shared_config.database.password.clone(),
-                database_name: shared_config.database.database_name.clone(),
-                max_connections: shared_config.database.max_connections,
-            },
-            keycloak: KeycloakConfig {
-                server_url: shared_config.keycloak.server_url.clone(),
-                realm: shared_config.keycloak.realm.clone(),
-                client_id: shared_config.keycloak.client_id.clone(),
-                client_secret: shared_config.keycloak.client_secret.clone(),
-                admin_username: shared_config.keycloak.admin_username.clone(),
-                admin_password: shared_config.keycloak.admin_password.clone(),
-            },
-            jwt: JwtConfig {
-                secret: shared_config.jwt.secret.clone(),
-                issuer: shared_config.jwt.issuer.clone(),
-                audience: shared_config.jwt.audience.clone(),
-                expiration_days: shared_config.jwt.expiration_days,
-            },
-            logging: LoggingConfig {
-                level: shared_config.logging.level.clone(),
-            },
-        }
-    }
-}
-EOF
-
-# 2. Also update the shared config to match
+# 3. Update shared config to match your config.toml structure
 cat > src/shared/config.rs << 'EOF'
 use serde::Deserialize;
 use config::{Config, File};
@@ -670,24 +487,6 @@ pub struct KeycloakConfig {
     pub admin_password: String,
 }
 
-impl KeycloakConfig {
-    pub fn token_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/token", self.server_url, self.realm)
-    }
-    
-    pub fn user_info_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/userinfo", self.server_url, self.realm)
-    }
-    
-    pub fn admin_users_url(&self) -> String {
-        format!("{}/admin/realms/{}/users", self.server_url, self.realm)
-    }
-    
-    pub fn admin_token_url(&self) -> String {
-        format!("{}/realms/{}/protocol/openid-connect/token", self.server_url, self.realm)
-    }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct JwtConfig {
     pub secret: String,
@@ -712,6 +511,9 @@ impl AppConfig {
 EOF
 
 
+
+echo "Updated config.rs and errors.rs created successfully!"
+echo "All files now match your Cargo.toml dependencies and config.toml structure"
 
 # 3. Create infrastructure/persistence/database.rs
 cat > src/infrastructure/persistence/database.rs << 'EOF'
@@ -803,7 +605,6 @@ use crate::domain::enums::UserRole;
 use crate::domain::errors::DomainError;
 use crate::domain::repositories::UserRepository;
 
-#[derive(Clone)]
 pub struct PostgresUserRepository {
     pool: PgPool,
 }
@@ -1058,7 +859,6 @@ use crate::domain::entities::Company;
 use crate::domain::errors::DomainError;
 use crate::domain::repositories::CompanyRepository;
 
-#[derive(Clone)]
 pub struct PostgresCompanyRepository {
     pool: PgPool,
 }
@@ -1242,7 +1042,6 @@ use crate::domain::enums::AuditAction;
 use crate::domain::errors::DomainError;
 use crate::domain::repositories::AuditLogRepository;
 
-#[derive(Clone)]
 pub struct PostgresAuditLogRepository {
     pool: PgPool,
 }
@@ -1378,13 +1177,13 @@ pub use database::{create_pool, run_migrations};
 pub use repositories::*;
 EOF
 
-# 2. Update infrastructure/auth/mod.rs to include KeycloakClient
+
+
+# 11. Create infrastructure/auth/mod.rs
 cat > src/infrastructure/auth/mod.rs << 'EOF'
 pub mod jwt;
-pub mod keycloak;
 
 pub use jwt::JwtService;
-pub use keycloak::KeycloakClient;
 EOF
 
 # 12. Create infrastructure/external/mod.rs
