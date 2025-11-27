@@ -535,7 +535,7 @@ impl UserAggregate {
     }
     
     pub fn update_email(&mut self, new_email: String) -> Result<(), DomainError> {
-        let _old_email = self.user.email.clone();
+        let old_email = self.user.email.clone();
         self.user.email = new_email;
         self.user.updated_at = chrono::Utc::now();
         
@@ -989,7 +989,408 @@ pub struct CompanyEvent {
 }
 EOF
 
-cat > Cargo.toml << 'EOF'
+# Create domain test directory and tests
+mkdir -p tests/unit/domain/{entities,value_objects,aggregates,services,repositories,events}
+
+# Domain tests mod.rs
+cat > tests/unit/domain/mod.rs << 'EOF'
+pub mod entities;
+pub mod value_objects;
+pub mod aggregates;
+pub mod services;
+pub mod repositories;
+pub mod events;
+pub mod enums;
+pub mod errors;
+EOF
+
+# Fix tests/unit/mod.rs
+cat > tests/unit/mod.rs << 'EOF'
+pub mod domain;
+EOF
+
+# Value Objects tests
+cat > tests/unit/domain/value_objects.rs << 'EOF'
+use auth_service::domain::value_objects::{Email, Password};
+
+#[test]
+fn test_email_validation() {
+    // Valid email
+    let email = Email::new("test@example.com".to_string());
+    assert!(email.is_ok());
+    assert_eq!(email.unwrap().value(), "test@example.com");
+    
+    // Invalid email
+    let email = Email::new("invalid-email".to_string());
+    assert!(email.is_err());
+}
+
+#[test]
+fn test_password_validation() {
+    // Valid password
+    let password = Password::new("password123".to_string());
+    assert!(password.is_ok());
+    
+    // Too short password
+    let password = Password::new("short".to_string());
+    assert!(password.is_err());
+}
+EOF
+
+# Fix tests/unit/mod.rs
+cat > tests/unit/mod.rs << 'EOF'
+pub mod domain;
+EOF
+
+# Fix company.rs test file - add Validate trait import
+cat > tests/unit/domain/entities/company.rs << 'EOF'
+use auth_service::domain::entities::Company;
+use uuid::Uuid;
+use validator::Validate;
+
+#[test]
+fn test_company_creation() {
+    let user_id = Uuid::new_v4();
+    let company = Company::new(
+        "Test Company".to_string(),
+        Some("Test Description".to_string()),
+        user_id,
+    );
+    
+    assert_eq!(company.name, "Test Company");
+    assert_eq!(company.description.unwrap(), "Test Description");
+    assert_eq!(company.created_by, user_id);
+}
+
+#[test]
+fn test_company_validation() {
+    let user_id = Uuid::new_v4();
+    let company = Company::new("".to_string(), None, user_id);
+    
+    assert!(company.validate().is_err());
+}
+EOF
+
+# Fix user_service.rs test file - fix unused variable warning
+cat > tests/unit/domain/services/user_service.rs << 'EOF'
+use auth_service::domain::services::UserService;
+
+#[tokio::test]
+async fn test_user_service_creation() {
+    let _service = UserService::new();
+    // Basic test to ensure service can be created
+    assert!(true);
+}
+EOF
+
+# Fix company_service.rs test file - fix unused variable warning
+cat > tests/unit/domain/services/company_service.rs << 'EOF'
+use auth_service::domain::services::CompanyService;
+
+#[tokio::test]
+async fn test_company_service_creation() {
+    let _service = CompanyService::new();
+    // Basic test to ensure service can be created
+    assert!(true);
+}
+EOF
+
+# Also need to fix the user.rs test file to import Validate trait
+cat > tests/unit/domain/entities/user.rs << 'EOF'
+use auth_service::domain::entities::User;
+use auth_service::domain::enums::UserRole;
+use uuid::Uuid;
+use validator::Validate;
+
+#[test]
+fn test_user_creation() {
+    let user = User::new(
+        "keycloak-123".to_string(),
+        "testuser".to_string(),
+        "test@example.com".to_string(),
+        UserRole::User,
+        None,
+    );
+    
+    assert!(user.is_ok());
+    let user = user.unwrap();
+    assert_eq!(user.username, "testuser");
+    assert_eq!(user.email, "test@example.com");
+    assert!(matches!(user.role, UserRole::User));
+    assert!(user.company_id.is_none());
+}
+
+#[test]
+fn test_user_permissions() {
+    let admin_user = User::new(
+        "keycloak-admin".to_string(),
+        "admin".to_string(),
+        "admin@example.com".to_string(),
+        UserRole::Admin,
+        None,
+    ).unwrap();
+    
+    let partner_user = User::new(
+        "keycloak-partner".to_string(),
+        "partner".to_string(),
+        "partner@example.com".to_string(),
+        UserRole::Partner,
+        Some(Uuid::new_v4()),
+    ).unwrap();
+    
+    let regular_user = User::new(
+        "keycloak-user".to_string(),
+        "user".to_string(),
+        "user@example.com".to_string(),
+        UserRole::User,
+        None,
+    ).unwrap();
+    
+    assert!(admin_user.is_admin());
+    assert!(partner_user.is_partner());
+    assert!(regular_user.is_regular_user());
+    
+    let test_company_id = Uuid::new_v4();
+    assert!(admin_user.can_manage_company(test_company_id));
+    assert!(partner_user.can_manage_company(partner_user.company_id.unwrap()));
+    assert!(!regular_user.can_manage_company(test_company_id));
+}
+
+#[test]
+fn test_user_validation() {
+    let invalid_user = User::new(
+        "".to_string(),
+        "".to_string(),
+        "invalid-email".to_string(),
+        UserRole::User,
+        None,
+    );
+    
+    assert!(invalid_user.is_err());
+}
+EOF
+
+
+# Entities tests - AuditLog
+cat > tests/unit/domain/entities/audit_log.rs << 'EOF'
+use auth_service::domain::entities::AuditLog;
+use auth_service::domain::enums::AuditAction;
+use uuid::Uuid;
+
+#[test]
+fn test_audit_log_creation() {
+    let user_id = Uuid::new_v4();
+    let audit_log = AuditLog::new(
+        Some(user_id),
+        AuditAction::UserCreated,
+        "User".to_string(),
+        Some("123".to_string()),
+        None,
+        Some("127.0.0.1".to_string()),
+        Some("Test Agent".to_string()),
+    );
+    
+    assert_eq!(audit_log.user_id, Some(user_id));
+    assert!(matches!(audit_log.action, AuditAction::UserCreated));
+    assert_eq!(audit_log.resource_type, "User");
+    assert_eq!(audit_log.resource_id.unwrap(), "123");
+}
+EOF
+
+# Entities tests mod.rs
+cat > tests/unit/domain/entities/mod.rs << 'EOF'
+mod user;
+mod company;
+mod audit_log;
+EOF
+
+# Aggregates tests - UserAggregate
+cat > tests/unit/domain/aggregates/user_aggregate.rs << 'EOF'
+use auth_service::domain::aggregates::UserAggregate;
+use auth_service::domain::enums::UserRole;
+
+#[test]
+fn test_user_aggregate_creation() {
+    let aggregate = UserAggregate::new(
+        "keycloak-123".to_string(),
+        "testuser".to_string(),
+        "test@example.com".to_string(),
+        UserRole::User,
+        None,
+    );
+    
+    assert!(aggregate.is_ok());
+    let aggregate = aggregate.unwrap();
+    assert_eq!(aggregate.events.len(), 1);
+}
+
+#[test]
+fn test_user_aggregate_email_update() {
+    let mut aggregate = UserAggregate::new(
+        "keycloak-123".to_string(),
+        "testuser".to_string(),
+        "test@example.com".to_string(),
+        UserRole::User,
+        None,
+    ).unwrap();
+    
+    let result = aggregate.update_email("new@example.com".to_string());
+    assert!(result.is_ok());
+    assert_eq!(aggregate.events.len(), 2);
+    assert_eq!(aggregate.user.email, "new@example.com");
+}
+EOF
+
+# Aggregates tests - CompanyAggregate
+cat > tests/unit/domain/aggregates/company_aggregate.rs << 'EOF'
+use auth_service::domain::aggregates::CompanyAggregate;
+use uuid::Uuid;
+
+#[test]
+fn test_company_aggregate_creation() {
+    let user_id = Uuid::new_v4();
+    let aggregate = CompanyAggregate::new(
+        "Test Company".to_string(),
+        Some("Test Description".to_string()),
+        user_id,
+    );
+    
+    assert_eq!(aggregate.events.len(), 1);
+    assert_eq!(aggregate.company.name, "Test Company");
+}
+EOF
+
+# Aggregates tests mod.rs
+cat > tests/unit/domain/aggregates/mod.rs << 'EOF'
+mod user_aggregate;
+mod company_aggregate;
+EOF
+
+
+
+
+
+# Services tests mod.rs
+cat > tests/unit/domain/services/mod.rs << 'EOF'
+mod user_service;
+mod company_service;
+EOF
+
+# Repositories tests mod.rs
+cat > tests/unit/domain/repositories/mod.rs << 'EOF'
+// Repository trait tests will go here
+// These are typically integration tests with actual database implementations
+EOF
+
+# Events tests
+cat > tests/unit/domain/events.rs << 'EOF'
+use auth_service::domain::events::{DomainEvent, UserEvent, CompanyEvent};
+use auth_service::domain::enums::UserRole;
+use uuid::Uuid;
+
+#[test]
+fn test_user_event_creation() {
+    let user_id = Uuid::new_v4();
+    let event = DomainEvent::UserCreated(UserEvent {
+        user_id,
+        keycloak_id: "keycloak-123".to_string(),
+        username: "testuser".to_string(),
+        email: "test@example.com".to_string(),
+        role: UserRole::User,
+        company_id: None,
+        timestamp: chrono::Utc::now(),
+    });
+    
+    assert_eq!(event.event_type(), "UserCreated");
+}
+
+#[test]
+fn test_company_event_creation() {
+    let company_id = Uuid::new_v4();
+    let user_id = Uuid::new_v4();
+    let event = DomainEvent::CompanyCreated(CompanyEvent {
+        company_id,
+        name: "Test Company".to_string(),
+        created_by: user_id,
+        timestamp: chrono::Utc::now(),
+    });
+    
+    assert_eq!(event.event_type(), "CompanyCreated");
+}
+EOF
+
+# Enums tests
+cat > tests/unit/domain/enums.rs << 'EOF'
+use auth_service::domain::enums::{UserRole, AuditAction};
+
+#[test]
+fn test_user_role_conversions() {
+    // Test UserRole from string
+    assert_eq!("admin".parse::<UserRole>().unwrap(), UserRole::Admin);
+    assert_eq!("partner".parse::<UserRole>().unwrap(), UserRole::Partner);
+    assert_eq!("operator".parse::<UserRole>().unwrap(), UserRole::Operator);
+    assert_eq!("user".parse::<UserRole>().unwrap(), UserRole::User);
+    assert_eq!("guest".parse::<UserRole>().unwrap(), UserRole::Guest);
+    
+    // Test invalid role
+    assert!("invalid".parse::<UserRole>().is_err());
+    
+    // Test display
+    assert_eq!(UserRole::Admin.to_string(), "Admin");
+    assert_eq!(UserRole::Partner.to_string(), "Partner");
+}
+
+#[test]
+fn test_audit_action_conversions() {
+    // Test AuditAction from string
+    assert_eq!("UserCreated".parse::<AuditAction>().unwrap(), AuditAction::UserCreated);
+    assert_eq!("Login".parse::<AuditAction>().unwrap(), AuditAction::Login);
+    
+    // Test invalid action
+    assert!("InvalidAction".parse::<AuditAction>().is_err());
+    
+    // Test display
+    assert_eq!(AuditAction::UserCreated.to_string(), "UserCreated");
+    assert_eq!(AuditAction::Login.to_string(), "Login");
+}
+EOF
+
+# Errors tests
+cat > tests/unit/domain/errors.rs << 'EOF'
+use auth_service::domain::errors::DomainError;
+
+#[test]
+fn test_domain_error_codes() {
+    let email_error = DomainError::InvalidEmail("test".to_string());
+    assert_eq!(email_error.code(), "DOMAIN_INVALID_EMAIL");
+    
+    let user_not_found = DomainError::UserNotFound;
+    assert_eq!(user_not_found.code(), "DOMAIN_USER_NOT_FOUND");
+    
+    let company_not_found = DomainError::CompanyNotFound;
+    assert_eq!(company_not_found.code(), "DOMAIN_COMPANY_NOT_FOUND");
+}
+
+#[test]
+fn test_domain_error_messages() {
+    let error = DomainError::InvalidEmail("invalid".to_string());
+    assert!(error.to_string().contains("Invalid email"));
+    
+    let error = DomainError::UserNotFound;
+    assert_eq!(error.to_string(), "User not found");
+}
+EOF
+
+# Update Cargo.toml with correct dependencies
+echo "Updating Cargo.toml with domain dependencies..."
+
+# Update Cargo.toml with specific versions
+if [ -f Cargo.toml ]; then
+    # Create a backup
+    cp Cargo.toml Cargo.toml.backup
+    
+    # Update dependencies section
+    cat > Cargo.toml << 'EOF'
 [package]
 name = "auth-service"
 version = "0.1.0"
@@ -1002,23 +1403,24 @@ license = "MIT"
 actix-web = "4.12.0"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.17"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.20"
+tracing = "0.1.42"
+tracing-subscriber = "0.3.21"
 tokio = { version = "1.48.0", features = ["full"] }
 config = "0.15.19"
-serde_json = "1.0.145"
-chrono = { version = "0.4.42", features = ["serde"] }
-validator = { version = "0.20.0", features = ["derive"] }
 uuid = { version = "1.18.1", features = ["v4", "serde"] }
-async-trait = "0.1.89"
+serde_json = "1.0.145"
+validator = { version = "0.20.0", features = ["derive"] }
+chrono = { version = "0.4.42", features = ["serde"] }
+async-trait = "0.1.68"
 
 [dev-dependencies]
 actix-web = "4.12.0"
 tokio = { version = "1.48.0", features = ["full"] }
+validator = "0.20.0"
+uuid = { version = "1.18.1", features = ["v4", "serde"] }
 
 [[bin]]
 name = "auth-service"
 path = "src/main.rs"
 EOF
-
-echo "Domain layer generated successfully!"
+fi
