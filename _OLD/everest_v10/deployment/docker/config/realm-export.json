@@ -1,54 +1,64 @@
 {
-  "realm": "ev-realm",
-  "enabled": true,
-  "roles": {
-    "realm": [
+  "realm": {
+    "realm": "ev-realm",
+    "enabled": true,
+    "roles": {
+      "realm": [
+        {
+          "name": "admin"
+        },
+        {
+          "name": "operator"
+        },
+        {
+          "name": "partner"
+        },
+        {
+          "name": "user"
+        },
+        {
+          "name": "guest"
+        }
+      ]
+    },
+    "clients": [
       {
-        "name": "admin"
-      },
+        "clientId": "auth-service",
+        "enabled": true,
+        "directAccessGrantsEnabled": true,
+        "publicClient": false,
+        "protocol": "openid-connect",
+        "defaultRoles": ["user"],
+        "serviceAccountsEnabled": true,
+        "clientRoles": {
+          "realm-management": [
+            "manage-users",
+            "view-users",
+            "view-realm"
+          ]
+        }
+      }
+    ],
+    "users": [
       {
-        "name": "operator"
-      },
-      {
-        "name": "partner"
-      },
-      {
-        "name": "user"
-      },
-      {
-        "name": "guest"
+        "username": "admin",
+        "email": "admin@example.com",
+        "enabled": true,
+        "credentials": [
+          {
+            "type": "password",
+            "value": "password"
+          }
+        ],
+        "realmRoles": [
+          "admin"
+        ],
+        "clientRoles": {
+          "auth-service": [
+            "admin"
+          ]
+        }
       }
     ]
-  },
-  "clients": [
-    {
-      "clientId": "auth-service",
-      "enabled": true,
-      "directAccessGrantsEnabled": true,
-      "publicClient": false,
-      "protocol": "openid-connect",
-      "defaultRoles": ["user"]  
-    }
-  ],
-  "users": [
-    {
-      "username": "admin",
-      "email": "admin@example.com",
-      "enabled": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "password"
-        }
-      ],
-      "realmRoles": [
-        "admin"
-      ],
-      "clientRoles": {
-        "auth-service": [
-          "admin"  
-        ]
-      }
-    }
-  ]
+  }
 }

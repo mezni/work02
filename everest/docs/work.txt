@@ -1,0 +1,13 @@
+User Management User Stories
+    As an admin, I want to create a user, so that staff members can access the system
+    As an admin, I want to manually create a user account, so that staff members can access the system without self-registration
+    As an admin, I want to list all users, including those who have closed their accounts, so that I can maintain a record of all users
+    As an admin, I want to update a user's details, so that their information is accurate and up-to-date
+    As an admin, I want to delete a user, so that their access is removed from the system
+    As an admin, I want to reset a user's password, so that they can regain access to their account
+    As an admin, I want to view a user's activity (login, logout, password reset, profile update), so that I can comply with external audit requirements
+    As a user, I want to confirm my email address after admin registration, so that I can access the system
+    As a user, I want to login and logout, so that I can access and secure my account
+    As a user, I want to change my password, so that I can update my security credentials
+    As a user, I want to update my profile, so that my contact data is accurate
+    As a user, I want to close my account, so that I can end my relationship with the service

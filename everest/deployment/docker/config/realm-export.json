@@ -1,0 +1,64 @@
+{
+  "realm": "ev-realm",
+  "enabled": true,
+  "displayName": "EV Service Realm",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "registrationAllowed": false,
+  
+  "roles": {
+    "realm": [
+      {"name": "admin"},
+      {"name": "operator"},
+      {"name": "partner"},
+      {"name": "user"},
+      {"name": "guest"}
+    ]
+  },
+  
+  "clients": [
+    {
+      "clientId": "auth-client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "bearerOnly": false, 
+      "secret": "my_secret_value", 
+      "serviceAccountsEnabled": true,
+      "protocolMappers": [
+        {
+          "name": "Service Account Roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-client-role-service-account-mapper",
+          "consentRequired": false,
+          "config": {
+            "service.account.client.role": "manage-users,view-users,view-realm",
+            "usermodel.clientrole.label": "realm-management"
+          }
+        }
+      ]
+    }
+  ],
+  
+  "users": [
+    {
+      "username": "dali",
+      "email": "dali@example.com",
+      "enabled": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password"
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
+      "clientRoles": {
+        "account": [
+          "manage-account"
+        ]
+      }
+    }
+  ]
+}
