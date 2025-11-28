@@ -1,0 +1,114 @@
+User Management Microservice
+Build a User Management Microservice in Rust (Actix-Web) that integrates seamlessly with Keycloak for identity and access management. The microservice manages user metadata, business logic, RBAC, partner scoping, operator visibility, auditing, and cross-service data access rules.
+Business Requirements
+
+    User Types & Roles:
+        Public (unauthenticated)
+        Registered User (self-registration)
+        Operator (belongs to exactly one Partner; scoping enforced)
+        Partner (owns resources; can manage Operators)
+        Admin (full system access)
+    Identity & Access:
+        Self-Registration: A user signs up with email/password. Keycloak creates the user, assigns registered_user role, and sends activation email.
+        Admin User Creation: Admin can create user accounts with roles: admin, partner, operator.
+        Operator → Partner Link: Stored in Keycloak user attributes: partner_name: "AcmeCorp"
+    Auditing: Track login, logout, session timeout, failed login attempt, IP address, user agent, device type, OS, browser, geolocation (lat/lon resolved by server)
+
+Technical Requirements
+
+    Layered Architecture (Domain-Driven Design - DDD)
+        Domain Layer: Core business logic, entities, aggregates, value objects, domain events, domain services
+        Application Layer: Use cases (commands & queries), DTOs, mappers, ServiceError enum
+        Infrastructure Layer: Keycloak integration, SQLx repositories, connection pooling, logging/metrics, health checks
+        Interfaces Layer: HTTP controllers (Actix handlers), request validation, OpenAPI spec, security middleware, logging/authorization middleware
+    Cross-Cutting Concerns:
+        Security Middleware: Enforce role-based access checks based on JWT claims
+        Authorization: Implement two-layer model where roles are checked in middleware, and Partner/Operator scoping is enforced via data filters in Repository layer
+        CQRS Pattern: Separation of read (Queries) and write (Commands) flows
+        Error Handling: Use structured ServiceError enum and implement actix_web::ResponseError
+        Data Security: Data encryption (in transit → TLS, at rest → PostgreSQL TDE/application level)
+        Logging: Full logging using tracing for custom, structured logger
+    Add swagger support
+    keep domain layer pure
+    Use a rust keycloak library to interact with Keycloak's admin API.
+    use lib.rs to minimize main.rs
+    add a healthcheck endpoint with db status and keycloak status
+    add database migration for postgres
+
+Configuration
+
+    Read configuration from environment variables or a configuration file (e.g., config.toml)
+    Configuration options:
+        KEYCLOAK_URL
+        KEYCLOAK_REALM
+        KEYCLOAK_CLIENT_ID
+        KEYCLOAK_CLIENT_SECRET
+        DATABASE_URL
+        LOG_LEVEL
+
+Logging
+
+    Use tracing crate for logging
+    Log events with structured data (e.g., {"event": "login", "user_id": "123", "ip_address": "192.168.1.1"})
+
+Tests
+
+    Write unit tests for domain logic, application logic, and infrastructure components
+    Write integration tests for API endpoints and Keycloak integration
+    Use testcontainers to test with a real Keycloak instance
+    Use sqlx's built-in testing support to test database interactions
+
+Performance Expectations
+
+    ~2000 users
+    ~5 req/sec
+    concurrency: ~50 users
+
+Next Features (Planned Enhancements)
+
+    Caching layer (Redis)
+    Secrets management (Vault)
+    Rate limiting + IP blocking (anti-bruteforce)
+    Application-level tracing and distributed logging
+    Advanced audit logging & analytics
+
+
+name the microservice auth-service
+
+give me a script shell that creates domain, another for infrastructure another for application and another for interfaces dont add tests for the moment, 
+after each run of this scripts the microservice should run 
+shell scripts list:
+create_main.sh
+create_domain.sh
+create_application.sh
+create_infrastrucre.sh
+create_interfaces.sh
+
+name the microservice auth-service
+
+give me a script shell that creates domain, another for infrastructure another for application and another for interfaces dont add tests for the moment, 
+after each run of this scripts the microservice should run 
+shell scripts list:
+create_main.sh
+create_domain.sh
+create_application.sh
+create_infrastrucre.sh
+create_interfaces.sh
+
+all my codebase should be under auth-service
+
+
+dont forget the swagger support
+
+
+
+
+is it clear? , what are your hypothesis ? have you any questions? what are your suggestions?    
+
+
+
+
+
+
+
+
