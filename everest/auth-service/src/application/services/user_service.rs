@@ -17,15 +17,10 @@ impl UserService {
     pub async fn create_user(&self, dto: CreateUserDto) -> Result<String, RepositoryError> {
         info!("Creating user from DTO: {}", dto.username);
 
-        let email = Email::new(dto.email)
-            .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
+        let email =
+            Email::new(dto.email).map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
-        let user = User::new(
-            dto.username,
-            email,
-            dto.first_name,
-            dto.last_name,
-        );
+        let user = User::new(dto.username, email, dto.first_name, dto.last_name);
 
         let user_id = self.user_repository.create(&user, &dto.password).await?;
         Ok(user_id.as_str().to_string())
@@ -37,7 +32,10 @@ impl UserService {
         Ok(user.map(|u| self.to_dto(&u)))
     }
 
-    pub async fn get_user_by_username(&self, username: &str) -> Result<Option<UserDto>, RepositoryError> {
+    pub async fn get_user_by_username(
+        &self,
+        username: &str,
+    ) -> Result<Option<UserDto>, RepositoryError> {
         let user = self.user_repository.find_by_username(username).await?;
         Ok(user.map(|u| self.to_dto(&u)))
     }
@@ -49,18 +47,24 @@ impl UserService {
 
     pub async fn enable_user(&self, user_id: &str) -> Result<(), RepositoryError> {
         let id = UserId::new(user_id.to_string());
-        let mut user = self.user_repository.find_by_id(&id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&id)
+            .await?
             .ok_or_else(|| RepositoryError::NotFound(user_id.to_string()))?;
-        
+
         user.enable();
         self.user_repository.update(&user).await
     }
 
     pub async fn disable_user(&self, user_id: &str) -> Result<(), RepositoryError> {
         let id = UserId::new(user_id.to_string());
-        let mut user = self.user_repository.find_by_id(&id).await?
+        let mut user = self
+            .user_repository
+            .find_by_id(&id)
+            .await?
             .ok_or_else(|| RepositoryError::NotFound(user_id.to_string()))?;
-        
+
         user.disable();
         self.user_repository.update(&user).await
     }
@@ -82,7 +86,11 @@ impl UserService {
 
     fn to_dto(&self, user: &User) -> UserDto {
         UserDto {
-            id: user.id.as_ref().map(|id| id.as_str().to_string()).unwrap_or_default(),
+            id: user
+                .id
+                .as_ref()
+                .map(|id| id.as_str().to_string())
+                .unwrap_or_default(),
             username: user.username.clone(),
             email: user.email.as_str().to_string(),
             first_name: user.first_name.clone(),

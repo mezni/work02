@@ -43,3 +43,8 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 # Validation
 validator = { version = "0.20.0", features = ["derive"] }
 
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+jwt = "0.16.0"
+base64 = "0.22.1"
+chrono = "0.4.42"
+actix-web-httpauth = "0.8.2"

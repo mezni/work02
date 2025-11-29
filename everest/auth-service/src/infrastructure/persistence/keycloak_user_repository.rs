@@ -17,17 +17,16 @@ impl KeycloakUserRepository {
     }
 
     fn to_domain_user(&self, keycloak_user: UserRepresentation) -> Result<User, RepositoryError> {
-        let username = keycloak_user.username.ok_or_else(|| {
-            RepositoryError::DatabaseError("Missing username".to_string())
-        })?;
+        let username = keycloak_user
+            .username
+            .ok_or_else(|| RepositoryError::DatabaseError("Missing username".to_string()))?;
 
-        let email_str = keycloak_user.email.ok_or_else(|| {
-            RepositoryError::DatabaseError("Missing email".to_string())
-        })?;
+        let email_str = keycloak_user
+            .email
+            .ok_or_else(|| RepositoryError::DatabaseError("Missing email".to_string()))?;
 
-        let email = Email::new(email_str).map_err(|e| {
-            RepositoryError::DatabaseError(format!("Invalid email: {}", e))
-        })?;
+        let email = Email::new(email_str)
+            .map_err(|e| RepositoryError::DatabaseError(format!("Invalid email: {}", e)))?;
 
         let first_name = keycloak_user.first_name.unwrap_or_default();
         let last_name = keycloak_user.last_name.unwrap_or_default();
@@ -60,7 +59,7 @@ impl KeycloakUserRepository {
 impl UserRepository for KeycloakUserRepository {
     async fn create(&self, user: &User, password: &str) -> Result<UserId, RepositoryError> {
         info!("Creating user: {}", user.username);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
         let keycloak_user = self.to_keycloak_user(user);
@@ -74,10 +73,13 @@ impl UserRepository for KeycloakUserRepository {
             })?;
 
         // Fetch the created user to get the ID
-        let created_user = self.find_by_username(&user.username).await?
+        let created_user = self
+            .find_by_username(&user.username)
+            .await?
             .ok_or_else(|| RepositoryError::NotFound(user.username.clone()))?;
 
-        let user_id = created_user.id
+        let user_id = created_user
+            .id
             .ok_or_else(|| RepositoryError::DatabaseError("No user ID returned".to_string()))?;
 
         // Set password
@@ -89,11 +91,7 @@ impl UserRepository for KeycloakUserRepository {
         };
 
         admin
-            .realm_users_with_user_id_reset_password_put(
-                realm,
-                user_id.as_str(),
-                credential,
-            )
+            .realm_users_with_user_id_reset_password_put(realm, user_id.as_str(), credential)
             .await
             .map_err(|e| {
                 error!("Failed to set password: {}", e);
@@ -106,7 +104,7 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn find_by_id(&self, id: &UserId) -> Result<Option<User>, RepositoryError> {
         debug!("Finding user by ID: {}", id);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
@@ -123,15 +121,27 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn find_by_username(&self, username: &str) -> Result<Option<User>, RepositoryError> {
         debug!("Finding user by username: {}", username);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
         let users = admin
             .realm_users_get(
                 realm,
-                None, None, None, Some(true), None, None, None, None, None,
-                Some(username.to_string()), None, None, None, None,
+                None,
+                None,
+                None,
+                Some(true),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(username.to_string()),
+                None,
+                None,
+                None,
+                None,
             )
             .await
             .map_err(|e| {
@@ -148,15 +158,14 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn find_all(&self) -> Result<Vec<User>, RepositoryError> {
         debug!("Finding all users");
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
         let keycloak_users = admin
             .realm_users_get(
-                realm,
-                None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None,
+                realm, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None,
             )
             .await
             .map_err(|e| {
@@ -172,8 +181,10 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn update(&self, user: &User) -> Result<(), RepositoryError> {
         info!("Updating user: {}", user.username);
-        
-        let user_id = user.id.as_ref()
+
+        let user_id = user
+            .id
+            .as_ref()
             .ok_or_else(|| RepositoryError::DatabaseError("User ID is required".to_string()))?;
 
         let admin = self.client.get_admin().await;
@@ -194,7 +205,7 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn delete(&self, id: &UserId) -> Result<(), RepositoryError> {
         info!("Deleting user: {}", id);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
@@ -212,7 +223,7 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn assign_role(&self, user_id: &UserId, role_name: &str) -> Result<(), RepositoryError> {
         info!("Assigning role '{}' to user: {}", role_name, user_id);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
@@ -225,11 +236,7 @@ impl UserRepository for KeycloakUserRepository {
             })?;
 
         admin
-            .realm_users_with_user_id_role_mappings_realm_post(
-                realm,
-                user_id.as_str(),
-                vec![role],
-            )
+            .realm_users_with_user_id_role_mappings_realm_post(realm, user_id.as_str(), vec![role])
             .await
             .map_err(|e| {
                 error!("Failed to assign role: {}", e);
@@ -242,7 +249,7 @@ impl UserRepository for KeycloakUserRepository {
 
     async fn get_roles(&self, user_id: &UserId) -> Result<Vec<String>, RepositoryError> {
         debug!("Getting roles for user: {}", user_id);
-        
+
         let admin = self.client.get_admin().await;
         let realm = self.client.realm();
 
@@ -254,9 +261,6 @@ impl UserRepository for KeycloakUserRepository {
                 RepositoryError::DatabaseError(e.to_string())
             })?;
 
-        Ok(roles
-            .into_iter()
-            .filter_map(|r| r.name)
-            .collect())
+        Ok(roles.into_iter().filter_map(|r| r.name).collect())
     }
 }

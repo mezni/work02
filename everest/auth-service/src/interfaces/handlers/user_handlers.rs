@@ -66,10 +66,7 @@ pub async fn create_user(
     ),
     tag = "Users"
 )]
-pub async fn get_user(
-    state: web::Data<AppState>,
-    user_id: web::Path<String>,
-) -> impl Responder {
+pub async fn get_user(state: web::Data<AppState>, user_id: web::Path<String>) -> impl Responder {
     info!("Getting user: {}", user_id);
 
     match state.user_service.get_user(&user_id).await {
@@ -163,10 +160,7 @@ pub async fn list_users(state: web::Data<AppState>) -> impl Responder {
     ),
     tag = "Users"
 )]
-pub async fn enable_user(
-    state: web::Data<AppState>,
-    user_id: web::Path<String>,
-) -> impl Responder {
+pub async fn enable_user(state: web::Data<AppState>, user_id: web::Path<String>) -> impl Responder {
     info!("Enabling user: {}", user_id);
 
     match state.user_service.enable_user(&user_id).await {
@@ -231,10 +225,7 @@ pub async fn disable_user(
     ),
     tag = "Users"
 )]
-pub async fn delete_user(
-    state: web::Data<AppState>,
-    user_id: web::Path<String>,
-) -> impl Responder {
+pub async fn delete_user(state: web::Data<AppState>, user_id: web::Path<String>) -> impl Responder {
     info!("Deleting user: {}", user_id);
 
     match state.user_service.delete_user(&user_id).await {
@@ -272,7 +263,10 @@ pub async fn assign_role(
     user_id: web::Path<String>,
     payload: web::Json<AssignRoleDto>,
 ) -> impl Responder {
-    info!("Assigning role '{}' to user: {}", payload.role_name, user_id);
+    info!(
+        "Assigning role '{}' to user: {}",
+        payload.role_name, user_id
+    );
 
     if let Err(e) = payload.validate() {
         error!("Validation error: {}", e);

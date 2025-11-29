@@ -6,16 +6,16 @@ use validator::Validate;
 pub struct CreateUserDto {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
-    
+
     #[validate(email)]
     pub email: String,
-    
+
     #[validate(length(min = 1, max = 50))]
     pub first_name: String,
-    
+
     #[validate(length(min = 1, max = 50))]
     pub last_name: String,
-    
+
     #[validate(length(min = 8))]
     pub password: String,
 }

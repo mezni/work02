@@ -3,11 +3,16 @@ mod domain;
 mod infrastructure;
 mod interfaces;
 
+use crate::application::dto::auth_dto::{
+    LoginRequest, LoginResponse, RefreshTokenRequest, ValidateTokenResponse,
+};
 use crate::application::dto::user_dto::{
     AssignRoleDto, CreateUserDto, CreateUserResponse, ErrorResponse, SuccessResponse, UserDto,
     UserRolesDto,
 };
+use crate::application::services::auth_service::AuthService;
 use crate::application::services::user_service::UserService;
+use crate::infrastructure::config::auth_config::AuthConfig;
 use crate::infrastructure::config::keycloak_config::KeycloakConfig;
 use crate::infrastructure::config::server_config::ServerConfig;
 use crate::infrastructure::keycloak::client::KeycloakClient;
@@ -26,6 +31,10 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        interfaces::handlers::auth_handlers::login,
+        interfaces::handlers::auth_handlers::validate_token,
+        interfaces::handlers::auth_handlers::refresh_token,
+        interfaces::handlers::auth_handlers::logout,
         interfaces::handlers::user_handlers::create_user,
         interfaces::handlers::user_handlers::get_user,
         interfaces::handlers::user_handlers::get_user_by_username,
@@ -38,6 +47,10 @@ use utoipa_swagger_ui::SwaggerUi;
     ),
     components(
         schemas(
+            LoginRequest,
+            LoginResponse,
+            RefreshTokenRequest,
+            ValidateTokenResponse,
             CreateUserDto,
             UserDto,
             AssignRoleDto,
@@ -48,6 +61,7 @@ use utoipa_swagger_ui::SwaggerUi;
         )
     ),
     tags(
+        (name = "Authentication", description = "Authentication endpoints"),
         (name = "Users", description = "User management endpoints"),
         (name = "Roles", description = "Role management endpoints")
     ),
@@ -90,6 +104,11 @@ async fn main() -> Result<()> {
         e
     })?;
 
+    let auth_config = AuthConfig::from_env().map_err(|e| {
+        error!("Failed to load auth configuration: {}", e);
+        e
+    })?;
+
     info!("Configuration loaded successfully");
     info!("Keycloak URL: {}", keycloak_config.url);
     info!("Keycloak Realm: {}", keycloak_config.realm);
@@ -102,13 +121,20 @@ async fn main() -> Result<()> {
     })?;
 
     // Initialize repository
-    let user_repository = Arc::new(KeycloakUserRepository::new(Arc::new(keycloak_client)));
+    let user_repository = Arc::new(KeycloakUserRepository::new(Arc::new(
+        keycloak_client.clone(),
+    )));
 
-    // Initialize application service
-    let user_service = Arc::new(UserService::new(user_repository));
+    // Initialize application services
+    let user_service = Arc::new(UserService::new(user_repository.clone()));
+    let auth_service = Arc::new(AuthService::new(
+        user_repository,
+        Arc::new(keycloak_client),
+        auth_config,
+    ));
 
     // Create application state
-    let app_state = web::Data::new(AppState::new(user_service));
+    let app_state = web::Data::new(AppState::new(user_service, auth_service));
 
     let server_address = server_config.address();
 
