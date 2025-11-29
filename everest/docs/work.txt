@@ -1,13 +1,75 @@
-User Management User Stories
-    As an admin, I want to create a user, so that staff members can access the system
-    As an admin, I want to manually create a user account, so that staff members can access the system without self-registration
-    As an admin, I want to list all users, including those who have closed their accounts, so that I can maintain a record of all users
-    As an admin, I want to update a user's details, so that their information is accurate and up-to-date
-    As an admin, I want to delete a user, so that their access is removed from the system
-    As an admin, I want to reset a user's password, so that they can regain access to their account
-    As an admin, I want to view a user's activity (login, logout, password reset, profile update), so that I can comply with external audit requirements
-    As a user, I want to confirm my email address after admin registration, so that I can access the system
-    As a user, I want to login and logout, so that I can access and secure my account
-    As a user, I want to change my password, so that I can update my security credentials
-    As a user, I want to update my profile, so that my contact data is accurate
-    As a user, I want to close my account, so that I can end my relationship with the service
+System Requirements
+
+    Authentication: In-app authentication with Keycloak integration (OAuth, OpenID Connect)
+    Organisation Management: Single realm in Keycloak, with organisation attribute on users
+    Role-Based Access Control (RBAC): Simple roles with guard logic (admin, partner, operator, etc.)
+    Scale: 1,000-10,000 users, 10-100 organisations, 100-1,000 concurrent users
+    Audit and Logging: Queryable and exportable logs for compliance (login, logout, password changes, role changes, admin actions)
+    Password Policy: Keycloak-managed password policy (strength, expiration) with enforcement at authentication/password-change time
+    Workflows: User-requested role escalation and admin approval/deny with auditable requests
+    Lifecycle Management: Disable inactive accounts (admin-driven or auto after X days)
+
+Admin User Stories
+
+    As an admin, I want to create a new organisation, so that I can manage users and resources for that organisation
+    As an admin, I want to update an organisation's details, so that I can keep organisation information up-to-date
+    As an admin, I want to delete an organisation, so that I can remove organisations that are no longer needed
+    As an admin, I want to assign users to organisations, so that I can manage access to resources
+    As an admin, I want to view organisation-specific logs, so that I can monitor activity and troubleshoot issues
+
+User User Stories
+
+    As a user, I want to login to the system, so that I can access organisation resources
+    As a user, I want to view my organisation's details, so that I can keep my information up-to-date
+    As a user, I want to request access to additional resources or escalate my role, so that I can perform tasks that require higher privileges
+    As a user, I want to receive notifications for password resets, account updates, and other security-related events, so that I can stay informed about my account
+
+Endpoints
+
+    POST /organisations: Create a new organisation
+    GET /organisations: Get a list of all organisations
+    GET /organisations/{id}: Get a specific organisation's details
+    PUT /organisations/{id}: Update an organisation's details
+    DELETE /organisations/{id}: Delete an organisation
+    GET /users/{id}/organisation: Get a user's organisation details
+    POST /login: Login to the system (handled by Keycloak)
+    POST /logout: Logout of the system (handled by Keycloak)
+
+Database Schema
+
+    organisations table:
+        id (integer, primary key)
+        name (string)
+        description (string)
+    users table:
+        id (integer, primary key)
+        keycloak_id (string, foreign key to Keycloak user ID)
+        organisation_id (integer, foreign key to organisations table)
+        email (string)
+        name (string)
+        role (string, e.g. admin, partner, operator)
+        status (string, e.g. active, inactive, pending, pending_password_reset)
+        is_live (boolean, default: true)
+
+User Entity
+
+    id (integer, primary key)
+    keycloak_id (string, foreign key to Keycloak user ID)
+    organisation_id (integer, foreign key to organisations table)
+    email (string)
+    name (string)
+    role (string, e.g. admin, partner, operator)
+    status (string, e.g. active, inactive, pending_password_reset)
+    is_live (boolean, default: true)
+
+Hypotheses
+
+    Single Keycloak Realm: All users exist in one realm. Organisations are not represented as Keycloak realms. Organisation is stored as a user attribute (organisation_id) in Keycloak.
+    Login / Logout handled by Keycloak: /login and /logout endpoints act as proxies or return Keycloak URLs/tokens. Application does not store sessions.
+    Microservice is authoritative for business logic: Keycloak is only used for authentication, role storage, password management, and user identity (email/name). All organisation and workflow logic lives in Postgres + Rust.
+    Role enforcement: Keycloak has realm roles, and the microservice enforces “only 1 role per user” (Keycloak allows multiple but we enforce one).
+    Self-registration Activation: After registering in Keycloak, user is inactive in the microservice until activation is confirmed (email simulation).
+    Organisation deletion is non-destructive: Soft delete: is_live = false. Users under deleted org become inactive but not removed.
+    Logging & Audit: Audit entries stored in DB (not external service). Includes: login, logout, role changes, password resets, admin actions.
+
+is it clear? , what are your hypothesis ? have you any questions? what are your suggestions?  
