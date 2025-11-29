@@ -1,18 +1,73 @@
 mod application;
 mod domain;
 mod infrastructure;
+mod interfaces;
 
-use crate::application::dto::user_dto::CreateUserDto;
+use crate::application::dto::user_dto::{
+    AssignRoleDto, CreateUserDto, CreateUserResponse, ErrorResponse, SuccessResponse, UserDto,
+    UserRolesDto,
+};
 use crate::application::services::user_service::UserService;
 use crate::infrastructure::config::keycloak_config::KeycloakConfig;
+use crate::infrastructure::config::server_config::ServerConfig;
 use crate::infrastructure::keycloak::client::KeycloakClient;
 use crate::infrastructure::persistence::keycloak_user_repository::KeycloakUserRepository;
+use crate::interfaces::routes::configure_routes;
+use crate::interfaces::AppState;
+use actix_cors::Cors;
+use actix_web::{middleware, web, App, HttpServer};
 use anyhow::Result;
 use std::sync::Arc;
 use tracing::{error, info};
 use tracing_subscriber;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
-#[tokio::main]
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        interfaces::handlers::user_handlers::create_user,
+        interfaces::handlers::user_handlers::get_user,
+        interfaces::handlers::user_handlers::get_user_by_username,
+        interfaces::handlers::user_handlers::list_users,
+        interfaces::handlers::user_handlers::enable_user,
+        interfaces::handlers::user_handlers::disable_user,
+        interfaces::handlers::user_handlers::delete_user,
+        interfaces::handlers::user_handlers::assign_role,
+        interfaces::handlers::user_handlers::get_user_roles,
+    ),
+    components(
+        schemas(
+            CreateUserDto,
+            UserDto,
+            AssignRoleDto,
+            UserRolesDto,
+            ErrorResponse,
+            SuccessResponse,
+            CreateUserResponse
+        )
+    ),
+    tags(
+        (name = "Users", description = "User management endpoints"),
+        (name = "Roles", description = "Role management endpoints")
+    ),
+    info(
+        title = "Auth Service API",
+        version = "1.0.0",
+        description = "REST API for authentication and user management using Keycloak",
+        contact(
+            name = "API Support",
+            email = "support@example.com"
+        ),
+        license(
+            name = "MIT",
+            url = "https://opensource.org/licenses/MIT"
+        )
+    )
+)]
+struct ApiDoc;
+
+#[actix_web::main]
 async fn main() -> Result<()> {
     // Initialize logging
     tracing_subscriber::fmt()
@@ -24,18 +79,24 @@ async fn main() -> Result<()> {
 
     info!("Starting Auth Service");
 
-    // Load configuration from environment
-    let config = KeycloakConfig::from_env().map_err(|e| {
-        error!("Failed to load configuration: {}", e);
+    // Load configurations
+    let keycloak_config = KeycloakConfig::from_env().map_err(|e| {
+        error!("Failed to load Keycloak configuration: {}", e);
+        e
+    })?;
+
+    let server_config = ServerConfig::from_env().map_err(|e| {
+        error!("Failed to load server configuration: {}", e);
         e
     })?;
 
     info!("Configuration loaded successfully");
-    info!("Keycloak URL: {}", config.url);
-    info!("Keycloak Realm: {}", config.realm);
+    info!("Keycloak URL: {}", keycloak_config.url);
+    info!("Keycloak Realm: {}", keycloak_config.realm);
+    info!("Server address: {}", server_config.address());
 
     // Initialize Keycloak client
-    let keycloak_client = KeycloakClient::new(config).await.map_err(|e| {
+    let keycloak_client = KeycloakClient::new(keycloak_config).await.map_err(|e| {
         error!("Failed to initialize Keycloak client: {}", e);
         e
     })?;
@@ -44,85 +105,55 @@ async fn main() -> Result<()> {
     let user_repository = Arc::new(KeycloakUserRepository::new(Arc::new(keycloak_client)));
 
     // Initialize application service
-    let user_service = UserService::new(user_repository);
+    let user_service = Arc::new(UserService::new(user_repository));
+
+    // Create application state
+    let app_state = web::Data::new(AppState::new(user_service));
+
+    let server_address = server_config.address();
 
     info!("Auth Service initialized successfully");
+    info!(
+        "Swagger UI available at: http://{}/swagger-ui/",
+        server_address
+    );
+    info!(
+        "API documentation at: http://{}/api-docs/openapi.json",
+        server_address
+    );
 
-    // Example usage
-    run_examples(&user_service).await?;
+    // Start server
+    info!("🚀 Server starting on http://{}", server_address);
 
-    info!("Auth Service completed successfully");
-    Ok(())
-}
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .max_age(3600);
 
-async fn run_examples(user_service: &UserService) -> Result<()> {
-    // Example 1: Create a new user
-    info!("=== Example 1: Creating a new user ===");
-    let create_user_dto = CreateUserDto {
-        username: "testuser".to_string(),
-        email: "testuser@example.com".to_string(),
-        first_name: "Test".to_string(),
-        last_name: "User".to_string(),
-        password: "Test123!".to_string(),
-    };
-
-    match user_service.create_user(create_user_dto).await {
-        Ok(user_id) => {
-            info!("✓ User created successfully with ID: {}", user_id);
-
-            // Example 2: Assign role to user
-            info!("\n=== Example 2: Assigning role to user ===");
-            match user_service.assign_role(&user_id, "user-manager").await {
-                Ok(_) => {
-                    info!("✓ Role assigned successfully");
-
-                    // Example 3: Get user roles
-                    info!("\n=== Example 3: Getting user roles ===");
-                    match user_service.get_user_roles(&user_id).await {
-                        Ok(roles) => {
-                            info!("✓ User roles:");
-                            for role in roles {
-                                info!("  - {}", role);
-                            }
-                        }
-                        Err(e) => error!("✗ Failed to get roles: {}", e),
-                    }
-                }
-                Err(e) => error!("✗ Failed to assign role: {}", e),
-            }
-
-            // Example 4: Get user details
-            info!("\n=== Example 4: Getting user details ===");
-            match user_service.get_user(&user_id).await {
-                Ok(Some(user)) => {
-                    info!("✓ User details:");
-                    info!("  ID: {}", user.id);
-                    info!("  Username: {}", user.username);
-                    info!("  Email: {}", user.email);
-                    info!("  Name: {} {}", user.first_name, user.last_name);
-                    info!("  Enabled: {}", user.enabled);
-                }
-                Ok(None) => error!("✗ User not found"),
-                Err(e) => error!("✗ Failed to get user: {}", e),
-            }
-        }
-        Err(e) => error!("✗ Failed to create user: {}", e),
-    }
-
-    // Example 5: List all users
-    info!("\n=== Example 5: Listing all users ===");
-    match user_service.list_users().await {
-        Ok(users) => {
-            info!("✓ Found {} users:", users.len());
-            for user in users.iter().take(5) {
-                info!("  - {} ({})", user.username, user.email);
-            }
-            if users.len() > 5 {
-                info!("  ... and {} more", users.len() - 5);
-            }
-        }
-        Err(e) => error!("✗ Failed to list users: {}", e),
-    }
+        App::new()
+            .app_data(app_state.clone())
+            .wrap(cors)
+            .wrap(middleware::Logger::default())
+            .wrap(tracing_actix_web::TracingLogger::default())
+            .configure(configure_routes)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
+    })
+    .bind(&server_address)
+    .map_err(|e| {
+        error!("Failed to bind to address {}: {}", server_address, e);
+        e
+    })?
+    .run()
+    .await
+    .map_err(|e| {
+        error!("Server error: {}", e);
+        e
+    })?;
 
     Ok(())
 }
