@@ -1,10 +1,12 @@
 use std::fmt;
 use thiserror::Error;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, ToSchema)]
 pub struct Email(String);
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error)]
 pub enum EmailError {
     #[error("Invalid email format: {0}")]
     InvalidFormat(String),

@@ -20,7 +20,17 @@ impl UserService {
         let email =
             Email::new(dto.email).map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
-        let user = User::new(dto.username, email, dto.first_name, dto.last_name);
+        // Generate a keycloak_id (in real implementation, this would come from Keycloak)
+        let keycloak_id = format!("keycloak-{}", uuid::Uuid::new_v4());
+        
+        let user = User::new(
+            keycloak_id,
+            dto.username,
+            email,
+            dto.first_name,
+            dto.last_name,
+            "user".to_string(), // default role
+        );
 
         let user_id = self.user_repository.create(&user, &dto.password).await?;
         Ok(user_id.as_str().to_string())

@@ -46,5 +46,8 @@ validator = { version = "0.20.0", features = ["derive"] }
 jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 jwt = "0.16.0"
 base64 = "0.22.1"
-chrono = "0.4.42"
 actix-web-httpauth = "0.8.2"
+
+
+chrono = { version = "0.4.42", features = ["serde"] }
+uuid = { version = "1.18.1", features = ["v4"] }

@@ -1,5 +1,5 @@
 use crate::domain::entities::user::User;
-use crate::domain::value_objects::UserId;
+use crate::domain::value_objects::{UserId, OrganisationId};
 use async_trait::async_trait;
 use thiserror::Error;
 
@@ -25,4 +25,7 @@ pub trait UserRepository: Send + Sync {
     async fn delete(&self, id: &UserId) -> Result<(), RepositoryError>;
     async fn assign_role(&self, user_id: &UserId, role_name: &str) -> Result<(), RepositoryError>;
     async fn get_roles(&self, user_id: &UserId) -> Result<Vec<String>, RepositoryError>;
+    
+    // Add the missing method
+    async fn assign_to_organisation(&self, user_id: &UserId, organisation_id: &OrganisationId) -> Result<(), RepositoryError>;
 }
