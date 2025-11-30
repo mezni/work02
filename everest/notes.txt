@@ -1,0 +1,937 @@
+https://github.com/Aditeya/utoipa-auto-docs-example/blob/main/src/main.rs
+
+
+
+#!/bin/bash
+
+# Create DDD Actix Web Project with Health Check
+set -e
+
+PROJECT_NAME="actix-web-ddd-example"
+echo "Creating project: $PROJECT_NAME"
+
+# Create directory structure
+mkdir -p $PROJECT_NAME/src/{domain/{models,repositories,services},application/{dto,use_cases},infrastructure/{web/{handlers,middleware},swagger},shared}
+
+# Create Cargo.toml
+cat > $PROJECT_NAME/Cargo.toml << 'EOF'
+[package]
+name = "actix-web-ddd-example"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4.4"
+env_logger = "0.10"
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+utoipa = { version = "4.3", features = ["actix_extras"] }
+utoipa-swagger-ui = { version = "4.3", features = ["actix-web"] }
+thiserror = "1.0"
+async-trait = "0.1"
+uuid = { version = "1.0", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+EOF
+
+# Create src/lib.rs
+cat > $PROJECT_NAME/src/lib.rs << 'EOF'
+pub mod application;
+pub mod domain;
+pub mod infrastructure;
+pub mod shared;
+EOF
+
+# Create src/main.rs
+cat > $PROJECT_NAME/src/main.rs << 'EOF'
+use actix_web::{middleware, web, App, HttpServer};
+use application::use_cases::health_check::HealthCheckUseCase;
+use infrastructure::web::{routes, swagger};
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
+    log::info!("starting HTTP server at http://localhost:8080");
+
+    // Initialize health check use case
+    let health_check_use_case = HealthCheckUseCase::default();
+
+    HttpServer::new(move || {
+        App::new()
+            .wrap(middleware::Logger::default())
+            .configure(routes::config)
+            .service(swagger::create_swagger_service())
+            // Register health check use case as application data
+            .app_data(web::Data::new(health_check_use_case.clone()))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await
+}
+EOF
+
+# DOMAIN LAYER
+
+# Create domain models mod.rs
+cat > $PROJECT_NAME/src/domain/models/mod.rs << 'EOF'
+pub mod auth_token;
+pub mod thing;
+pub mod value_objects;
+
+pub use auth_token::AuthToken;
+pub use thing::{Thing, ThingError};
+pub use value_objects::{Email, Height};
+EOF
+
+# Create auth_token.rs
+cat > $PROJECT_NAME/src/domain/models/auth_token.rs << 'EOF'
+use std::{future::Future, pin::Pin};
+
+use actix_web::{http::header, FromRequest, HttpMessage};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct AuthToken(String);
+
+impl FromRequest for AuthToken {
+    type Error = actix_web::Error;
+    type Future = Pin<Box<dyn Future<Output = Result<Self, Self::Error>>>>;
+
+    fn from_request(req: &actix_web::HttpRequest, _: &mut actix_web::dev::Payload) -> Self::Future {
+        match get_auth_token_from_header(req) {
+            Ok("super-secret-password") => {
+                Box::pin(async move { Ok(AuthToken("super-secret-password".into())) })
+            }
+            _ => Box::pin(async move { Err(actix_web::error::ErrorUnauthorized("Invalid")) }),
+        }
+    }
+}
+
+fn get_auth_token_from_header(req: &impl HttpMessage) -> Result<&str, &str> {
+    req.headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|t| t.to_str().ok())
+        .and_then(|t| t.strip_prefix("Bearer "))
+        .ok_or("missing error")
+}
+EOF
+
+# Create thing.rs
+cat > $PROJECT_NAME/src/domain/models/thing.rs << 'EOF'
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use utoipa::ToSchema;
+
+use super::value_objects::{Email, Height};
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Thing {
+    pub id: String,
+    pub name: String,
+    pub email: Email,
+    pub height: Height,
+}
+
+impl Thing {
+    pub fn new(id: String, name: String, email: Email, height: Height) -> Result<Self, ThingError> {
+        if name.is_empty() {
+            return Err(ThingError::InvalidName);
+        }
+        
+        Ok(Self {
+            id,
+            name,
+            email,
+            height,
+        })
+    }
+}
+
+#[derive(Error, Debug)]
+pub enum ThingError {
+    #[error("Invalid thing name")]
+    InvalidName,
+    #[error("Thing not found")]
+    NotFound,
+}
+EOF
+
+# Create value_objects.rs
+cat > $PROJECT_NAME/src/domain/models/value_objects.rs << 'EOF'
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Email(String);
+
+impl Email {
+    pub fn new(email: String) -> Result<Self, &'static str> {
+        if email.contains('@') {
+            Ok(Self(email))
+        } else {
+            Err("Invalid email format")
+        }
+    }
+    
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl From<Email> for String {
+    fn from(email: Email) -> Self {
+        email.0
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct Height(u64);
+
+impl Height {
+    pub fn new(height: u64) -> Result<Self, &'static str> {
+        if height > 0 && height <= 300 {
+            Ok(Self(height))
+        } else {
+            Err("Height must be between 1 and 300")
+        }
+    }
+    
+    pub fn value(&self) -> u64 {
+        self.0
+    }
+}
+
+impl From<Height> for u64 {
+    fn from(height: Height) -> Self {
+        height.0
+    }
+}
+EOF
+
+# Create domain repositories mod.rs
+cat > $PROJECT_NAME/src/domain/repositories/mod.rs << 'EOF'
+pub mod thing_repository;
+
+pub use thing_repository::ThingRepository;
+EOF
+
+# Create thing_repository.rs
+cat > $PROJECT_NAME/src/domain/repositories/thing_repository.rs << 'EOF'
+use async_trait::async_trait;
+
+use crate::domain::models::{Thing, ThingError};
+
+#[async_trait]
+pub trait ThingRepository: Send + Sync {
+    async fn create(&self, thing: Thing) -> Result<Thing, ThingError>;
+    async fn delete(&self, email: &str) -> Result<(), ThingError>;
+    async fn find_by_id(&self, id: &str) -> Result<Thing, ThingError>;
+}
+
+// In-memory implementation for demonstration
+pub struct InMemoryThingRepository {
+    things: std::sync::RwLock<Vec<Thing>>,
+}
+
+impl InMemoryThingRepository {
+    pub fn new() -> Self {
+        Self {
+            things: std::sync::RwLock::new(Vec::new()),
+        }
+    }
+}
+
+#[async_trait]
+impl ThingRepository for InMemoryThingRepository {
+    async fn create(&self, thing: Thing) -> Result<Thing, ThingError> {
+        let mut things = self.things.write().unwrap();
+        things.push(thing.clone());
+        Ok(thing)
+    }
+
+    async fn delete(&self, email: &str) -> Result<(), ThingError> {
+        let mut things = self.things.write().unwrap();
+        let initial_len = things.len();
+        things.retain(|t| t.email.as_str() != email);
+        
+        if things.len() < initial_len {
+            Ok(())
+        } else {
+            Err(ThingError::NotFound)
+        }
+    }
+
+    async fn find_by_id(&self, id: &str) -> Result<Thing, ThingError> {
+        let things = self.things.read().unwrap();
+        things
+            .iter()
+            .find(|t| t.id == id)
+            .cloned()
+            .ok_or(ThingError::NotFound)
+    }
+}
+EOF
+
+# Create domain services mod.rs
+cat > $PROJECT_NAME/src/domain/services/mod.rs << 'EOF'
+pub mod auth_service;
+
+pub use auth_service::AuthService;
+EOF
+
+# Create auth_service.rs
+cat > $PROJECT_NAME/src/domain/services/auth_service.rs << 'EOF'
+pub struct AuthService;
+
+impl AuthService {
+    pub fn validate_token(&self, token: &str) -> bool {
+        token == "super-secret-password"
+    }
+}
+EOF
+
+# Create domain mod.rs
+cat > $PROJECT_NAME/src/domain/mod.rs << 'EOF'
+pub mod models;
+pub mod repositories;
+pub mod services;
+EOF
+
+# APPLICATION LAYER
+
+# Create application dto mod.rs
+cat > $PROJECT_NAME/src/application/dto/mod.rs << 'EOF'
+pub mod requests;
+pub mod responses;
+
+pub use requests::*;
+pub use responses::*;
+EOF
+
+# Create application dto requests.rs
+cat > $PROJECT_NAME/src/application/dto/requests.rs << 'EOF'
+use serde::{Deserialize, Serialize};
+use utoipa::{IntoParams, ToSchema};
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct CreateThingRequest {
+    pub name: String,
+    pub email: String,
+    pub height: u64,
+}
+
+#[derive(IntoParams, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct DeleteThingRequest {
+    /// Delete Permanently ?
+    pub permanent: Option<bool>,
+    /// when to delete ?
+    pub when: Option<u64>,
+    /// height of shamelessness
+    pub height: u64,
+}
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct GenericRequest<T, U> {
+    pub params: Option<T>,
+    pub data: Option<U>,
+}
+EOF
+
+# Create application dto responses.rs
+cat > $PROJECT_NAME/src/application/dto/responses.rs << 'EOF'
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct GenericResponse<T> {
+    pub msg: String,
+    pub data: T,
+}
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct HealthCheckResponse {
+    pub status: String,
+    pub timestamp: DateTime<Utc>,
+    pub version: String,
+    pub uptime: u64,
+}
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct CreateThingResponse {
+    pub status: String,
+    pub thing_id: String,
+}
+
+#[derive(ToSchema, Serialize, Deserialize, Debug, PartialEq, Eq)]
+pub struct ThingResponse {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub height: u64,
+}
+EOF
+
+# Create application use_cases mod.rs
+cat > $PROJECT_NAME/src/application/use_cases/mod.rs << 'EOF'
+pub mod create_thing;
+pub mod delete_thing;
+pub mod get_thing;
+pub mod health_check;
+
+pub use create_thing::CreateThingUseCase;
+pub use delete_thing::DeleteThingUseCase;
+pub use get_thing::GetThingUseCase;
+pub use health_check::HealthCheckUseCase;
+EOF
+
+# Create create_thing use case
+cat > $PROJECT_NAME/src/application/use_cases/create_thing.rs << 'EOF'
+use crate::{
+    application::dto::{CreateThingRequest, CreateThingResponse},
+    domain::{
+        models::{Thing, ThingError},
+        repositories::ThingRepository,
+    },
+    shared::error::AppError,
+};
+
+pub struct CreateThingUseCase<R: ThingRepository> {
+    thing_repository: R,
+}
+
+impl<R: ThingRepository> CreateThingUseCase<R> {
+    pub fn new(thing_repository: R) -> Self {
+        Self { thing_repository }
+    }
+
+    pub async fn execute(&self, request: CreateThingRequest) -> Result<CreateThingResponse, AppError> {
+        let email = crate::domain::models::value_objects::Email::new(request.email)
+            .map_err(|_| AppError::ValidationError("Invalid email format".to_string()))?;
+            
+        let height = crate::domain::models::value_objects::Height::new(request.height)
+            .map_err(|_| AppError::ValidationError("Invalid height".to_string()))?;
+
+        let thing = Thing::new(
+            uuid::Uuid::new_v4().to_string(),
+            request.name,
+            email,
+            height,
+        )?;
+
+        let created_thing = self.thing_repository.create(thing).await?;
+        
+        Ok(CreateThingResponse {
+            status: "created".to_string(),
+            thing_id: created_thing.id,
+        })
+    }
+}
+EOF
+
+# Create delete_thing use case
+cat > $PROJECT_NAME/src/application/use_cases/delete_thing.rs << 'EOF'
+use crate::{
+    domain::repositories::ThingRepository,
+    shared::error::AppError,
+};
+
+pub struct DeleteThingUseCase<R: ThingRepository> {
+    thing_repository: R,
+}
+
+impl<R: ThingRepository> DeleteThingUseCase<R> {
+    pub fn new(thing_repository: R) -> Self {
+        Self { thing_repository }
+    }
+
+    pub async fn execute(&self, email: &str) -> Result<(), AppError> {
+        self.thing_repository.delete(email).await?;
+        Ok(())
+    }
+}
+EOF
+
+# Create get_thing use case
+cat > $PROJECT_NAME/src/application/use_cases/get_thing.rs << 'EOF'
+use crate::{
+    application::dto::ThingResponse,
+    domain::repositories::ThingRepository,
+    shared::error::AppError,
+};
+
+pub struct GetThingUseCase<R: ThingRepository> {
+    thing_repository: R,
+}
+
+impl<R: ThingRepository> GetThingUseCase<R> {
+    pub fn new(thing_repository: R) -> Self {
+        Self { thing_repository }
+    }
+
+    pub async fn execute(&self, id: &str) -> Result<ThingResponse, AppError> {
+        let thing = self.thing_repository.find_by_id(id).await?;
+        
+        Ok(ThingResponse {
+            id: thing.id,
+            name: thing.name,
+            email: thing.email.as_str().to_string(),
+            height: thing.height.value(),
+        })
+    }
+}
+EOF
+
+# Create health_check use case
+cat > $PROJECT_NAME/src/application/use_cases/health_check.rs << 'EOF'
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::application::dto::HealthCheckResponse;
+
+#[derive(Clone)]
+pub struct HealthCheckUseCase {
+    start_time: SystemTime,
+    version: String,
+}
+
+impl HealthCheckUseCase {
+    pub fn new(version: String) -> Self {
+        Self {
+            start_time: SystemTime::now(),
+            version,
+        }
+    }
+
+    pub fn execute(&self) -> HealthCheckResponse {
+        let uptime = self
+            .start_time
+            .elapsed()
+            .unwrap_or_default()
+            .as_secs();
+
+        HealthCheckResponse {
+            status: "healthy".to_string(),
+            timestamp: chrono::Utc::now(),
+            version: self.version.clone(),
+            uptime,
+        }
+    }
+}
+
+impl Default for HealthCheckUseCase {
+    fn default() -> Self {
+        Self::new(env!("CARGO_PKG_VERSION").to_string())
+    }
+}
+EOF
+
+# Create application mod.rs
+cat > $PROJECT_NAME/src/application/mod.rs << 'EOF'
+pub mod dto;
+pub mod use_cases;
+EOF
+
+# INFRASTRUCTURE LAYER
+
+# Create infrastructure web handlers mod.rs
+cat > $PROJECT_NAME/src/infrastructure/web/handlers/mod.rs << 'EOF'
+pub mod thing_handlers;
+pub mod auth_handlers;
+pub mod health_check;
+
+pub use thing_handlers::*;
+pub use auth_handlers::*;
+pub use health_check::*;
+EOF
+
+# Create auth_handlers.rs
+cat > $PROJECT_NAME/src/infrastructure/web/handlers/auth_handlers.rs << 'EOF'
+use actix_web::{get, HttpRequest, HttpResponse};
+use utoipa::path;
+
+use crate::domain::models::AuthToken;
+
+/// Root Endpoint
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Hello World!")
+    )
+)]
+#[get("/")]
+pub async fn index(req: HttpRequest) -> &'static str {
+    println!("REQ: {req:?}");
+    "Hello world!"
+}
+
+/// Auth Endpoint
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Hello World!"),
+        (status = 401, description = "Invalid")
+    ),
+    security(
+        ("Token" = []),
+    )
+)]
+#[get("/auth")]
+pub async fn auth_index(_: AuthToken, req: HttpRequest) -> &'static str {
+    println!("REQ: {req:?}");
+    "Hello world!"
+}
+EOF
+
+# Create thing_handlers.rs
+cat > $PROJECT_NAME/src/infrastructure/web/handlers/thing_handlers.rs << 'EOF'
+use actix_web::{delete, get, http::StatusCode, post, web, HttpRequest, HttpResponse};
+use utoipa::Path;
+
+use crate::{
+    application::{
+        dto::{CreateThingRequest, DeleteThingRequest, GenericResponse},
+        use_cases::{CreateThingUseCase, DeleteThingUseCase, GetThingUseCase},
+    },
+    domain::{models::AuthToken, repositories::ThingRepository},
+};
+
+/// Create Thing Endpoint
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Thing created successfully", body = GenericResponse<String>),
+        (status = 400, description = "Invalid input"),
+        (status = 401, description = "Unauthorized"),
+        (status = 409, description = "Conflict")
+    ),
+    request_body = CreateThingRequest,
+    security(
+        ("Token" = []),
+    )
+)]
+#[post("/create")]
+pub async fn create_thing(
+    _: AuthToken,
+    req: HttpRequest,
+    request: web::Json<CreateThingRequest>,
+    use_case: web::Data<CreateThingUseCase<impl ThingRepository>>,
+) -> HttpResponse {
+    println!("REQ: {req:?}");
+
+    match use_case.execute(request.into_inner()).await {
+        Ok(response) => {
+            let resp: GenericResponse<String> = GenericResponse {
+                msg: "success".into(),
+                data: response.status,
+            };
+            HttpResponse::Ok()
+                .content_type("application/json")
+                .status(StatusCode::OK)
+                .json(resp)
+        }
+        Err(e) => HttpResponse::BadRequest().json(GenericResponse {
+            msg: "error".into(),
+            data: e.to_string(),
+        }),
+    }
+}
+
+/// Delete Thing Endpoint
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Thing deleted successfully", body = GenericResponse<String>),
+        (status = 400, description = "Invalid input"),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Thing not found")
+    ),
+    params(
+        ("email" = String, Path, description = "Thing email"),
+        DeleteThingRequest,
+    ),
+    security(
+        ("Token" = []),
+    )
+)]
+#[delete("/delete/{email}")]
+pub async fn delete_thing(
+    _: AuthToken,
+    req: HttpRequest,
+    path: web::Path<String>,
+    query: web::Query<DeleteThingRequest>,
+    use_case: web::Data<DeleteThingUseCase<impl ThingRepository>>,
+) -> HttpResponse {
+    println!("REQ: {req:?}");
+
+    let email = path.into_inner();
+    let query = query.into_inner();
+
+    match use_case.execute(&email).await {
+        Ok(_) => {
+            let resp: GenericResponse<String> = GenericResponse {
+                msg: "Success".into(),
+                data: format!(
+                    "email: {} permanent: {:#?}, when: {:#?}, height: {}",
+                    email,
+                    query.permanent.unwrap_or(false),
+                    query.when.unwrap_or(64),
+                    query.height
+                ),
+            };
+            HttpResponse::Ok()
+                .content_type("application/json")
+                .status(StatusCode::OK)
+                .json(resp)
+        }
+        Err(e) => HttpResponse::BadRequest().json(GenericResponse {
+            msg: "error".into(),
+            data: e.to_string(),
+        }),
+    }
+}
+
+/// Get Thing Endpoint
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Thing found", body = ThingResponse),
+        (status = 404, description = "Thing not found")
+    ),
+    params(
+        ("id" = String, Path, description = "Thing ID"),
+    )
+)]
+#[get("/things/{id}")]
+pub async fn get_thing(
+    req: HttpRequest,
+    path: web::Path<String>,
+    use_case: web::Data<GetThingUseCase<impl ThingRepository>>,
+) -> HttpResponse {
+    println!("REQ: {req:?}");
+
+    let id = path.into_inner();
+    
+    match use_case.execute(&id).await {
+        Ok(thing) => HttpResponse::Ok().json(thing),
+        Err(e) => HttpResponse::NotFound().json(GenericResponse {
+            msg: "error".into(),
+            data: e.to_string(),
+        }),
+    }
+}
+EOF
+
+# Create health_check handlers
+cat > $PROJECT_NAME/src/infrastructure/web/handlers/health_check.rs << 'EOF'
+use actix_web::{get, HttpResponse};
+use utoipa::path;
+
+use crate::application::use_cases::health_check::HealthCheckUseCase;
+
+/// Health Check Endpoint
+///
+/// Returns the API status, version, and uptime
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Service is healthy", body = HealthCheckResponse),
+        (status = 503, description = "Service is unhealthy")
+    )
+)]
+#[get("/health")]
+pub async fn health_check(
+    use_case: actix_web::web::Data<HealthCheckUseCase>,
+) -> HttpResponse {
+    let health_status = use_case.execute();
+    
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .json(health_status)
+}
+
+/// Deep Health Check Endpoint
+///
+/// Returns detailed health information including database connectivity
+#[utoipa::path(
+    context_path = "/v1",
+    responses(
+        (status = 200, description = "Service and all dependencies are healthy", body = HealthCheckResponse),
+        (status = 503, description = "Service or dependencies are unhealthy")
+    )
+)]
+#[get("/health/deep")]
+pub async fn deep_health_check(
+    use_case: actix_web::web::Data<HealthCheckUseCase>,
+) -> HttpResponse {
+    let mut health_status = use_case.execute();
+    
+    // Here you can add checks for database connectivity, external services, etc.
+    // For now, we'll just modify the status to indicate it's a deep check
+    health_status.status = "deep_healthy".to_string();
+    
+    HttpResponse::Ok()
+        .content_type("application/json")
+        .json(health_status)
+}
+EOF
+
+# Create infrastructure web middleware mod.rs
+cat > $PROJECT_NAME/src/infrastructure/web/middleware/mod.rs << 'EOF'
+// Middleware components can be added here
+EOF
+
+# Create infrastructure web routes.rs
+cat > $PROJECT_NAME/src/infrastructure/web/routes.rs << 'EOF'
+use actix_web::web;
+
+use super::handlers::{auth_handlers, thing_handlers, health_check};
+
+pub fn config(conf: &mut web::ServiceConfig) {
+    let scope = web::scope("/v1")
+        .service(auth_handlers::index)
+        .service(auth_handlers::auth_index)
+        .service(thing_handlers::create_thing)
+        .service(thing_handlers::delete_thing)
+        .service(thing_handlers::get_thing)
+        .service(health_check::health_check)
+        .service(health_check::deep_health_check);
+    conf.service(scope);
+}
+EOF
+
+# Create infrastructure web mod.rs
+cat > $PROJECT_NAME/src/infrastructure/web/mod.rs << 'EOF'
+pub mod handlers;
+pub mod middleware;
+pub mod routes;
+
+pub use routes::config;
+EOF
+
+# Create infrastructure swagger mod.rs
+cat > $PROJECT_NAME/src/infrastructure/swagger/mod.rs << 'EOF'
+pub mod config;
+
+pub use config::create_swagger_service;
+EOF
+
+# Create infrastructure swagger config.rs
+cat > $PROJECT_NAME/src/infrastructure/swagger/config.rs << 'EOF'
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::{
+    application::dto::HealthCheckResponse,
+    infrastructure::web::handlers::{auth_handlers, thing_handlers, health_check},
+};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        auth_handlers::index,
+        auth_handlers::auth_index,
+        thing_handlers::create_thing,
+        thing_handlers::delete_thing,
+        thing_handlers::get_thing,
+        health_check::health_check,
+        health_check::deep_health_check,
+    ),
+    components(
+        schemas(
+            crate::application::dto::GenericResponse<String>,
+            crate::application::dto::CreateThingRequest,
+            crate::application::dto::CreateThingResponse,
+            crate::application::dto::ThingResponse,
+            crate::application::dto::HealthCheckResponse,
+            crate::domain::models::thing::Thing,
+        )
+    ),
+    tags(
+        (name = "DDD API", description = "A Domain-Driven Design API"),
+        (name = "Health", description = "Health check endpoints")
+    ),
+    modifiers(&SecurityAddon)
+)]
+pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "Token",
+                utoipa::openapi::security::SecurityScheme::Http(
+                    utoipa::openapi::security::Http::new(
+                        utoipa::openapi::security::HttpAuthScheme::Bearer,
+                    ),
+                ),
+            );
+        }
+    }
+}
+
+pub fn create_swagger_service() -> SwaggerUi {
+    SwaggerUi::new("/docs-v1/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi())
+}
+EOF
+
+# Create infrastructure mod.rs
+cat > $PROJECT_NAME/src/infrastructure/mod.rs << 'EOF'
+pub mod web;
+pub mod swagger;
+EOF
+
+# SHARED LAYER
+
+# Create shared error.rs
+cat > $PROJECT_NAME/src/shared/error.rs << 'EOF'
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum AppError {
+    #[error("Validation error: {0}")]
+    ValidationError(String),
+    
+    #[error("Domain error: {0}")]
+    DomainError(#[from] crate::domain::models::ThingError),
+    
+    #[error("Repository error: {0}")]
+    RepositoryError(String),
+    
+    #[error("Not found")]
+    NotFound,
+}
+
+impl From<&str> for AppError {
+    fn from(value: &str) -> Self {
+        AppError::ValidationError(value.to_string())
+    }
+}
+EOF
+
+# Create shared mod.rs
+cat > $PROJECT_NAME/src/shared/mod.rs << 'EOF'
+pub mod error;
+
+pub use error::AppError;
+EOF
+
+# Create README.md
+cat > $PROJECT_NAME/README.md << 'EOF'
+# Actix Web DDD Example
+
+A Domain-Driven Design structured Actix Web application with Swagger documentation.
+
+## Features
+
+- DDD architecture (Domain, Application, Infrastructure, Shared layers)
+- Health check endpoints
+- JWT-like authentication
+- Swagger UI documentation
+- In-memory repository for demonstration
+
+## Running the Application
+
+```bash
+cargo run

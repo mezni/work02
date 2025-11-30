@@ -1,3 +1,18 @@
+// configurator-service/src/lib.rs
+pub mod api;
+pub mod application;
+pub mod domain;
+pub mod infrastructure;
+
+// Re-export commonly used types
+pub use application::{
+    ApplicationError, ApplicationResult, CompositeApplicationService,
+    OrganizationApplicationService, StationApplicationService, UserApplicationService,
+};
+pub use infrastructure::repositories::{
+    OrganizationRepositoryImpl, RepositoryFactory, StationRepositoryImpl, UserRepositoryImpl,
+};
+
 pub mod api;
 pub mod config;
 pub mod health;
@@ -46,9 +61,12 @@ impl Application {
         println!("🚀 Starting Configurator Service");
         println!("📍 Server: {}:{}", host, port);
         println!("📊 Health: http://{}:{}/api/v1/health", host, port);
+        println!(
+            "🏢 Organizations: http://{}:{}/api/v1/organizations",
+            host, port
+        );
         println!("📚 API Docs: http://{}:{}/docs", host, port);
 
-        // This returns a Server that needs to be awaited
         let server = actix_web::HttpServer::new(move || {
             actix_web::App::new()
                 .app_data(web::Data::new(pool.clone()))
@@ -58,19 +76,12 @@ impl Application {
                         .allow_any_method()
                         .allow_any_header(),
                 )
-                // API Scope: Contains health AND the JSON file handler
-                .service(
-                    web::scope("/api/v1")
-                        .configure(health::configure) // /api/v1/health, /api/v1/ready
-                        .configure(api::docs::configure_json), // /api/v1/api-docs/openapi.json
-                )
-                // DOCS UI Scope: Contains only the UI interface at the root
-                .configure(api::configure) // /docs
+                // Configure all API routes through the api module
+                .configure(api::configure)
         })
         .bind((host, port))?
         .run();
 
-        // Await the server
         server.await
     }
 }

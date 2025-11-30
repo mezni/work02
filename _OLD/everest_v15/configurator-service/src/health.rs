@@ -1,7 +1,7 @@
 // health.rs // configurator-service/src/health.rs
 use actix_web::{HttpResponse, Responder, get, web};
 use serde::Serialize;
-use sqlx::{PgPool};
+use sqlx::PgPool;
 use utoipa::ToSchema;
 
 // API_PREFIX constant removed
