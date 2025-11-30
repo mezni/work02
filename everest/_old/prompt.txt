@@ -1,0 +1,43 @@
+Build an Auth-Service microservice in Rust (1.90+) using Actix-Web, 
+following Domain-Driven Design (DDD) principles. 
+The service must integrate with Keycloak for authentication and authorization. 
+Only the Auth-Service should interact with Keycloak. 
+All domain layers must remain pure and free of external dependencies (SQLx, Actix, Keycloak, HTTP, etc.).
+The service will handle CRUD operations for users, with role-based access control.
+Requirements:
+1- Admin Users: are the users of the platform, 
+- can  create other admins, give them role=admin
+- can create users related to organisations, give them role=partner and organisation=organisation_name
+- can list, update , soft delete , deactivate reactivate activate the users of the platform
+
+2- Partner Users: are the users of their organisation, 
+- can  create other users for their organisations, give them role=operator and organisation=organisation_name by its by default
+- can list, update , soft delete , deactivate reactivate activate the users or teir organisation
+
+i will have 2 microservices 
+- auth-Service for auth and authorizati
+- configurator-service where i can manage users , organisation 
+
+
+Technical Requirements
+
+- Keycloak will be used for authentication and authorization and token validation and refresh
+- use sqlx (dynmic queries) and postgres, Use sqlx's dynamic queries 
+- use keycloak = "26.4.0" library 
+- error handling or logging requirements, use thiserror for error handling.
+- use argon2 password hashing and verification
+- add support to openspi utoipa  and utoipa-swagger-ui 
+- for tracing use tracing-subscriber and tracing-actix-web 
+- Introduce a Claims Value Object: Instead of passing raw JWT data, create a Domain-level struct Claims (or similar) that represents the authenticated user's 
+context (user_id, roles, organization). This object is created in the Infrastructure/
+- Use CQRS and Use Traits in the Application layer for UserRepository and AuthGateway. 
+- use lib.rs and move app state and web server startup to it
+- use cors 
+- for swagger-ui protect endpoints with token
+- add config reader 
+- organisation is added to keycloak users as attribute of the users
+- add lib.rs and move web server startup , application state, add cors 
+- add sql migrations
+- add read configurations 
+
+is it clear? , what are your hypothesis ? have you any questions? what are your suggestions?    
