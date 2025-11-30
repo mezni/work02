@@ -1,15 +1,15 @@
+// configurator-service/src/health.rs
 use actix_web::{get, web, HttpResponse, Responder};
-use serde::Serialize;
 use sqlx::PgPool;
 use utoipa::ToSchema;
 
-#[derive(Serialize, ToSchema)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct HealthStatus {
     pub status: String,
     pub timestamp: String,
 }
 
-#[derive(Serialize, ToSchema)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct ReadinessStatus {
     pub status: String,
     pub database: String,
@@ -44,7 +44,7 @@ pub async fn health_check() -> impl Responder {
 #[get("/ready")]
 pub async fn readiness_check(pool: web::Data<PgPool>) -> impl Responder {
     let timestamp = chrono::Utc::now().to_rfc3339();
-    
+
     // Check DB connectivity
     match sqlx::query("SELECT 1").execute(pool.get_ref()).await {
         Ok(_) => HttpResponse::Ok().json(ReadinessStatus {
@@ -53,14 +53,13 @@ pub async fn readiness_check(pool: web::Data<PgPool>) -> impl Responder {
             timestamp,
         }),
         Err(_) => HttpResponse::ServiceUnavailable().json(ReadinessStatus {
-            status: "not_ready".to_string(), 
+            status: "not_ready".to_string(),
             database: "disconnected".to_string(),
             timestamp,
-        })
+        }),
     }
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(health_check)
-        .service(readiness_check);
+    cfg.service(health_check).service(readiness_check);
 }

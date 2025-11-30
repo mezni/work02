@@ -1,5 +1,9 @@
+// configurator-service/src/api/v1/mod.rs
 use actix_web::web;
 use serde::Serialize;
+
+pub mod organizations;
+pub mod users;
 
 #[derive(Serialize)]
 struct ApiHealth {
@@ -27,7 +31,10 @@ async fn v1_ready() -> actix_web::HttpResponse {
 pub fn configure(cfg: &mut web::ServiceConfig) {
     cfg.service(
         web::scope("")
+            // Health endpoints
             .service(web::resource("/health").route(web::get().to(v1_health)))
             .service(web::resource("/ready").route(web::get().to(v1_ready)))
+            // Organization endpoints
+            .configure(organizations::configure),
     );
 }

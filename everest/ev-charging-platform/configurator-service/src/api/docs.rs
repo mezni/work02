@@ -1,10 +1,11 @@
 use actix_web::{web, HttpResponse};
 use serde::Serialize;
 use utoipa::{OpenApi, ToSchema};
-use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::{Config, SwaggerUi};
 
-// Re-export health schemas
-use crate::health::{HealthStatus, ReadinessStatus};
+// Import the entire modules
+use crate::api::v1::organizations;
+use crate::health;
 
 #[derive(Serialize, ToSchema)]
 struct ApiInfo {
@@ -21,18 +22,22 @@ struct ApiInfo {
         description = "API for managing EV charging stations, organizations, and users"
     ),
     paths(
-        crate::health::health_check,
-        crate::health::readiness_check,
+        health::health_check,
+        health::readiness_check,
+        organizations::create_organization,
     ),
     components(
         schemas(
-            HealthStatus,
-            ReadinessStatus,
+            health::HealthStatus,
+            health::ReadinessStatus,
+            organizations::CreateOrganizationRequest,
+            organizations::OrganizationResponse,
             ApiInfo
         )
     ),
     tags(
         (name = "Health", description = "Health check endpoints"),
+        (name = "Organizations", description = "Organization management endpoints"),
         (name = "API", description = "API information")
     )
 )]
@@ -62,15 +67,19 @@ async fn api_info() -> HttpResponse {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
+    // Create Swagger UI configuration with the correct URL
+    let config = Config::new(["/api/docs/openapi.json"]);
+
     cfg.service(
         web::scope("")
             // Serve OpenAPI JSON at /api/docs/openapi.json
             .service(web::resource("/openapi.json").route(web::get().to(serve_openapi_json)))
             .service(web::resource("/info").route(web::get().to(api_info)))
-            // Configure Swagger UI to look for OpenAPI JSON at the correct path
+            // Configure Swagger UI to look for OpenAPI JSON at the correct absolute path
             .service(
                 SwaggerUi::new("/{_:.*}")
-                    .url("/api/docs/openapi.json", ApiDoc::openapi())
-            )
+                    .config(config)
+                    .url("/api/docs/openapi.json", ApiDoc::openapi()),
+            ),
     );
 }
