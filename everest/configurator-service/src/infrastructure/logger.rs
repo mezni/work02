@@ -2,7 +2,6 @@ use super::config::Config;
 use tracing_subscriber::{EnvFilter, fmt};
 
 pub fn init(config: &Config) {
-    // Use log_level from config, fallback to env var or default
     let filter =
         EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&config.log_level));
 
