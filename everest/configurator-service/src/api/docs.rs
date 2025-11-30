@@ -3,7 +3,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 // Explicitly import all components needed for the OpenAPI definition
-use crate::health::{HealthStatus, ReadinessStatus, health_check, readiness_check};
+use crate::health::{HealthStatus, ReadinessStatus};
 
 /// EV Charging Configurator API documentation
 #[derive(OpenApi)]
