@@ -1,7 +1,17 @@
-// configurator-service/src/api/v1/organizations.rs
 use actix_web::{web, HttpResponse};
 use serde::Deserialize;
+use sqlx::{PgPool, FromRow}; // Add FromRow import
 use utoipa::ToSchema;
+use uuid::Uuid;
+
+// Struct for the query result
+#[derive(FromRow)]
+struct OrganizationRecord {
+    id: Uuid,
+    name: String,
+    status: String,
+    created_at: chrono::DateTime<chrono::Utc>,
+}
 
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateOrganizationRequest {
@@ -13,12 +23,10 @@ pub struct OrganizationResponse {
     pub id: String,
     pub name: String,
     pub status: String,
+    pub created_at: String,
 }
 
 /// Create a new organization
-///
-/// This endpoint allows super admins to create new organizations in the system.
-/// Each organization can own multiple charging stations and have partners assigned to it.
 #[utoipa::path(
     post,
     path = "/organizations",
@@ -31,18 +39,50 @@ pub struct OrganizationResponse {
     ),
     tag = "Organizations"
 )]
-pub async fn create_organization(request: web::Json<CreateOrganizationRequest>) -> HttpResponse {
-    // TODO: Implement actual organization creation logic
-    // For now, return a mock response
 
-    HttpResponse::Created().json(OrganizationResponse {
-        id: uuid::Uuid::new_v4().to_string(),
-        name: request.name.clone(),
-        status: "active".to_string(),
-    })
+pub async fn create_organization(
+    pool: web::Data<PgPool>,
+    request: web::Json<CreateOrganizationRequest>,
+) -> HttpResponse {
+    let system_user_id = Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap();
+    
+    match sqlx::query_as::<_, OrganizationRecord>(
+        r#"
+        INSERT INTO organizations (name, created_by, updated_by)
+        VALUES ($1, $2, $3)
+        RETURNING id, name, status, created_at
+        "#,
+    )
+    .bind(&request.name)
+    .bind(system_user_id)
+    .bind(system_user_id)
+    .fetch_one(pool.get_ref())
+    .await {
+        Ok(record) => {
+            HttpResponse::Created().json(OrganizationResponse {
+                id: record.id.to_string(),
+                name: record.name,
+                status: record.status,
+                created_at: record.created_at.to_rfc3339(),
+            })
+        }
+        Err(e) => {
+            eprintln!("Failed to create organization: {}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to create organization"
+            }))
+        }
+    }
 }
 
-// Configure function for organizations module
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(web::resource("/organizations").route(web::post().to(create_organization)));
+    cfg.service(
+        web::resource("/organizations")
+            .route(web::post().to(create_organization))
+    );
 }
+
+
+
+
+
