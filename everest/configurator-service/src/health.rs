@@ -1,10 +1,10 @@
-// configurator-service/src/health.rs
+// health.rs // configurator-service/src/health.rs
 use actix_web::{HttpResponse, Responder, get, web};
 use serde::Serialize;
 use sqlx::{PgPool, Row};
 use utoipa::ToSchema;
 
-const API_PREFIX: &str = "/api/v1";
+// API_PREFIX constant removed
 
 #[derive(Serialize, ToSchema)]
 pub struct HealthStatus {
@@ -21,7 +21,7 @@ pub struct ReadinessStatus {
 
 #[utoipa::path(
     get,
-    path = "/health",
+    path = "/api/v1/health",
     responses(
         (status = 200, description = "Service is healthy", body = HealthStatus)
     ),
@@ -37,7 +37,7 @@ pub async fn health_check() -> impl Responder {
 
 #[utoipa::path(
     get,
-    path = "/ready",
+    path = "/api/v1/ready",
     responses(
         (status = 200, description = "Service is ready", body = ReadinessStatus),
         (status = 503, description = "Service is not ready", body = ReadinessStatus)
@@ -63,9 +63,6 @@ pub async fn readiness_check(pool: web::Data<PgPool>) -> impl Responder {
 }
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope(API_PREFIX)
-            .service(health_check)
-            .service(readiness_check),
-    );
+    // Services are added directly
+    cfg.service(health_check).service(readiness_check);
 }

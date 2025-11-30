@@ -1,11 +1,11 @@
-// configurator-service/src/main.rs
+// main.rs // configurator-service/src/main.rs
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, web};
 use sqlx::postgres::PgPoolOptions;
 
+mod api;
 mod config;
 mod health;
-//mod api;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -44,7 +44,7 @@ async fn main() -> std::io::Result<()> {
     println!("🚀 Starting Configurator Service");
     println!("📍 Server: {}:{}", config.server.host, config.server.port);
     println!(
-        "📊 Health: http://{}:{}/health",
+        "📊 Health: http://{}:{}/api/v1/health",
         config.server.host, config.server.port
     );
     println!(
@@ -61,8 +61,14 @@ async fn main() -> std::io::Result<()> {
                     .allow_any_method()
                     .allow_any_header(),
             )
-            .configure(health::configure)
-        //            .configure(api::configure)
+            // ✅ API Scope: Contains health AND the JSON file handler
+            .service(
+                web::scope("/api/v1")
+                    .configure(health::configure) // /api/v1/health, /api/v1/ready
+                    .configure(api::docs::configure_json), // /api/v1/api-docs/openapi.json
+            )
+            // ✅ DOCS UI Scope: Contains only the UI interface at the root
+            .configure(api::configure) // /docs
     })
     .bind((config.server.host, config.server.port))?
     .run()
