@@ -1,0 +1,17 @@
+[package]
+name = "configurator-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.12.1"
+actix-cors = "0.7.1"
+sqlx = { version = "0.8.6", features = ["postgres", "runtime-tokio-rustls", "uuid", "chrono", "macros"] }
+serde = { version = "1.0.228", features = ["derive"] }
+config = "0.15.19"
+tracing = "0.1.43"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
+tokio = { version = "1.48.0", features = ["full"] }
+utoipa = { version = "5.4.0", features = ["actix_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+chrono = { version = "0.4.42", features = ["serde"] }
