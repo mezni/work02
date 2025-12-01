@@ -1,3 +1,2 @@
-pub mod handlers;
-pub mod responses;
-pub mod routes;
+pub mod health;
+pub mod openapi;
