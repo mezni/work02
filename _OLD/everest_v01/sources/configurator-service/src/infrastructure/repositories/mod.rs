@@ -1,2 +1,0 @@
-pub mod postgres_network_repository;
-pub use postgres_network_repository::PostgresNetworkRepository;
