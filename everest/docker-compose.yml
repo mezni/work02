@@ -3,16 +3,16 @@ services:
     image: postgres:18.1-alpine
     container_name: postgres
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${AUTH_DB_USER}
+      POSTGRES_PASSWORD: ${AUTH_DB_PASSWORD}
+      POSTGRES_DB: ${AUTH_DB_NAME}
     ports:
       - 6500:5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - auth_db_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD", "pg_isready", "-h", "postgres", "-U", "${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-h", "postgres", "-U", "${AUTH_DB_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -20,7 +20,7 @@ services:
       - rust_app_no_api_network
 
 volumes:
-  postgres_data:
+  auth_db_data:
 
 networks:
   rust_app_no_api_network:
