@@ -1,12 +1,13 @@
 use actix_web::{App, HttpServer, middleware::Logger};
-use anyhow::Context; // NEW
+use anyhow::Context;
 use std::env;
 use utoipa::OpenApi;
 
+pub mod application;
 pub mod errors;
 pub mod interfaces;
 
-use crate::interfaces::http::health::health_checker_handler;
+use crate::application::handlers::health::health_checker_handler;
 use crate::interfaces::http::openapi::ApiDoc;
 
 #[derive(Clone)]
