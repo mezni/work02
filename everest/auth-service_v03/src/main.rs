@@ -1,6 +1,6 @@
-use actix_web::{web::Data, App, HttpServer};
-use utoipa_swagger_ui::SwaggerUi;
+use actix_web::{App, HttpServer, web::Data};
 use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use auth_service::*; // Replace with your actual crate name
 
@@ -11,7 +11,7 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(AppState {}))
-//            .service(index)
+            //            .service(index)
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )

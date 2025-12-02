@@ -1,16 +1,19 @@
-use actix_web::{get, post, web::Json, HttpResponse, Responder};
+use actix_web::{HttpResponse, Responder, get, post, web::Json};
 use serde::Deserialize;
-use utoipa::{
-    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
-    Modify, ToSchema,
-};
 use utoipa::OpenApi;
+use utoipa::{
+    Modify, ToSchema,
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+};
 
 #[derive(Deserialize, ToSchema)]
 struct CreateUser {
     #[schema(example = "Eggs Benedict", required = false)]
     menu_item: Option<String>,
-    #[schema(example = "The restaurant was clean and the staff were helpful!", required = true)]
+    #[schema(
+        example = "The restaurant was clean and the staff were helpful!",
+        required = true
+    )]
     review_description: String,
 }
 
@@ -54,9 +57,9 @@ pub async fn register(user_data: Json<CreateUser>) -> impl Responder {
     // You can access the user data like this:
     // println!("Menu item: {:?}", user_data.menu_item);
     // println!("Review: {}", user_data.review_description);
-    
+
     // Process the user registration here...
-    
+
     HttpResponse::Ok().json(SimpleStatus { status: 200 })
 }
 
