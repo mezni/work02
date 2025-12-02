@@ -1,0 +1,10 @@
+[package]
+name = "auth-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.12.1"
+serde = { version = "1.0.228", features = ["derive"] }
+utoipa = { version = "5.4.0", features = ["actix_extras", "chrono"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
