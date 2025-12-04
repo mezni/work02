@@ -3,6 +3,67 @@ i want to design a rust microserice in DDD to register and authenticate users wi
 but integration with keycloak, users are self-registered so give me codebase files list and endpoints list  
 
 
+
+┌─────────────┐
+│   main.rs   │  - Entry point, dependency injection
+└──────┬──────┘
+       │
+┌──────▼──────────┐
+│ user_handler.rs │  - HTTP handlers
+└──────┬──────────┘
+       │
+┌──────▼──────────┐
+│ user_service.rs │  - Business logic
+└──────┬──────────┘
+       │
+┌──────▼────────────────┐
+│ user_repository.rs    │  - Data access
+└──────┬────────────────┘
+       │
+┌──────▼──────────────────┐
+│ keycloak_client.rs      │  - Keycloak API
+└─────────────────────────┘
+
+
+Features
+KeycloakClient (keycloak_client.rs)
+
+✅ get_admin_token() - Get service account token
+✅ create_user() - Create user with attributes
+✅ authenticate_user() - User login
+✅ verify_token() - Verify JWT token
+✅ assign_realm_role() - Assign roles to users
+✅ get_user_by_username() - Find user
+✅ update_user_attributes() - Update user attributes
+
+UserRepository (user_repository.rs)
+
+✅ register_user() - Register with default role and attributes
+✅ authenticate_user() - Login
+✅ verify_token() - Token validation
+✅ get_user() - Get user details
+✅ update_user_attributes() - Update attributes
+✅ assign_role() - Add roles
+
+
+Main (main.rs)
+
+✅ POST /api/v1/register - Register user
+✅ POST /api/v1/auth - Login
+✅ POST /api/v1/verify - Verify token
+✅ GET /health - Health check
+
+
+src/
+├── main.rs                  # Application entry point, server setup
+├── keycloak_client.rs       # Keycloak API integration layer
+├── user_entity.rs           # Domain model (User entity)
+├── user_dto.rs              # Data Transfer Objects (API contracts)
+├── user_repository.rs       # Data access layer
+├── user_service.rs          # Business logic layer
+└── user_handler.rs          # HTTP request handlers
+
+
 # Step 1: Check if server is running
 curl http://localhost:3000/health
 
