@@ -1,14 +1,7 @@
 {
   "realm": "myrealm",
   "enabled": true,
-  "defaultRole": {
-    "name": "default-roles-myrealm",
-    "composite": false
-  },
-  "attributes": {
-    "userProfileEnabled": "true",
-    "unmanagedAttributePolicy": "ENABLED"
-  },
+  "defaultRoles": [],
   "roles": {
     "realm": [
       {
@@ -40,11 +33,9 @@
       "directAccessGrantsEnabled": true,
       "redirectUris": ["http://localhost:8081/*"],
       "webOrigins": ["http://localhost:8081"],
-      "defaultClientScopes": [],
-      "optionalClientScopes": [],
       "protocolMappers": [
         {
-          "name": "filtered-roles",
+          "name": "roles",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-usermodel-realm-role-mapper",
           "consentRequired": false,
@@ -121,6 +112,5 @@
       }
     }
   ],
-  "defaultDefaultClientScopes": [],
   "clientScopes": []
 }

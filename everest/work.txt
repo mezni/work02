@@ -72,6 +72,16 @@ KEYCLOAK_CLIENT_ID=admin-cli
 PORT=8081
 
 
+"directAccessGrantsEnabled": false
+
+
+POST http://localhost:3000/login
+Content-Type: application/json
+{
+  "username": "john",
+  "password": "Password123!"
+}
+
 
 # Health check
 GET /health
