@@ -1,0 +1,70 @@
+{
+  "realm": "myrealm",
+  "enabled": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access"
+      },
+      {
+        "name": "user",
+        "description": "Regular user role"
+      },
+      {
+        "name": "operator",
+        "description": "Operator role for system operations"
+      },
+      {
+        "name": "partner",
+        "description": "Partner/external collaborator role"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "auth-client",
+      "name": "Frontend Login Client",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:8081/*"],
+      "webOrigins": ["http://localhost:8081"]
+    },
+    {
+      "clientId": "backend-admin",
+      "name": "Backend Service Account Admin",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "backend-admin-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-backend-admin",
+      "enabled": true,
+      "serviceAccountClientId": "backend-admin",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users",
+          "view-realm",
+          "manage-clients",
+          "view-clients",
+          "query-clients"
+        ]
+      }
+    }
+  ],
+  "clientScopes": []
+}

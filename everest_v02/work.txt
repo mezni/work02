@@ -1,0 +1,58 @@
+Here's a summary of what we've done:
+
+    Created a Keycloak user: We used the Keycloak REST API to create a new user in a Keycloak realm.
+    Added custom attributes: We added custom attributes (company_name and station_name) to the user's profile.
+    Created an Actix-web server: We created an Actix-web server with two endpoints: /register and /auth.
+    Implemented user registration: We implemented the /register endpoint to create a new user in Keycloak.
+    Implemented user authentication: We implemented the /auth endpoint to authenticate a user and return an access token.
+    Added custom claims: We discussed how to add custom claims (company_name, station_name, and role) to the access token.
+    Programmatically added attributes: We showed how to add attributes to a user's profile programmatically using the Keycloak Admin REST API.
+
+These are the main tasks we've completed so far. Let me know if you need further assistance or have any questions!
+
+
+Go to http://localhost:5080/auth/admin/master/console/
+
+Login as admin
+
+Create a new realm: "myapp" (or use existing "master")
+
+In the realm, go to Clients → Create
+
+Client ID: "myapp-backend"
+
+Root URL: http://localhost:8081
+
+Valid redirect URIs: *
+
+Save
+
+Go to "Settings" tab:
+
+    Access Type: "confidential"
+
+    Standard Flow Enabled: ON
+
+    Direct Access Grants: ON (THIS IS IMPORTANT for password flow)
+
+    Service Accounts: ON
+
+
+# Create user
+curl -X POST http://localhost:8080/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "password": "password123"
+  }'
+
+# Authenticate
+curl -X POST http://localhost:8081/api/v1/auth \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "password": "password123"
+  }'
