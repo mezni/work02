@@ -1,13 +1,15 @@
 mod keycloak_client;
+mod register_service;
 mod user_repository;
 
 use keycloak_client::KeycloakClient;
+use register_service::RegisterService;
 use std::collections::HashMap;
-use user_repository::UserRepository;
+use tokio;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1️⃣ Initialize Keycloak client
+    // Initialize Keycloak client
     let kc_client = KeycloakClient::new(
         "http://localhost:5080",
         "myrealm",
@@ -15,20 +17,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "backend-admin-secret",
     );
 
-    // 2️⃣ Initialize repository
-    let user_repo = UserRepository::new(kc_client);
+    let user_repo = user_repository::UserRepository::new(kc_client);
+    let register_service = RegisterService::new(user_repo);
 
-    // 3️⃣ Define user attributes
-    let mut attrs = HashMap::new();
-    attrs.insert("company_name".to_string(), vec!["ACME Corp".to_string()]);
-    attrs.insert("station_name".to_string(), vec!["Station 42".to_string()]);
+    // Optional attributes
+    let mut attributes = HashMap::new();
+    attributes.insert("company_name".to_string(), vec!["ACME Corp".to_string()]);
+    attributes.insert("station_name".to_string(), vec!["Station 42".to_string()]);
 
-    // 4️⃣ Register user
-    match user_repo
-        .register_user("john", "John", "Doe", "Password123!", Some(attrs))
+    // Register user via service
+    match register_service
+        .register_user("john", "John", "Doe", "Password123!", Some(attributes))
         .await
     {
-        Ok(user_id) => println!("✅ User created successfully, ID: {}", user_id),
+        Ok(user_id) => println!("✅ User created with ID: {}", user_id),
         Err(err) => eprintln!("❌ Failed to create user: {}", err),
     }
 
