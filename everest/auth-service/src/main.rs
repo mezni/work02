@@ -89,8 +89,14 @@ async fn create_user_with_role(client: &Client, req: &RegisterRequest) -> Result
 
     // Default attributes - using unmanaged attributes
     let mut attributes = HashMap::new();
-    attributes.insert("company_name".to_string(), vec!["Default Company".to_string()]);
-    attributes.insert("station_name".to_string(), vec!["Default Station".to_string()]);
+    attributes.insert(
+        "company_name".to_string(),
+        vec!["Default Company".to_string()],
+    );
+    attributes.insert(
+        "station_name".to_string(),
+        vec!["Default Station".to_string()],
+    );
 
     let new_user = CreateUserDto {
         username: req.username.clone(),
@@ -117,15 +123,18 @@ async fn create_user_with_role(client: &Client, req: &RegisterRequest) -> Result
         .map_err(|e| format!("Failed to send create user request: {}", e))?;
 
     let status = create_resp.status();
-    
+
     // 201 Created is the expected success status
     if status.as_u16() == 409 {
         return Err("User already exists".to_string());
     }
-    
+
     if !status.is_success() && status.as_u16() != 201 {
         let text = create_resp.text().await.unwrap_or_default();
-        return Err(format!("Failed to create user (status {}): {}", status, text));
+        return Err(format!(
+            "Failed to create user (status {}): {}",
+            status, text
+        ));
     }
 
     // Give Keycloak a moment to process
@@ -142,14 +151,17 @@ async fn create_user_with_role(client: &Client, req: &RegisterRequest) -> Result
 
     let users_status = users_resp.status();
     let users_text = users_resp.text().await.map_err(|e| e.to_string())?;
-    
+
     if !users_status.is_success() {
-        return Err(format!("Failed to query users (status {}): {}", users_status, users_text));
+        return Err(format!(
+            "Failed to query users (status {}): {}",
+            users_status, users_text
+        ));
     }
 
     let users: Vec<KeycloakUser> =
         serde_json::from_str(&users_text).map_err(|e| format!("Failed to parse users: {}", e))?;
-    
+
     let user_id = users
         .first()
         .ok_or("User not found after creation")?
@@ -166,9 +178,12 @@ async fn create_user_with_role(client: &Client, req: &RegisterRequest) -> Result
 
     let role_status = role_resp.status();
     let role_text = role_resp.text().await.map_err(|e| e.to_string())?;
-    
+
     if !role_status.is_success() {
-        return Err(format!("Failed to fetch role 'user' (status {}): {}", role_status, role_text));
+        return Err(format!(
+            "Failed to fetch role 'user' (status {}): {}",
+            role_status, role_text
+        ));
     }
 
     let role = serde_json::from_str::<serde_json::Value>(&role_text)
@@ -187,19 +202,29 @@ async fn create_user_with_role(client: &Client, req: &RegisterRequest) -> Result
         .map_err(|e| format!("Failed to assign role: {}", e))?;
 
     let assign_status = assign_resp.status();
-    
+
     if !assign_status.is_success() && assign_status.as_u16() != 204 {
         let text = assign_resp.text().await.unwrap_or_default();
-        return Err(format!("Failed to assign 'user' role (status {}): {}", assign_status, text));
+        return Err(format!(
+            "Failed to assign 'user' role (status {}): {}",
+            assign_status, text
+        ));
     }
 
     // Remove unwanted default roles
-    let unwanted_roles = vec!["default-roles-myrealm", "offline_access", "uma_authorization"];
-    
+    let unwanted_roles = vec![
+        "default-roles-myrealm",
+        "offline_access",
+        "uma_authorization",
+    ];
+
     for role_name in unwanted_roles {
         // Fetch the role
         if let Ok(role_resp) = client
-            .get(format!("http://localhost:5080/admin/realms/myrealm/roles/{}", role_name))
+            .get(format!(
+                "http://localhost:5080/admin/realms/myrealm/roles/{}",
+                role_name
+            ))
             .bearer_auth(&admin_token)
             .send()
             .await
@@ -243,12 +268,15 @@ async fn login_user(client: &Client, req: &LoginRequest) -> Result<serde_json::V
     let text = resp.text().await.map_err(|e| e.to_string())?;
 
     if !status.is_success() {
-        return Err(format!("Authentication failed (status {}): {}", status, text));
+        return Err(format!(
+            "Authentication failed (status {}): {}",
+            status, text
+        ));
     }
 
-    let token: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("Failed to parse token: {}", e))?;
-    
+    let token: serde_json::Value =
+        serde_json::from_str(&text).map_err(|e| format!("Failed to parse token: {}", e))?;
+
     Ok(token)
 }
 
@@ -295,12 +323,8 @@ async fn main() -> std::io::Result<()> {
     println!("   POST /register - Create new user");
     println!("   POST /login - Authenticate user");
 
-    HttpServer::new(|| {
-        App::new()
-            .service(register)
-            .service(login)
-    })
-    .bind(("127.0.0.1", 3000))?
-    .run()
-    .await
+    HttpServer::new(|| App::new().service(register).service(login))
+        .bind(("127.0.0.1", 3000))?
+        .run()
+        .await
 }
