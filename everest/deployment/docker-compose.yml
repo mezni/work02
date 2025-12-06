@@ -1,0 +1,101 @@
+name: everest
+services:
+  # ========================
+  # Evcs DB
+  # ========================
+  evcs-db:
+    image: postgis/postgis:18-3.6
+    container_name: evcs-db
+    environment:
+      POSTGRES_DB: evcs_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "6100:5432"
+    volumes:
+      - evcs-data:/var/lib/postgresql
+      - ./databases/evcs-db/:/docker-entrypoint-initdb.d/:ro
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "evcs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================
+  # Auth DB
+  # ========================
+  auth-db:
+    image: postgres:18.1-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "6200:5432"
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+      - ./databases/auth-db/:/docker-entrypoint-initdb.d/:ro
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================
+  # Importer
+  # ========================
+  osm-importer:
+    build:
+      context: ./tools/osm-importer
+      dockerfile: Dockerfile
+    container_name: osm-importer
+    depends_on:
+      evcs-db:
+        condition: service_healthy
+    environment:
+      PGHOST: evcs-db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: password
+      PGDATABASE: evcs_db
+      REGION: tunisia
+      DATADIR: /osm/data
+    volumes:
+      - ./tools/data:/osm/data
+    networks:
+      - ev-network
+
+
+  # ========================
+  # Auth service
+  # ========================
+#  auth-service:
+#    build: ../services/auth-service
+#    container_name: auth-service
+#    ports:
+#      - "3100:3000"
+#    environment:
+#      - DATABASE_URL=postgres://postgres:password@auth-db:6200/auth_db
+#    depends_on:
+#      - auth-db
+#    networks:
+#      - ev-network
+
+# ========================
+# Volumes
+# ========================
+volumes:
+  evcs-data:
+  auth-data:
+
+# ========================
+# Networks
+# ========================
+networks:
+  ev-network:
+    driver: bridge

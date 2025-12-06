@@ -1,0 +1,106 @@
+Project Structure
+src/
+├── main.rs                  # Application entry point, server setup
+├── keycloak_client.rs       # Keycloak API integration layer
+├── user_entity.rs           # Domain model (User entity)
+├── user_dto.rs              # Data Transfer Objects (API contracts)
+├── user_repository.rs       # Data access layer
+├── user_service.rs          # Business logic layer
+└── user_handler.rs          # HTTP request handlers
+
+
+
+Architecture Layers
+1. Main (main.rs)
+
+Application initialization
+Dependency injection
+Server configuration
+
+2. Handler Layer (user_handler.rs)
+
+HTTP request/response handling
+Routes definition
+Input validation
+
+3. Service Layer (user_service.rs)
+
+Business logic
+Orchestration
+Logging
+
+4. Repository Layer (user_repository.rs)
+
+Data access
+Keycloak operations
+Persistence logic
+
+5. Client Layer (keycloak_client.rs)
+
+Keycloak API communication
+Token management
+Authentication
+
+6. Models (user_entity.rs, user_dto.rs)
+
+Domain entities
+DTOs for API
+
+Updated Cargo.toml
+
+[package]
+name = "auth-service"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+actix-web = "4"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+reqwest = { version = "0.11", features = ["json"] }
+keycloak = "26"
+dotenv = "0.15"
+
+
+.env Configuration
+KEYCLOAK_URL=http://localhost:5080/auth
+KEYCLOAK_REALM=master
+KEYCLOAK_ADMIN_USER=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+KEYCLOAK_CLIENT_ID=admin-cli
+PORT=8081
+
+
+"directAccessGrantsEnabled": false
+
+
+POST http://localhost:3000/login
+Content-Type: application/json
+{
+  "username": "john",
+  "password": "Password123!"
+}
+
+
+# Health check
+GET /health
+
+# Register user
+POST /api/v1/register
+{
+  "username": "john",
+  "email": "john@example.com",
+  "firstName": "John",
+  "lastName": "Doe",
+  "password": "password123",
+  "companyName": "Acme Corp",
+  "stationName": "Station 1"
+}
+
+# Authenticate
+POST /api/v1/auth
+{
+  "username": "john",
+  "password": "password123"
+}
