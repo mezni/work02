@@ -12,7 +12,7 @@ pub struct Config {
 
 impl Config {
     pub fn from_env() -> Result<Self, anyhow::Error> {
-        dotenv::dotenv().ok();
+        dotenvy::dotenv().ok();
 
         Ok(Config {
             database_url: env::var("DATABASE_URL")
@@ -24,8 +24,9 @@ impl Config {
                 .expect("SERVER_PORT must be a valid u16"),
             jwt_issuer: env::var("JWT_ISSUER")
                 .unwrap_or_else(|_| "http://localhost:5080/realms/myrealm".to_string()),
-            jwks_url: env::var("JWKS_URL")
-                .unwrap_or_else(|_| "http://localhost:5080/realms/myrealm/protocol/openid-connect/certs".to_string()),
+            jwks_url: env::var("JWKS_URL").unwrap_or_else(|_| {
+                "http://localhost:5080/realms/myrealm/protocol/openid-connect/certs".to_string()
+            }),
         })
     }
 

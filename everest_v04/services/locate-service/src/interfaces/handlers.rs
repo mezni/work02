@@ -1,14 +1,14 @@
-use actix_web::{web, HttpRequest, HttpResponse};
 use crate::{
     application::{dto::*, review_service::ReviewService, station_service::StationService},
     infrastructure::error::{AppError, AppResult},
     middleware::extract_claims,
 };
+use actix_web::{HttpRequest, HttpResponse, web};
 
 /// Get nearby stations based on location
 #[utoipa::path(
     get,
-    path = "/api/stations/nearby",
+    path = "/api/v1/stations/nearby",
     params(
         ("latitude" = f64, Query, description = "Latitude coordinate"),
         ("longitude" = f64, Query, description = "Longitude coordinate"),
@@ -17,22 +17,14 @@ use crate::{
     ),
     responses(
         (status = 200, description = "List of nearby stations", body = Vec<StationResponse>),
-        (status = 401, description = "Unauthorized"),
         (status = 500, description = "Internal server error")
     ),
-    security(
-        ("bearer_auth" = [])
-    )
+    tag = "stations"
 )]
 pub async fn get_nearby_stations(
-    req: HttpRequest,
     query: web::Query<NearbyStationsQuery>,
     station_service: web::Data<StationService>,
 ) -> AppResult<HttpResponse> {
-    let claims = extract_claims(&req)
-        .ok_or_else(|| AppError::Unauthorized("Missing authentication".to_string()))?;
-
-    // Optional: Filter by network_id if present in claims
     let stations = station_service
         .find_nearby_stations(
             query.latitude,
@@ -48,17 +40,19 @@ pub async fn get_nearby_stations(
 /// Create a new review
 #[utoipa::path(
     post,
-    path = "/api/reviews",
+    path = "/api/v1/reviews",
     request_body = CreateReviewRequest,
     responses(
         (status = 201, description = "Review created successfully", body = ReviewResponse),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - user role required"),
         (status = 500, description = "Internal server error")
     ),
     security(
         ("bearer_auth" = [])
-    )
+    ),
+    tag = "reviews"
 )]
 pub async fn create_review(
     req: HttpRequest,
@@ -94,18 +88,20 @@ pub async fn create_review(
 /// Get reviews for a specific station
 #[utoipa::path(
     get,
-    path = "/api/reviews/station/{station_id}",
+    path = "/api/v1/reviews/station/{station_id}",
     params(
         ("station_id" = String, Path, description = "Station ID")
     ),
     responses(
         (status = 200, description = "List of reviews for the station", body = Vec<ReviewResponse>),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - user role required"),
         (status = 500, description = "Internal server error")
     ),
     security(
         ("bearer_auth" = [])
-    )
+    ),
+    tag = "reviews"
 )]
 pub async fn get_station_reviews(
     req: HttpRequest,
@@ -123,7 +119,7 @@ pub async fn get_station_reviews(
 /// Update a review
 #[utoipa::path(
     put,
-    path = "/api/reviews/{review_id}",
+    path = "/api/v1/reviews/{review_id}",
     params(
         ("review_id" = String, Path, description = "Review ID")
     ),
@@ -132,12 +128,14 @@ pub async fn get_station_reviews(
         (status = 200, description = "Review updated successfully", body = ReviewResponse),
         (status = 400, description = "Invalid request"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - user role required"),
         (status = 404, description = "Review not found"),
         (status = 500, description = "Internal server error")
     ),
     security(
         ("bearer_auth" = [])
-    )
+    ),
+    tag = "reviews"
 )]
 pub async fn update_review(
     req: HttpRequest,
@@ -173,19 +171,21 @@ pub async fn update_review(
 /// Delete a review
 #[utoipa::path(
     delete,
-    path = "/api/reviews/{review_id}",
+    path = "/api/v1/reviews/{review_id}",
     params(
         ("review_id" = String, Path, description = "Review ID")
     ),
     responses(
         (status = 204, description = "Review deleted successfully"),
         (status = 401, description = "Unauthorized"),
+        (status = 403, description = "Forbidden - user role required"),
         (status = 404, description = "Review not found"),
         (status = 500, description = "Internal server error")
     ),
     security(
         ("bearer_auth" = [])
-    )
+    ),
+    tag = "reviews"
 )]
 pub async fn delete_review(
     req: HttpRequest,
@@ -206,7 +206,8 @@ pub async fn delete_review(
     path = "/health",
     responses(
         (status = 200, description = "Service is healthy")
-    )
+    ),
+    tag = "health"
 )]
 pub async fn health_check() -> HttpResponse {
     HttpResponse::Ok().json(serde_json::json!({
@@ -218,14 +219,15 @@ pub async fn health_check() -> HttpResponse {
 /// Get user info from token
 #[utoipa::path(
     get,
-    path = "/api/user/info",
+    path = "/api/v1/user/info",
     responses(
         (status = 200, description = "User information from token"),
         (status = 401, description = "Unauthorized")
     ),
     security(
         ("bearer_auth" = [])
-    )
+    ),
+    tag = "user"
 )]
 pub async fn get_user_info(req: HttpRequest) -> AppResult<HttpResponse> {
     let claims = extract_claims(&req)

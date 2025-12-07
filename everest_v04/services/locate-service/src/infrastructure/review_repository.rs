@@ -1,9 +1,8 @@
-use sqlx::PgPool;
 use crate::{
     domain::{entities::UserReview, repositories::ReviewRepositoryTrait},
     infrastructure::error::{AppError, AppResult},
 };
-
+use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct ReviewRepository {
