@@ -147,6 +147,32 @@ services:
     networks:
       - ev-network
 
+  # ========================
+  # Locate Service
+  # ========================
+  locate-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: locate-service
+    environment:
+      DATABASE_URL: postgresql://locate_user:locate_password@postgres:5432/locate_db
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      JWT_ISSUER: http://localhost:5080/realms/myrealm
+      JWKS_URL: http://keycloak:8080/realms/myrealm/protocol/openid-connect/certs
+      RUST_LOG: locate_service=debug,actix_web=info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - locate-network
+    restart: unless-stopped
+
 # ========================
 # Volumes
 # ========================
