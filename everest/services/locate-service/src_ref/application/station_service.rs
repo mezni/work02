@@ -1,7 +1,7 @@
 use crate::{
     application::dto::StationResponse,
     domain::repositories::StationRepositoryTrait,
-    infrastructure::{StationRepository, error::AppResult},
+    infrastructure::{error::AppResult, StationRepository},
 };
 
 pub struct StationService {

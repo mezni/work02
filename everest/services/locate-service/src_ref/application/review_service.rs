@@ -1,7 +1,7 @@
 use crate::{
     application::dto::ReviewResponse,
     domain::repositories::ReviewRepositoryTrait,
-    infrastructure::{ReviewRepository, error::AppResult},
+    infrastructure::{error::AppResult, ReviewRepository},
     utils::id_generator::generate_review_id,
 };
 
@@ -26,14 +26,7 @@ impl ReviewService {
 
         let review = self
             .repository
-            .create(
-                review_id,
-                user_id,
-                station_id,
-                rating,
-                review_text,
-                created_by,
-            )
+            .create(review_id, user_id, station_id, rating, review_text, created_by)
             .await?;
 
         Ok(ReviewResponse {

@@ -1,8 +1,8 @@
+use sqlx::PgPool;
 use crate::{
     domain::{entities::Station, repositories::StationRepositoryTrait},
     infrastructure::error::AppResult,
 };
-use sqlx::PgPool;
 
 #[derive(Clone)]
 pub struct StationRepository {

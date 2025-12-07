@@ -7,7 +7,7 @@ mod middleware;
 mod utils;
 
 use actix_cors::Cors;
-use actix_web::{App, HttpServer, middleware::Logger, web};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::OpenApi;
@@ -58,10 +58,7 @@ async fn main() -> std::io::Result<()> {
 
     let server_address = format!("{}:{}", config.server_host, config.server_port);
     tracing::info!("Starting server at http://{}", server_address);
-    tracing::info!(
-        "Swagger UI available at http://{}/swagger-ui/",
-        server_address
-    );
+    tracing::info!("Swagger UI available at http://{}/swagger-ui/", server_address);
 
     // Start HTTP server
     HttpServer::new(move || {
@@ -78,7 +75,8 @@ async fn main() -> std::io::Result<()> {
             .app_data(review_service.clone())
             .configure(|cfg| interfaces::routes::configure_routes(cfg, jwt_auth.clone()))
             .service(
-                SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone()),
             )
     })
     .bind(&server_address)?
