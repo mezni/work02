@@ -1,32 +1,22 @@
-# Use an official Rust image as the base
-FROM rust:1.90 AS builder
+FROM rust:1.90 as builder
 
-# Set the working directory to /app
 WORKDIR /app
 
-# Copy the Cargo.toml and Cargo.lock files
-COPY Cargo.toml Cargo.lock ./
+# Copy full workspace first
+COPY . .
 
-# Build the dependencies
-RUN cargo build --release
+# Enable SQLx offline mode
+ENV SQLX_OFFLINE=true
 
-# Copy the source code
-COPY src ./src
+# Build dependencies (cached)
+RUN cargo build --release --locked --workspace --bins
 
-# Build the application
-RUN cargo build --release
-
-# Use a smaller base image for the final image
-FROM debian:bookworm-slim
-
-# Set the working directory to /app
+# Copy final binary
+FROM debian:stable-slim
 WORKDIR /app
 
-# Copy the built binary from the builder image
-COPY --from=builder /app/target/release/your_service .
+COPY --from=builder /app/target/release/auth-service /app/auth-service
+COPY .env /app/.env
 
-# Expose the port
-EXPOSE 8080
-
-# Run the command to start the service
-CMD ["./your_service"]
+EXPOSE 3000
+CMD ["./auth-service"]

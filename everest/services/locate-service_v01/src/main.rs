@@ -1,11 +1,12 @@
 mod config;
+mod utils;
+mod middleware;
 mod domain;
 mod infrastructure;
 mod application;
 mod interfaces;
-mod utils;
 
-use actix_web::{middleware, App, HttpServer};
+use actix_web::{middleware as actix_middleware, App, HttpServer};
 use actix_cors::Cors;
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber;
@@ -13,8 +14,7 @@ use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
-use crate::interfaces::routes;
-use crate::interfaces::api_doc::ApiDoc;
+use crate::interfaces::{routes, api_doc::ApiDoc};
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Create database pool
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(10)
         .connect(&config.database_url)
         .await?;
 
@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
     let port = config.server_port;
     let config_data = actix_web::web::Data::new(config);
 
-    tracing::info!("Starting auth service at {}:{}", host, port);
+    tracing::info!("Starting locate service at {}:{}", host, port);
 
     HttpServer::new(move || {
         let cors = Cors::permissive();
@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
             .app_data(actix_web::web::Data::new(pool.clone()))
             .app_data(config_data.clone())
             .wrap(cors)
-            .wrap(middleware::Logger::default())
+            .wrap(actix_middleware::Logger::default())
             .service(
                 actix_web::web::scope("/api/v1")
                     .configure(routes::configure)

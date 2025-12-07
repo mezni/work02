@@ -1,6 +1,9 @@
 -- ============================
 -- Find nearby stations
 -- ============================
+-- ============================
+-- Find nearby stations
+-- ============================
 CREATE OR REPLACE FUNCTION find_nearby_stations(
     p_latitude FLOAT,
     p_longitude FLOAT,
@@ -13,7 +16,7 @@ CREATE OR REPLACE FUNCTION find_nearby_stations(
     distance_meters FLOAT,
     has_available_connectors BOOLEAN,
     total_available_connectors BIGINT,
-    max_power_kw DECIMAL,
+    max_power_kw FLOAT,          -- CHANGED HERE
     power_tier TEXT,
     operator TEXT
 ) AS $$
@@ -26,7 +29,7 @@ BEGIN
         ST_Distance(gs.location, ST_Point(p_longitude, p_latitude)::GEOGRAPHY) AS distance_meters,
         gs.has_available_connectors,
         gs.total_available_connectors,
-        gs.max_power_kw,
+        gs.max_power_kw::FLOAT, -- CAST HERE
         gs.power_tier,
         gs.operator
     FROM mv_stations_geo gs
@@ -35,6 +38,7 @@ BEGIN
     LIMIT p_limit;
 END;
 $$ LANGUAGE plpgsql;
+
 
 
 -- ============================

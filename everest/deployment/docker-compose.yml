@@ -1,7 +1,58 @@
 name: everest
 services:
   # ========================
-  # Evcs DB
+  # Keycloak DB
+  # ========================
+  kc-db:
+    image: postgres:18.1-alpine
+    container_name: kc-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    volumes:
+      - kc-data:/var/lib/postgresql/data
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "keycloak", "-d", "keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================
+  # Keycloak
+  # ========================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.1
+    container_name: keycloak
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://kc-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: password
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    ports:
+      - "5080:8080"  # host port 5080 maps to container 8080
+    depends_on:
+      kc-db:
+        condition: service_healthy
+    volumes:
+      - ./keycloak/config.json:/opt/keycloak/data/import/config.json
+    command: start-dev --import-realm
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/myrealm"]
+      interval: 10s
+      retries: 10
+      start_period: 15s
+
+  # ========================
+  # EVCS DB
   # ========================
   evcs-db:
     image: postgis/postgis:18-3.6
@@ -47,7 +98,7 @@ services:
       retries: 5
 
   # ========================
-  # Importer
+  # OSM Importer
   # ========================
   osm-importer:
     build:
@@ -70,21 +121,31 @@ services:
     networks:
       - ev-network
 
-
   # ========================
-  # Auth service
+  # Auth Service
   # ========================
-#  auth-service:
-#    build: ../services/auth-service
-#    container_name: auth-service
-#    ports:
-#      - "3100:3000"
-#    environment:
-#      - DATABASE_URL=postgres://postgres:password@auth-db:6200/auth_db
-#    depends_on:
-#      - auth-db
-#    networks:
-#      - ev-network
+  auth-service:
+    build: ../services/auth-service
+    container_name: auth-service
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@auth-db:5432/auth_db
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3000
+      - RUST_LOG=info
+      - KEYCLOAK_URL=http://keycloak:5080        
+      - KEYCLOAK_REALM=myrealm
+      - KEYCLOAK_AUTH_CLIENT_ID=auth-client
+      - KEYCLOAK_BACKEND_CLIENT_ID=backend-admin
+      - KEYCLOAK_BACKEND_CLIENT_SECRET=backend-admin-secret
+    ports:
+      - "3100:3000"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+#      keycloak:
+#        condition: service_healthy
+    networks:
+      - ev-network
 
 # ========================
 # Volumes
@@ -92,6 +153,7 @@ services:
 volumes:
   evcs-data:
   auth-data:
+  kc-data:
 
 # ========================
 # Networks

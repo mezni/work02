@@ -119,7 +119,7 @@ CREATE TABLE connectors (
 
 CREATE TABLE user_reviews (
     review_id VARCHAR(32) PRIMARY KEY,
-    user_id VARCHAR(32) NOT NULL REFERENCES users(user_id),
+    user_id VARCHAR(32),
     station_id VARCHAR(32) NOT NULL REFERENCES stations(station_id),
     rating INTEGER CHECK (rating BETWEEN 1 AND 5),
     review_text TEXT,
