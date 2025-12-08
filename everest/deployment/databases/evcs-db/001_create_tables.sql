@@ -78,7 +78,7 @@ CREATE TABLE stations (
 ------------------------------------------------------------
 
 CREATE TABLE users (
-    user_id VARCHAR(32) PRIMARY KEY,
+    user_id VARCHAR(36) PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
@@ -87,8 +87,8 @@ CREATE TABLE users (
     station_id VARCHAR(32) REFERENCES stations(station_id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ,
-    created_by VARCHAR(32),
-    updated_by VARCHAR(32)
+    created_by VARCHAR(36),
+    updated_by VARCHAR(36)
 );
 
 ------------------------------------------------------------
@@ -119,14 +119,14 @@ CREATE TABLE connectors (
 
 CREATE TABLE user_reviews (
     review_id VARCHAR(32) PRIMARY KEY,
-    user_id VARCHAR(32),
+    user_id VARCHAR(36),
     station_id VARCHAR(32) NOT NULL REFERENCES stations(station_id),
     rating INTEGER CHECK (rating BETWEEN 1 AND 5),
     review_text TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by VARCHAR(32),
-    updated_by VARCHAR(32)
+    created_by VARCHAR(36),
+    updated_by VARCHAR(36)
 );
 
 ------------------------------------------------------------
