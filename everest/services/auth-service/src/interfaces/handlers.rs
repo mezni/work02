@@ -1,19 +1,20 @@
-use actix_web::{web, HttpResponse, Responder};
-use sqlx::PgPool;
-use validator::Validate;
-use std::sync::Arc;
+use actix_web::{HttpResponse, Responder, web};
 use chrono::Utc;
+use sqlx::PgPool;
+use std::sync::Arc;
+use validator::Validate;
 
 use crate::application::{
-    dto::{
-        RegisterRequest, LoginRequest, RefreshTokenRequest, ChangePasswordRequest,
-        UpdateUserRequest, HealthCheckResponse, RegisterResponse, CreateUserRequest, UserListResponse
-    },
     AuthService,
+    dto::{
+        ChangePasswordRequest, CreateUserRequest, HealthCheckResponse, LoginRequest,
+        RefreshTokenRequest, RegisterRequest, RegisterResponse, UpdateUserRequest,
+        UserListResponse,
+    },
 };
 use crate::config::Config;
-use crate::domain::{User, TokenResponse, UserRole};
-use crate::infrastructure::{PostgresUserRepository, KeycloakClient, DomainError};
+use crate::domain::{TokenResponse, User, UserRole};
+use crate::infrastructure::{DomainError, KeycloakClient, PostgresUserRepository};
 
 /// Health check endpoint
 #[utoipa::path(
@@ -50,9 +51,9 @@ pub async fn register(
     config: web::Data<Config>,
     request: web::Json<RegisterRequest>,
 ) -> Result<impl Responder, DomainError> {
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.get_ref().clone()));
     let keycloak_client = Arc::new(KeycloakClient::new(config.get_ref().clone()));
@@ -62,7 +63,8 @@ pub async fn register(
 
     Ok(HttpResponse::Created().json(RegisterResponse {
         user_id: user.user_id.to_string(),
-        message: "User registered successfully. Please check your email for verification.".to_string(),
+        message: "User registered successfully. Please check your email for verification."
+            .to_string(),
     }))
 }
 
@@ -88,14 +90,14 @@ pub async fn create_user(
     config: web::Data<Config>,
     request: web::Json<CreateUserRequest>,
 ) -> Result<impl Responder, DomainError> {
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     // Verify role is not USER
     if request.role == UserRole::User {
         return Err(DomainError::ValidationError(
-            "Cannot create USER role via admin endpoint. Users should self-register.".to_string()
+            "Cannot create USER role via admin endpoint. Users should self-register.".to_string(),
         ));
     }
 
@@ -105,7 +107,9 @@ pub async fn create_user(
 
     let created_by = "ADMIN001"; // TODO: Extract from JWT
 
-    let user = service.create_user_by_admin(request.into_inner(), created_by).await?;
+    let user = service
+        .create_user_by_admin(request.into_inner(), created_by)
+        .await?;
 
     Ok(HttpResponse::Created().json(user))
 }
@@ -128,9 +132,9 @@ pub async fn login(
     config: web::Data<Config>,
     request: web::Json<LoginRequest>,
 ) -> Result<impl Responder, DomainError> {
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.get_ref().clone()));
     let keycloak_client = Arc::new(KeycloakClient::new(config.get_ref().clone()));
@@ -169,15 +173,17 @@ pub async fn change_password(
 ) -> Result<impl Responder, DomainError> {
     let user_id = path.into_inner();
 
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.get_ref().clone()));
     let keycloak_client = Arc::new(KeycloakClient::new(config.get_ref().clone()));
     let service = AuthService::new(user_repo, keycloak_client);
 
-    service.change_password(&user_id, request.into_inner()).await?;
+    service
+        .change_password(&user_id, request.into_inner())
+        .await?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "message": "Password changed successfully"
@@ -202,9 +208,9 @@ pub async fn refresh_token(
     config: web::Data<Config>,
     request: web::Json<RefreshTokenRequest>,
 ) -> Result<impl Responder, DomainError> {
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.get_ref().clone()));
     let keycloak_client = Arc::new(KeycloakClient::new(config.get_ref().clone()));
@@ -310,9 +316,9 @@ pub async fn update_user(
 ) -> Result<impl Responder, DomainError> {
     let user_id = path.into_inner();
 
-    request.validate().map_err(|e| {
-        DomainError::ValidationError(format!("Validation failed: {}", e))
-    })?;
+    request
+        .validate()
+        .map_err(|e| DomainError::ValidationError(format!("Validation failed: {}", e)))?;
 
     let user_repo = Arc::new(PostgresUserRepository::new(pool.get_ref().clone()));
     let keycloak_client = Arc::new(KeycloakClient::new(config.get_ref().clone()));
@@ -320,7 +326,9 @@ pub async fn update_user(
 
     let updated_by = &user_id; // TODO: Extract from JWT
 
-    let user = service.update_user(&user_id, request.into_inner(), updated_by).await?;
+    let user = service
+        .update_user(&user_id, request.into_inner(), updated_by)
+        .await?;
 
     Ok(HttpResponse::Ok().json(user))
 }

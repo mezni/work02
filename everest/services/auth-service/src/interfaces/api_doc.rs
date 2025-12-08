@@ -80,7 +80,8 @@ impl utoipa::Modify for SecurityAddon {
             - Uses backend-admin for creation\n\
             - Authenticates via auth-client\n\
             - Have network_id and/or station_id\n\
-            - Roles assigned in Keycloak".to_string()
+            - Roles assigned in Keycloak"
+                .to_string(),
         );
     }
 }

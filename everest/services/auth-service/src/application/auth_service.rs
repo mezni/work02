@@ -1,8 +1,10 @@
-use std::sync::Arc;
-use crate::application::dto::{RegisterRequest, LoginRequest, UpdateUserRequest, CreateUserRequest, ChangePasswordRequest};
-use crate::domain::{User, UserRepository, TokenResponse, UserRole, UserSource};
+use crate::application::dto::{
+    ChangePasswordRequest, CreateUserRequest, LoginRequest, RegisterRequest, UpdateUserRequest,
+};
+use crate::domain::{TokenResponse, User, UserRepository, UserRole, UserSource};
 use crate::infrastructure::{DomainError, KeycloakClient};
 use crate::utils::generate_user_id;
+use std::sync::Arc;
 
 const NO_NETWORK_ID: &str = "X";
 const NO_STATION_ID: &str = "X";
@@ -13,71 +15,77 @@ pub struct AuthService {
 }
 
 impl AuthService {
-    pub fn new(
-        user_repo: Arc<dyn UserRepository>,
-        keycloak_client: Arc<KeycloakClient>,
-    ) -> Self {
+    pub fn new(user_repo: Arc<dyn UserRepository>, keycloak_client: Arc<KeycloakClient>) -> Self {
         Self {
             user_repo,
             keycloak_client,
         }
     }
 
+    pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainError> {
+        // Check if user already exists
+        if self
+            .user_repo
+            .find_by_email(&request.email)
+            .await?
+            .is_some()
+        {
+            return Err(DomainError::UserAlreadyExists(
+                "User with this email already exists".to_string(),
+            ));
+        }
 
-pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainError> {
-    // Check if user already exists
-    if self.user_repo.find_by_email(&request.email).await?.is_some() {
-        return Err(DomainError::UserAlreadyExists(
-            "User with this email already exists".to_string()
-        ));
+        if self
+            .user_repo
+            .find_by_username(&request.username)
+            .await?
+            .is_some()
+        {
+            return Err(DomainError::UserAlreadyExists(
+                "User with this username already exists".to_string(),
+            ));
+        }
+
+        // Create user in Keycloak with USER role
+        let keycloak_id = self
+            .keycloak_client
+            .create_user(
+                &request.username,
+                &request.email,
+                &request.password,
+                request.first_name.as_deref(),
+                request.last_name.as_deref(),
+                UserRole::User,
+                Some(NO_NETWORK_ID),
+                Some(NO_STATION_ID),
+            )
+            .await?;
+
+        // Generate user ID
+        let user_id = generate_user_id();
+
+        // Store user in our database with source=web
+        let user = self
+            .user_repo
+            .create(
+                &user_id,
+                &keycloak_id,
+                &request.email,
+                &request.username,
+                request.first_name.as_deref(),
+                request.last_name.as_deref(),
+                request.phone.as_deref(),
+                None, // No photo on registration
+                UserRole::User.as_str(),
+                NO_NETWORK_ID,
+                NO_STATION_ID,
+                UserSource::Web.as_str(),
+                None, // No created_by for self-registration
+            )
+            .await?;
+
+        Ok(user)
     }
-
-    if self.user_repo.find_by_username(&request.username).await?.is_some() {
-        return Err(DomainError::UserAlreadyExists(
-            "User with this username already exists".to_string()
-        ));
-    }
-
-    // Create user in Keycloak with USER role
-    let keycloak_id = self
-        .keycloak_client
-        .create_user(
-            &request.username,
-            &request.email,
-            &request.password,
-            request.first_name.as_deref(),
-            request.last_name.as_deref(),
-            UserRole::User,
-            Some(NO_NETWORK_ID),
-            Some(NO_STATION_ID),
-        )
-        .await?;
-
-    // Generate user ID
-    let user_id = generate_user_id();
-
-    // Store user in our database with source=web
-    let user = self
-        .user_repo
-        .create(
-            &user_id,
-            &keycloak_id,
-            &request.email,
-            &request.username,
-            request.first_name.as_deref(),
-            request.last_name.as_deref(),
-            request.phone.as_deref(),
-            None, // No photo on registration
-            UserRole::User.as_str(),
-            NO_NETWORK_ID,
-            NO_STATION_ID,
-            UserSource::Web.as_str(),
-            None, // No created_by for self-registration
-        )
-        .await?;
-
-    Ok(user)
-}
 
     pub async fn create_user_by_admin(
         &self,
@@ -85,15 +93,25 @@ pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainErr
         created_by: &str,
     ) -> Result<User, DomainError> {
         // Check if user already exists
-        if self.user_repo.find_by_email(&request.email).await?.is_some() {
+        if self
+            .user_repo
+            .find_by_email(&request.email)
+            .await?
+            .is_some()
+        {
             return Err(DomainError::UserAlreadyExists(
-                "User with this email already exists".to_string()
+                "User with this email already exists".to_string(),
             ));
         }
 
-        if self.user_repo.find_by_username(&request.username).await?.is_some() {
+        if self
+            .user_repo
+            .find_by_username(&request.username)
+            .await?
+            .is_some()
+        {
             return Err(DomainError::UserAlreadyExists(
-                "User with this username already exists".to_string()
+                "User with this username already exists".to_string(),
             ));
         }
 
@@ -160,10 +178,10 @@ pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainErr
         request: ChangePasswordRequest,
     ) -> Result<(), DomainError> {
         // First verify old password by attempting login
-        let user = self.user_repo
-            .find_by_id(user_id)
-            .await?
-            .ok_or_else(|| DomainError::NotFound(format!("User with id {} not found", user_id)))?;
+        let user =
+            self.user_repo.find_by_id(user_id).await?.ok_or_else(|| {
+                DomainError::NotFound(format!("User with id {} not found", user_id))
+            })?;
 
         // Verify old password
         self.keycloak_client
@@ -182,10 +200,7 @@ pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainErr
     }
 
     pub async fn refresh_token(&self, refresh_token: &str) -> Result<TokenResponse, DomainError> {
-        let token = self
-            .keycloak_client
-            .refresh_token(refresh_token)
-            .await?;
+        let token = self.keycloak_client.refresh_token(refresh_token).await?;
 
         Ok(TokenResponse {
             access_token: token.access_token,
@@ -203,7 +218,11 @@ pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainErr
             .ok_or_else(|| DomainError::NotFound(format!("User with id {} not found", user_id)))
     }
 
-    pub async fn list_users(&self, role: Option<UserRole>, is_active: Option<bool>) -> Result<Vec<User>, DomainError> {
+    pub async fn list_users(
+        &self,
+        role: Option<UserRole>,
+        is_active: Option<bool>,
+    ) -> Result<Vec<User>, DomainError> {
         self.user_repo.list_users(role, is_active).await
     }
 
@@ -225,7 +244,13 @@ pub async fn register(&self, request: RegisterRequest) -> Result<User, DomainErr
             .await
     }
 
-    pub async fn deactivate_user(&self, user_id: &str, updated_by: &str) -> Result<(), DomainError> {
-        self.user_repo.deactivate_user(user_id, Some(updated_by)).await
+    pub async fn deactivate_user(
+        &self,
+        user_id: &str,
+        updated_by: &str,
+    ) -> Result<(), DomainError> {
+        self.user_repo
+            .deactivate_user(user_id, Some(updated_by))
+            .await
     }
 }

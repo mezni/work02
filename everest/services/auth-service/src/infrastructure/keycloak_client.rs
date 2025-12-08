@@ -1,9 +1,9 @@
-use reqwest::Client;
-use serde::Serialize;
-use std::collections::HashMap;
 use crate::config::Config;
 use crate::domain::{KeycloakTokenResponse, KeycloakUser, UserRole};
 use crate::infrastructure::error::DomainError;
+use reqwest::Client;
+use serde::Serialize;
+use std::collections::HashMap;
 
 pub struct KeycloakClient {
     client: Client,
@@ -61,7 +61,9 @@ impl KeycloakClient {
             .form(&params)
             .send()
             .await
-            .map_err(|e| DomainError::KeycloakError(format!("Failed to get backend token: {}", e)))?;
+            .map_err(|e| {
+                DomainError::KeycloakError(format!("Failed to get backend token: {}", e))
+            })?;
 
         if !response.status().is_success() {
             let status = response.status();
@@ -114,7 +116,11 @@ impl KeycloakClient {
                 value: password.to_string(),
                 temporary: false,
             }],
-            attributes: if attributes.is_empty() { None } else { Some(attributes) },
+            attributes: if attributes.is_empty() {
+                None
+            } else {
+                Some(attributes)
+            },
         };
 
         let response = self
@@ -129,13 +135,13 @@ impl KeycloakClient {
         if !response.status().is_success() {
             let status = response.status();
             let text = response.text().await.unwrap_or_default();
-            
+
             if status.as_u16() == 409 {
                 return Err(DomainError::UserAlreadyExists(
-                    "User with this username or email already exists in Keycloak".to_string()
+                    "User with this username or email already exists in Keycloak".to_string(),
                 ));
             }
-            
+
             return Err(DomainError::KeycloakError(format!(
                 "User creation failed with status {}: {}",
                 status, text
@@ -147,7 +153,9 @@ impl KeycloakClient {
             .headers()
             .get("Location")
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| DomainError::KeycloakError("No Location header in response".to_string()))?;
+            .ok_or_else(|| {
+                DomainError::KeycloakError("No Location header in response".to_string())
+            })?;
 
         let user_id = location
             .split('/')
@@ -156,7 +164,8 @@ impl KeycloakClient {
             .to_string();
 
         // Assign role to user
-        self.assign_role_to_user(&user_id, role, &backend_token).await?;
+        self.assign_role_to_user(&user_id, role, &backend_token)
+            .await?;
 
         Ok(user_id)
     }
@@ -180,7 +189,10 @@ impl KeycloakClient {
             .map_err(|e| DomainError::KeycloakError(format!("Failed to get role: {}", e)))?;
 
         if !role_response.status().is_success() {
-            tracing::warn!("Role {} not found in Keycloak, skipping role assignment", role_name);
+            tracing::warn!(
+                "Role {} not found in Keycloak, skipping role assignment",
+                role_name
+            );
             return Ok(());
         }
 
@@ -290,7 +302,10 @@ impl KeycloakClient {
     }
 
     /// Refresh token using auth-client
-    pub async fn refresh_token(&self, refresh_token: &str) -> Result<KeycloakTokenResponse, DomainError> {
+    pub async fn refresh_token(
+        &self,
+        refresh_token: &str,
+    ) -> Result<KeycloakTokenResponse, DomainError> {
         let params = [
             ("grant_type", "refresh_token"),
             ("client_id", self.config.keycloak_auth_client_id.as_str()),
@@ -307,7 +322,7 @@ impl KeycloakClient {
 
         if !response.status().is_success() {
             return Err(DomainError::AuthenticationError(
-                "Token refresh failed".to_string()
+                "Token refresh failed".to_string(),
             ));
         }
 
@@ -331,7 +346,9 @@ impl KeycloakClient {
             .map_err(|e| DomainError::KeycloakError(format!("Failed to get user: {}", e)))?;
 
         if !response.status().is_success() {
-            return Err(DomainError::NotFound("User not found in Keycloak".to_string()));
+            return Err(DomainError::NotFound(
+                "User not found in Keycloak".to_string(),
+            ));
         }
 
         let user: KeycloakUser = response

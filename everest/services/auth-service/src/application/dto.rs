@@ -1,25 +1,25 @@
+use crate::domain::UserRole;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 use validator::Validate;
-use crate::domain::UserRole;
 
 #[derive(Debug, Deserialize, Serialize, Validate, ToSchema)]
 pub struct RegisterRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
-    
+
     #[validate(email)]
     pub email: String,
-    
+
     #[validate(length(min = 8))]
     pub password: String,
-    
+
     #[validate(length(max = 50))]
     pub first_name: Option<String>,
-    
+
     #[validate(length(max = 50))]
     pub last_name: Option<String>,
-    
+
     #[validate(length(max = 20))]
     pub phone: Option<String>,
 }
@@ -28,29 +28,29 @@ pub struct RegisterRequest {
 pub struct CreateUserRequest {
     #[validate(length(min = 3, max = 50))]
     pub username: String,
-    
+
     #[validate(email)]
     pub email: String,
-    
+
     #[validate(length(min = 8))]
     pub password: String,
-    
+
     #[validate(length(max = 50))]
     pub first_name: Option<String>,
-    
+
     #[validate(length(max = 50))]
     pub last_name: Option<String>,
-    
+
     #[validate(length(max = 20))]
     pub phone: Option<String>,
 
     pub photo: Option<String>,
-    
+
     pub role: UserRole,
-    
+
     #[validate(length(max = 32))]
     pub network_id: Option<String>,
-    
+
     #[validate(length(max = 32))]
     pub station_id: Option<String>,
 }
@@ -59,7 +59,7 @@ pub struct CreateUserRequest {
 pub struct LoginRequest {
     #[validate(length(min = 1))]
     pub username: String,
-    
+
     #[validate(length(min = 1))]
     pub password: String,
 }
@@ -68,7 +68,7 @@ pub struct LoginRequest {
 pub struct ChangePasswordRequest {
     #[validate(length(min = 1))]
     pub old_password: String,
-    
+
     #[validate(length(min = 8))]
     pub new_password: String,
 }
@@ -83,10 +83,10 @@ pub struct RefreshTokenRequest {
 pub struct UpdateUserRequest {
     #[validate(length(max = 50))]
     pub first_name: Option<String>,
-    
+
     #[validate(length(max = 50))]
     pub last_name: Option<String>,
-    
+
     #[validate(length(max = 20))]
     pub phone: Option<String>,
 

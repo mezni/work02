@@ -1,7 +1,7 @@
-use async_trait::async_trait;
-use sqlx::PgPool;
 use crate::domain::{User, UserRepository, UserRole};
 use crate::infrastructure::error::DomainError;
+use async_trait::async_trait;
+use sqlx::PgPool;
 
 pub struct PostgresUserRepository {
     pool: PgPool,
@@ -215,9 +215,13 @@ impl UserRepository for PostgresUserRepository {
         Ok(user)
     }
 
-    async fn list_users(&self, role: Option<UserRole>, is_active: Option<bool>) -> Result<Vec<User>, DomainError> {
+    async fn list_users(
+        &self,
+        role: Option<UserRole>,
+        is_active: Option<bool>,
+    ) -> Result<Vec<User>, DomainError> {
         let role_str = role.map(|r| r.as_str().to_string());
-        
+
         let users = sqlx::query_as!(
             User,
             r#"
@@ -323,7 +327,11 @@ impl UserRepository for PostgresUserRepository {
         Ok(())
     }
 
-    async fn deactivate_user(&self, user_id: &str, updated_by: Option<&str>) -> Result<(), DomainError> {
+    async fn deactivate_user(
+        &self,
+        user_id: &str,
+        updated_by: Option<&str>,
+    ) -> Result<(), DomainError> {
         sqlx::query!(
             r#"
             UPDATE users 

@@ -1,20 +1,20 @@
+mod application;
 mod config;
 mod domain;
 mod infrastructure;
-mod application;
 mod interfaces;
 mod utils;
 
-use actix_web::{middleware, App, HttpServer};
 use actix_cors::Cors;
+use actix_web::{App, HttpServer, middleware};
 use sqlx::postgres::PgPoolOptions;
 use tracing_subscriber;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::config::Config;
-use crate::interfaces::routes;
 use crate::interfaces::api_doc::ApiDoc;
+use crate::interfaces::routes;
 
 #[actix_web::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,13 +47,10 @@ async fn main() -> anyhow::Result<()> {
             .app_data(config_data.clone())
             .wrap(cors)
             .wrap(middleware::Logger::default())
-            .service(
-                actix_web::web::scope("/api/v1")
-                    .configure(routes::configure)
-            )
+            .service(actix_web::web::scope("/api/v1").configure(routes::configure))
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}")
-                    .url("/api-docs/openapi.json", ApiDoc::openapi())
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
             )
     })
     .bind((host, port))?

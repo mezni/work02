@@ -17,16 +17,13 @@ impl Config {
         dotenvy::dotenv().ok();
 
         Ok(Self {
-            database_url: std::env::var("DATABASE_URL")
-                .context("DATABASE_URL must be set")?,
-            server_host: std::env::var("SERVER_HOST")
-                .unwrap_or_else(|_| "0.0.0.0".to_string()),
+            database_url: std::env::var("DATABASE_URL").context("DATABASE_URL must be set")?,
+            server_host: std::env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
             server_port: std::env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "8081".to_string())
                 .parse()
                 .context("SERVER_PORT must be a valid u16")?,
-            keycloak_url: std::env::var("KEYCLOAK_URL")
-                .context("KEYCLOAK_URL must be set")?,
+            keycloak_url: std::env::var("KEYCLOAK_URL").context("KEYCLOAK_URL must be set")?,
             keycloak_realm: std::env::var("KEYCLOAK_REALM")
                 .context("KEYCLOAK_REALM must be set")?,
             keycloak_auth_client_id: std::env::var("KEYCLOAK_AUTH_CLIENT_ID")

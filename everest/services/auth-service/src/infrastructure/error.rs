@@ -1,4 +1,4 @@
-use actix_web::{http::StatusCode, HttpResponse, ResponseError};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use serde::Serialize;
 use thiserror::Error;
 
@@ -6,13 +6,13 @@ use thiserror::Error;
 pub enum DomainError {
     #[error("Database error: {0}")]
     DatabaseError(#[from] sqlx::Error),
-    
+
     #[error("Not found: {0}")]
     NotFound(String),
-    
+
     #[error("Validation error: {0}")]
     ValidationError(String),
-    
+
     #[error("Internal error: {0}")]
     InternalError(String),
 
@@ -42,7 +42,9 @@ impl ResponseError for DomainError {
             DomainError::ValidationError(_) => (StatusCode::BAD_REQUEST, "VALIDATION_ERROR"),
             DomainError::DatabaseError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "DATABASE_ERROR"),
             DomainError::InternalError(_) => (StatusCode::INTERNAL_SERVER_ERROR, "INTERNAL_ERROR"),
-            DomainError::AuthenticationError(_) => (StatusCode::UNAUTHORIZED, "AUTHENTICATION_ERROR"),
+            DomainError::AuthenticationError(_) => {
+                (StatusCode::UNAUTHORIZED, "AUTHENTICATION_ERROR")
+            }
             DomainError::KeycloakError(_) => (StatusCode::BAD_GATEWAY, "KEYCLOAK_ERROR"),
             DomainError::UserAlreadyExists(_) => (StatusCode::CONFLICT, "USER_ALREADY_EXISTS"),
             DomainError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "UNAUTHORIZED"),
