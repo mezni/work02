@@ -51,8 +51,8 @@ CREATE TABLE networks (
     is_verified BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    created_by VARCHAR(32),
-    updated_by VARCHAR(32)
+    created_by VARCHAR(36),
+    updated_by VARCHAR(36)
 );
 
 ------------------------------------------------------------
@@ -67,9 +67,9 @@ CREATE TABLE stations (
     location GEOGRAPHY(Point, 4326) NOT NULL,
     tags HSTORE,
     network_id VARCHAR(32) REFERENCES networks(network_id),
-    created_by VARCHAR(32),
+    created_by VARCHAR(36),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by VARCHAR(32),
+    updated_by VARCHAR(36),
     updated_at TIMESTAMPTZ
 );
 
@@ -106,9 +106,9 @@ CREATE TABLE connectors (
     amperage INT,
     count_available INT DEFAULT 1 CHECK (count_available >= 0),
     count_total INT DEFAULT 1 CHECK (count_total >= 1 AND count_total >= count_available),
-    created_by VARCHAR(32),
+    created_by VARCHAR(36),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_by VARCHAR(32),
+    updated_by VARCHAR(36),
     updated_at TIMESTAMPTZ,
     CONSTRAINT unique_connector UNIQUE (station_id, connector_type_id, current_type_id)
 );

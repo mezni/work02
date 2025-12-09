@@ -1,12 +1,12 @@
 use actix_web::{
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     Error, HttpMessage,
-    dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready},
 };
 use futures::future::LocalBoxFuture;
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::{
-    future::{Ready, ready},
+    future::{ready, Ready},
     rc::Rc,
     sync::Arc,
 };
@@ -23,8 +23,11 @@ pub struct Claims {
     pub azp: String,
     pub sid: String,
     pub scope: String,
+    #[serde(default)]
     pub network_id: Option<String>,
+    #[serde(default)]
     pub station_id: Option<String>,
+    #[serde(default)]
     pub roles: Vec<String>,
 }
 
@@ -66,9 +69,7 @@ impl JwtValidator {
     pub async fn validate_token(&self, token: &str) -> Result<Claims, anyhow::Error> {
         // Decode header to get kid
         let header = decode_header(token)?;
-        let kid = header
-            .kid
-            .ok_or_else(|| anyhow::anyhow!("Token missing kid"))?;
+        let kid = header.kid.ok_or_else(|| anyhow::anyhow!("Token missing kid"))?;
 
         // Get JWKS (from cache or fetch)
         let jwks = {
@@ -170,16 +171,15 @@ where
             let token = match auth_header {
                 Some(t) => t,
                 None => {
-                    return Err(actix_web::error::ErrorUnauthorized(
-                        "Missing or invalid authorization header",
-                    ));
+                    return Err(actix_web::error::ErrorUnauthorized("Missing or invalid authorization header"));
                 }
             };
 
             // Validate token
-            let claims = validator.validate_token(token).await.map_err(|e| {
-                actix_web::error::ErrorUnauthorized(format!("Token validation failed: {}", e))
-            })?;
+            let claims = validator
+                .validate_token(token)
+                .await
+                .map_err(|e| actix_web::error::ErrorUnauthorized(format!("Token validation failed: {}", e)))?;
 
             // Store claims in request extensions
             req.extensions_mut().insert(claims);

@@ -1,9 +1,12 @@
+use actix_web::{web, HttpRequest, HttpResponse};
 use crate::{
-    application::{ConnectorService, NetworkService, StationService, dto::*},
+    application::{
+        dto::*,
+        ConnectorService, NetworkService, StationService,
+    },
     infrastructure::error::{AppError, AppResult},
     middleware::extract_claims,
 };
-use actix_web::{HttpRequest, HttpResponse, web};
 
 // Network Handlers
 #[utoipa::path(
@@ -27,9 +30,7 @@ pub async fn create_network(
     let claims = extract_claims(&req)
         .ok_or_else(|| AppError::Unauthorized("Missing authentication".to_string()))?;
 
-    let network = service
-        .create_network(payload.into_inner(), claims.jti)
-        .await?;
+    let network = service.create_network(payload.into_inner(), claims.jti).await?;
     Ok(HttpResponse::Created().json(network))
 }
 
@@ -153,9 +154,7 @@ pub async fn create_station(
     let claims = extract_claims(&req)
         .ok_or_else(|| AppError::Unauthorized("Missing authentication".to_string()))?;
 
-    let station = service
-        .create_station(payload.into_inner(), claims.jti)
-        .await?;
+    let station = service.create_station(payload.into_inner(), claims.jti).await?;
     Ok(HttpResponse::Created().json(station))
 }
 
@@ -300,9 +299,7 @@ pub async fn create_connector(
     let claims = extract_claims(&req)
         .ok_or_else(|| AppError::Unauthorized("Missing authentication".to_string()))?;
 
-    let connector = service
-        .create_connector(payload.into_inner(), claims.jti)
-        .await?;
+    let connector = service.create_connector(payload.into_inner(), claims.jti).await?;
     Ok(HttpResponse::Created().json(connector))
 }
 

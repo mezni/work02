@@ -1,10 +1,10 @@
 use actix_web::{
+    dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform},
     Error, HttpMessage,
-    dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready},
 };
 use futures::future::LocalBoxFuture;
 use std::{
-    future::{Ready, ready},
+    future::{ready, Ready},
     rc::Rc,
 };
 
@@ -67,21 +67,35 @@ where
             // Get claims from request extensions (set by JwtAuth middleware)
             let claims = req.extensions().get::<Claims>().cloned();
 
+            tracing::debug!("RequireRole middleware - checking for role: {}", required_role);
+            tracing::debug!("Claims present: {}", claims.is_some());
+
             match claims {
                 Some(claims) => {
+                    tracing::debug!("User has roles: {:?}", claims.roles);
+                    
                     // Check if user has the required role
                     if claims.roles.iter().any(|r| r == &required_role) {
+                        tracing::debug!("Role check passed for: {}", required_role);
                         srv.call(req).await
                     } else {
+                        tracing::warn!(
+                            "Role check failed. Required: '{}', User has: {:?}",
+                            required_role,
+                            claims.roles
+                        );
                         Err(actix_web::error::ErrorForbidden(format!(
                             "Required role '{}' not found. User roles: {:?}",
                             required_role, claims.roles
                         )))
                     }
                 }
-                None => Err(actix_web::error::ErrorUnauthorized(
-                    "Authentication required",
-                )),
+                None => {
+                    tracing::error!("No claims found in request extensions. JWT middleware may not have run.");
+                    Err(actix_web::error::ErrorUnauthorized(
+                        "Authentication required",
+                    ))
+                }
             }
         })
     }
