@@ -1,0 +1,7 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "auth-service",
+    "common-lib",
+]
