@@ -124,7 +124,7 @@ log "$FRONTEND_UUID"
 
 create_mapper() {
   local NAME="$1"
-  log "Creating protocol mapper '$NAME'"
+#  log "Creating protocol mapper '$NAME'"
 #  if kc get clients/$FRONTEND_UUID/protocol-mappers/models -r "$REALM" -q name="$NAME" | grep -q id; then
 #    log "Protocol mapper '$NAME' already exists"
 #    return

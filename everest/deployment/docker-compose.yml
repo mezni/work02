@@ -76,11 +76,36 @@ services:
       - ev-network
     restart: "no"
 
+
+  # ========================
+  # EVCS DB
+  # ========================
+  evcs-db:
+    image: postgis/postgis:18-3.6
+    container_name: evcs-db
+    environment:
+      POSTGRES_DB: evcs_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5700:5432"
+    volumes:
+      - evcs-data:/var/lib/postgresql
+      - ./databases/evcs-db/:/docker-entrypoint-initdb.d/:ro
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "evcs_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 # ========================
 # Volumes
 # ========================
 volumes:
   kc-data:
+  evcs-data:
 
 # ========================
 # Networks
