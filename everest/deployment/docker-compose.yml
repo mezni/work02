@@ -100,6 +100,30 @@ services:
       timeout: 5s
       retries: 5
 
+  # ========================
+  # OSM Importer
+  # ========================
+  osm-importer:
+    build:
+      context: ./tools/osm-importer
+      dockerfile: Dockerfile
+    container_name: osm-importer
+    depends_on:
+      evcs-db:
+        condition: service_healthy
+    environment:
+      PGHOST: evcs-db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: password
+      PGDATABASE: evcs_db
+      REGION: tunisia
+      DATADIR: /osm/data
+    volumes:
+      - ./tools/data:/osm/data
+    networks:
+      - ev-network
+
 # ========================
 # Volumes
 # ========================
