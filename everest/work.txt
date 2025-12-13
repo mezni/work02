@@ -1,0 +1,495 @@
+# ============================================================================
+# Dockerfile.base - Base image for all microservices
+# ============================================================================
+
+FROM rust:1.75-slim as builder
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY common-lib ./common-lib
+
+# Create a dummy main to cache dependencies
+RUN mkdir -p src && \
+    echo "fn main() {}" > src/main.rs && \
+    echo '[package]\nname = "dummy"\nversion = "0.1.0"\nedition = "2021"' > Cargo.toml.temp && \
+    mv Cargo.toml.temp Cargo.toml
+
+# This will cache dependencies
+RUN cargo build --release && rm -rf src
+
+# ============================================================================
+# Dockerfile - Example for a specific microservice (user-service)
+# ============================================================================
+
+# Stage 1: Build
+FROM rust:1.75-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy workspace Cargo files
+COPY Cargo.toml Cargo.lock ./
+COPY common-lib ./common-lib
+COPY user-service ./user-service
+
+# Build the application
+WORKDIR /app/user-service
+RUN cargo build --release
+
+# Stage 2: Runtime
+FROM debian:bookworm-slim
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1001 appuser
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/user-service/target/release/user-service /app/user-service
+
+# Change ownership
+RUN chown -R appuser:appuser /app
+
+USER appuser
+
+# Expose port
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# Run the application
+CMD ["./user-service"]
+
+# ============================================================================
+# .dockerignore
+# ============================================================================
+
+# target/
+# **/target/
+# Cargo.lock
+# .git
+# .gitignore
+# .env
+# .env.*
+# *.md
+# .vscode
+# .idea
+# .DS_Store
+# docker-compose.yml
+# Dockerfile*
+
+# ============================================================================
+# docker-compose.yml - Complete setup with 3 microservices
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: microservices-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: microservices
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: microservices-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - microservices-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # User Service
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    container_name: user-service
+    environment:
+      SERVICE_NAME: user-service
+      ENVIRONMENT: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Order Service
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    environment:
+      SERVICE_NAME: order-service
+      ENVIRONMENT: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
+      REDIS_URL: redis://redis:6379
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    container_name: product-service
+    environment:
+      SERVICE_NAME: product-service
+      ENVIRONMENT: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
+      REDIS_URL: redis://redis:6379
+      RUST_LOG: info
+      RUST_BACKTRACE: 1
+    ports:
+      - "8083:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - microservices-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx API Gateway (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - user-service
+      - order-service
+      - product-service
+    networks:
+      - microservices-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  microservices-network:
+    driver: bridge
+
+# ============================================================================
+# nginx.conf - API Gateway configuration
+# ============================================================================
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream user-service {
+        server user-service:8080;
+    }
+
+    upstream order-service {
+        server order-service:8080;
+    }
+
+    upstream product-service {
+        server product-service:8080;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # User Service
+        location /api/users {
+            proxy_pass http://user-service;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Order Service
+        location /api/orders {
+            proxy_pass http://order-service;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Product Service
+        location /api/products {
+            proxy_pass http://product-service;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        }
+
+        # Health checks
+        location /health {
+            access_log off;
+            return 200 "healthy\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}
+
+# ============================================================================
+# .env.example - Environment variables template
+# ============================================================================
+
+# Service Configuration
+ENVIRONMENT=development
+RUST_LOG=info
+RUST_BACKTRACE=1
+
+# Database
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/microservices
+DB_MAX_CONNECTIONS=10
+DB_MIN_CONNECTIONS=2
+
+# Redis
+REDIS_URL=redis://localhost:6379
+REDIS_POOL_SIZE=10
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+TOKEN_EXPIRY_HOURS=24
+REFRESH_TOKEN_EXPIRY_DAYS=30
+
+# Server Configuration
+HOST=0.0.0.0
+WORKERS=4
+KEEP_ALIVE=75
+CLIENT_TIMEOUT=30
+
+# User Service
+USER_SERVICE_PORT=8081
+
+# Order Service
+ORDER_SERVICE_PORT=8082
+
+# Product Service
+PRODUCT_SERVICE_PORT=8083
+
+# ============================================================================
+# Makefile - Useful commands
+# ============================================================================
+
+.PHONY: help build up down logs clean migrate test
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+build: ## Build all services
+	docker-compose build
+
+up: ## Start all services
+	docker-compose up -d
+
+down: ## Stop all services
+	docker-compose down
+
+logs: ## View logs
+	docker-compose logs -f
+
+logs-user: ## View user service logs
+	docker-compose logs -f user-service
+
+logs-order: ## View order service logs
+	docker-compose logs -f order-service
+
+logs-product: ## View product service logs
+	docker-compose logs -f product-service
+
+ps: ## List running containers
+	docker-compose ps
+
+clean: ## Clean up containers and volumes
+	docker-compose down -v
+	docker system prune -f
+
+restart: ## Restart all services
+	docker-compose restart
+
+restart-user: ## Restart user service
+	docker-compose restart user-service
+
+restart-order: ## Restart order service
+	docker-compose restart order-service
+
+restart-product: ## Restart product service
+	docker-compose restart product-service
+
+migrate: ## Run database migrations
+	docker-compose exec user-service sqlx migrate run
+
+test: ## Run tests
+	cargo test --workspace
+
+dev: ## Start services in development mode
+	docker-compose -f docker-compose.dev.yml up
+
+# ============================================================================
+# docker-compose.dev.yml - Development configuration with hot reload
+# ============================================================================
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: microservices
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - microservices-network
+
+  # Development services with volume mounting for hot reload
+  user-service-dev:
+    image: rust:1.75-slim
+    container_name: user-service-dev
+    working_dir: /app
+    command: cargo watch -x 'run --bin user-service'
+    environment:
+      SERVICE_NAME: user-service
+      ENVIRONMENT: development
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
+      REDIS_URL: redis://redis:6379
+      RUST_LOG: debug
+    ports:
+      - "8081:8080"
+    volumes:
+      - .:/app
+      - cargo_cache:/usr/local/cargo/registry
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - microservices-network
+
+volumes:
+  postgres_dev_data:
+  cargo_cache:
+
+networks:
+  microservices-network:
+    driver: bridge
+
+# ============================================================================
+# init-db/01-init.sql - Database initialization
+# ============================================================================
+
+-- Create databases for each service if needed
+CREATE DATABASE IF NOT EXISTS user_service;
+CREATE DATABASE IF NOT EXISTS order_service;
+CREATE DATABASE IF NOT EXISTS product_service;
+
+-- Create extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Grant permissions
+GRANT ALL PRIVILEGES ON DATABASE microservices TO postgres;
