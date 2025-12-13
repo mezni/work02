@@ -124,12 +124,37 @@ services:
     networks:
       - ev-network
 
+  # ========================
+  # Auth DB
+  # ========================
+  auth-db:
+    image: postgres:18.1-alpine
+    container_name: auth-db
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5800:5432"
+    volumes:
+      - auth-data:/var/lib/postgresql/data
+      - ./databases/auth-db/:/docker-entrypoint-initdb.d/:ro
+    networks:
+      - ev-network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-d", "auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
 # ========================
 # Volumes
 # ========================
 volumes:
   kc-data:
   evcs-data:
+  auth-data:
 
 # ========================
 # Networks
