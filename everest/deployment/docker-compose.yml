@@ -1,0 +1,90 @@
+name: everest
+
+services:
+  # ========================
+  # PostgreSQL (Keycloak DB)
+  # ========================
+  kc-db:
+    image: postgres:18.1-alpine
+    container_name: kc-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5600:5432"   # host:container
+    volumes:
+      - kc-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ev-network
+
+  # ========================
+  # Keycloak
+  # ========================
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.7
+    container_name: keycloak
+    command: start-dev
+    environment:
+      # ---- DB ----
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://kc-db:5432/keycloak   # always container port
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: password
+
+      # ---- Bootstrap Admin (new vars) ----
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: password
+
+      # ---- Runtime ----
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+    ports:
+      - "5080:8080"
+    depends_on:
+      kc-db:
+        condition: service_healthy
+#    healthcheck:
+#      test: ["CMD-SHELL", "curl --fail -s http://localhost:8080/health/ready || exit 1"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 60
+#      start_period: 120s
+    networks:
+      - ev-network
+
+  # ========================
+  # Keycloak Init (kcadm.sh)
+  # ========================
+  keycloak-init:
+    image: quay.io/keycloak/keycloak:26.4.7
+    container_name: keycloak-init
+#    depends_on:
+#      keycloak:
+#        condition: service_healthy
+    entrypoint: ["/bin/bash", "/init/init.sh"]
+    volumes:
+      - ./kcadm:/init
+    networks:
+      - ev-network
+    restart: "no"
+
+# ========================
+# Volumes
+# ========================
+volumes:
+  kc-data:
+
+# ========================
+# Networks
+# ========================
+networks:
+  ev-network:
+    driver: bridge
