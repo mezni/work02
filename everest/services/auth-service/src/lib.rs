@@ -1,22 +1,19 @@
+pub mod application;
 pub mod core;
-/*
 pub mod domain;
 pub mod infrastructure;
-pub mod application;
-*/
 pub mod interfaces;
+pub mod utils;
 
+use crate::interfaces::api_doc::ApiDoc;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, middleware, web};
+use application::auth_service::AuthService;
 use core::config::Config;
 use core::database::create_pool; //, run_migrations};
-/*
-use infrastructure::keycloak::service::KeycloakService;
-use infrastructure::persistence::{audit_repository::PostgresAuditRepository, user_repository::PostgresUserRepository};
-use application::services::{auth_service::AuthService, user_service::UserService};
+use infrastructure::keycloak_client::KeycloakClient;
+use infrastructure::user_repository::PostgresUserRepository;
 use interfaces::routes;
-*/
-use crate::interfaces::api_doc::ApiDoc;
 use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;

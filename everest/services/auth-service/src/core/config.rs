@@ -23,11 +23,11 @@ pub struct ServerConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct KeycloakConfig {
-    pub url: String,
-    pub realm: String,
-    pub auth_client_id: String,
-    pub backend_client_id: String,
-    pub backend_client_secret: String,
+    pub keycloak_url: String,
+    pub keycloak_realm: String,
+    pub keycloak_auth_client_id: String,
+    pub keycloak_backend_client_id: String,
+    pub keycloak_backend_client_secret: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -57,11 +57,11 @@ impl Config {
         };
 
         let keycloak = KeycloakConfig {
-            url: std::env::var("KEYCLOAK_URL")?,
-            realm: std::env::var("KEYCLOAK_REALM")?,
-            auth_client_id: std::env::var("KEYCLOAK_AUTH_CLIENT_ID")?,
-            backend_client_id: std::env::var("KEYCLOAK_BACKEND_CLIENT_ID")?,
-            backend_client_secret: std::env::var("KEYCLOAK_BACKEND_CLIENT_SECRET")?,
+            keycloak_url: std::env::var("KEYCLOAK_URL")?,
+            keycloak_realm: std::env::var("KEYCLOAK_REALM")?,
+            keycloak_auth_client_id: std::env::var("KEYCLOAK_AUTH_CLIENT_ID")?,
+            keycloak_backend_client_id: std::env::var("KEYCLOAK_BACKEND_CLIENT_ID")?,
+            keycloak_backend_client_secret: std::env::var("KEYCLOAK_BACKEND_CLIENT_SECRET")?,
         };
 
         let logging = LoggingConfig {
