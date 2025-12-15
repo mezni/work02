@@ -1,4 +1,3 @@
-pub mod auth_service;
-pub mod dto;
-
-pub use auth_service::AuthService;
+pub mod dtos;
+pub mod user_commands;
+pub mod user_queries;

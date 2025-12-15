@@ -53,3 +53,4 @@ jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 maxminddb = "0.27.0"
 async-trait = "0.1.89"
 futures = "0.3.31"
+futures-util = "0.3.31"

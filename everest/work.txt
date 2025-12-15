@@ -1,495 +1,262 @@
-# ============================================================================
-# Dockerfile.base - Base image for all microservices
-# ============================================================================
-
-FROM rust:1.75-slim as builder
-
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy workspace files
-COPY Cargo.toml Cargo.lock ./
-COPY common-lib ./common-lib
-
-# Create a dummy main to cache dependencies
-RUN mkdir -p src && \
-    echo "fn main() {}" > src/main.rs && \
-    echo '[package]\nname = "dummy"\nversion = "0.1.0"\nedition = "2021"' > Cargo.toml.temp && \
-    mv Cargo.toml.temp Cargo.toml
-
-# This will cache dependencies
-RUN cargo build --release && rm -rf src
-
-# ============================================================================
-# Dockerfile - Example for a specific microservice (user-service)
-# ============================================================================
-
-# Stage 1: Build
-FROM rust:1.75-slim as builder
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    libssl-dev \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy workspace Cargo files
-COPY Cargo.toml Cargo.lock ./
-COPY common-lib ./common-lib
-COPY user-service ./user-service
-
-# Build the application
-WORKDIR /app/user-service
-RUN cargo build --release
-
-# Stage 2: Runtime
-FROM debian:bookworm-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Create non-root user
-RUN useradd -m -u 1001 appuser
-
-WORKDIR /app
-
-# Copy binary from builder
-COPY --from=builder /app/user-service/target/release/user-service /app/user-service
-
-# Change ownership
-RUN chown -R appuser:appuser /app
-
-USER appuser
-
-# Expose port
-EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# Run the application
-CMD ["./user-service"]
-
-# ============================================================================
-# .dockerignore
-# ============================================================================
-
-# target/
-# **/target/
-# Cargo.lock
-# .git
-# .gitignore
-# .env
-# .env.*
-# *.md
-# .vscode
-# .idea
-# .DS_Store
-# docker-compose.yml
-# Dockerfile*
-
-# ============================================================================
-# docker-compose.yml - Complete setup with 3 microservices
-# ============================================================================
-
-version: '3.8'
-
-services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:16-alpine
-    container_name: microservices-db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: microservices
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db:/docker-entrypoint-initdb.d
-    networks:
-      - microservices-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: microservices-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - microservices-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
-  # User Service
-  user-service:
-    build:
-      context: .
-      dockerfile: user-service/Dockerfile
-    container_name: user-service
-    environment:
-      SERVICE_NAME: user-service
-      ENVIRONMENT: production
-      HOST: 0.0.0.0
-      PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
-      RUST_LOG: info
-      RUST_BACKTRACE: 1
-    ports:
-      - "8081:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - microservices-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Order Service
-  order-service:
-    build:
-      context: .
-      dockerfile: order-service/Dockerfile
-    container_name: order-service
-    environment:
-      SERVICE_NAME: order-service
-      ENVIRONMENT: production
-      HOST: 0.0.0.0
-      PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
-      REDIS_URL: redis://redis:6379
-      RUST_LOG: info
-      RUST_BACKTRACE: 1
-    ports:
-      - "8082:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - microservices-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Product Service
-  product-service:
-    build:
-      context: .
-      dockerfile: product-service/Dockerfile
-    container_name: product-service
-    environment:
-      SERVICE_NAME: product-service
-      ENVIRONMENT: production
-      HOST: 0.0.0.0
-      PORT: 8080
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
-      REDIS_URL: redis://redis:6379
-      RUST_LOG: info
-      RUST_BACKTRACE: 1
-    ports:
-      - "8083:8080"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - microservices-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Nginx API Gateway (Optional)
-  nginx:
-    image: nginx:alpine
-    container_name: api-gateway
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - user-service
-      - order-service
-      - product-service
-    networks:
-      - microservices-network
-    restart: unless-stopped
-
-volumes:
-  postgres_data:
-  redis_data:
-
-networks:
-  microservices-network:
-    driver: bridge
-
-# ============================================================================
-# nginx.conf - API Gateway configuration
-# ============================================================================
-
-events {
-    worker_connections 1024;
-}
-
-http {
-    upstream user-service {
-        server user-service:8080;
-    }
-
-    upstream order-service {
-        server order-service:8080;
-    }
-
-    upstream product-service {
-        server product-service:8080;
-    }
-
-    server {
-        listen 80;
-        server_name localhost;
-
-        # User Service
-        location /api/users {
-            proxy_pass http://user-service;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        # Order Service
-        location /api/orders {
-            proxy_pass http://order-service;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        # Product Service
-        location /api/products {
-            proxy_pass http://product-service;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        }
-
-        # Health checks
-        location /health {
-            access_log off;
-            return 200 "healthy\n";
-            add_header Content-Type text/plain;
-        }
-    }
-}
-
-# ============================================================================
-# .env.example - Environment variables template
-# ============================================================================
-
-# Service Configuration
-ENVIRONMENT=development
-RUST_LOG=info
-RUST_BACKTRACE=1
-
-# Database
-DATABASE_URL=postgres://postgres:postgres@localhost:5432/microservices
-DB_MAX_CONNECTIONS=10
-DB_MIN_CONNECTIONS=2
-
-# Redis
-REDIS_URL=redis://localhost:6379
-REDIS_POOL_SIZE=10
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-TOKEN_EXPIRY_HOURS=24
-REFRESH_TOKEN_EXPIRY_DAYS=30
-
-# Server Configuration
-HOST=0.0.0.0
-WORKERS=4
-KEEP_ALIVE=75
-CLIENT_TIMEOUT=30
-
-# User Service
-USER_SERVICE_PORT=8081
-
-# Order Service
-ORDER_SERVICE_PORT=8082
-
-# Product Service
-PRODUCT_SERVICE_PORT=8083
-
-# ============================================================================
-# Makefile - Useful commands
-# ============================================================================
-
-.PHONY: help build up down logs clean migrate test
-
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-build: ## Build all services
-	docker-compose build
-
-up: ## Start all services
-	docker-compose up -d
-
-down: ## Stop all services
-	docker-compose down
-
-logs: ## View logs
-	docker-compose logs -f
-
-logs-user: ## View user service logs
-	docker-compose logs -f user-service
-
-logs-order: ## View order service logs
-	docker-compose logs -f order-service
-
-logs-product: ## View product service logs
-	docker-compose logs -f product-service
-
-ps: ## List running containers
-	docker-compose ps
-
-clean: ## Clean up containers and volumes
-	docker-compose down -v
-	docker system prune -f
-
-restart: ## Restart all services
-	docker-compose restart
-
-restart-user: ## Restart user service
-	docker-compose restart user-service
-
-restart-order: ## Restart order service
-	docker-compose restart order-service
-
-restart-product: ## Restart product service
-	docker-compose restart product-service
-
-migrate: ## Run database migrations
-	docker-compose exec user-service sqlx migrate run
-
-test: ## Run tests
-	cargo test --workspace
-
-dev: ## Start services in development mode
-	docker-compose -f docker-compose.dev.yml up
-
-# ============================================================================
-# docker-compose.dev.yml - Development configuration with hot reload
-# ============================================================================
-
-version: '3.8'
-
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: microservices
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_dev_data:/var/lib/postgresql/data
-    networks:
-      - microservices-network
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    networks:
-      - microservices-network
-
-  # Development services with volume mounting for hot reload
-  user-service-dev:
-    image: rust:1.75-slim
-    container_name: user-service-dev
-    working_dir: /app
-    command: cargo watch -x 'run --bin user-service'
-    environment:
-      SERVICE_NAME: user-service
-      ENVIRONMENT: development
-      DATABASE_URL: postgres://postgres:postgres@postgres:5432/microservices
-      REDIS_URL: redis://redis:6379
-      RUST_LOG: debug
-    ports:
-      - "8081:8080"
-    volumes:
-      - .:/app
-      - cargo_cache:/usr/local/cargo/registry
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - microservices-network
-
-volumes:
-  postgres_dev_data:
-  cargo_cache:
-
-networks:
-  microservices-network:
-    driver: bridge
-
-# ============================================================================
-# init-db/01-init.sql - Database initialization
-# ============================================================================
-
--- Create databases for each service if needed
-CREATE DATABASE IF NOT EXISTS user_service;
-CREATE DATABASE IF NOT EXISTS order_service;
-CREATE DATABASE IF NOT EXISTS product_service;
-
--- Create extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Grant permissions
-GRANT ALL PRIVILEGES ON DATABASE microservices TO postgres;
+src/
+├── main.rs
+├── lib.rs
+
+├── core/
+│   ├── mod.rs
+│   ├── config.rs
+│   ├── logging.rs
+│   ├── errors.rs
+│   ├── database.rs
+│   ├── jwt.rs          # JWT validation & claims helpers
+│   └── tools.rs        # Time + ID generators
+
+├── domain/
+│   ├── mod.rs
+│   ├── value_objects.rs
+│   ├── entities.rs
+│   ├── repositories.rs
+│   └── events.rs
+
+├── application/
+│   ├── mod.rs
+│   ├── dtos.rs
+│   ├── commands.rs
+│   ├── queries.rs
+│   └── services.rs
+
+├── infrastructure/
+│   ├── mod.rs
+│   ├── persistence.rs
+│   ├── keycloak.rs
+│   └── cache.rs
+
+├── interfaces/
+│   ├── mod.rs
+│   ├── openapi.rs
+│   ├── handlers.rs
+│   └── routes.rs
+
+
+        
+
+
+Here’s a full, professional README.md for your auth-service project based on everything we’ve designed so far, including architecture, endpoints, setup, and usage.
+
+# Auth Service
+
+**Auth Service** is a production-ready authentication and user management microservice written in Rust.  
+It integrates with **Keycloak** for authentication and role management and uses **PostgreSQL** as the primary database.  
+
+The service follows **DDD architecture** with layered design, CQRS-style commands and queries, audit logging, caching, and Swagger documentation.
+
+---
+
+## Table of Contents
+
+- [Features](#features)  
+- [Architecture](#architecture)  
+- [Endpoints](#endpoints)  
+- [Tech Stack](#tech-stack)  
+- [Setup & Run](#setup--run)  
+- [Environment Variables](#environment-variables)  
+- [Database Migrations](#database-migrations)  
+- [Swagger / OpenAPI](#swagger--openapi)  
+- [Bi-directional Keycloak Sync](#bi-directional-keycloak-sync)  
+- [Audit Logging](#audit-logging)  
+- [License](#license)  
+
+---
+
+## Features
+
+- **User Management**
+  - Self-registration for external users (role=user)
+  - Admin-created users with roles: admin, partner, operator
+  - Role-based constraints: network_id and station_id
+  - Full CRUD operations
+- **Authentication**
+  - JWT tokens with roles and attributes (`network_id`, `station_id`)
+  - Keycloak integration for secure authentication
+- **Bi-directional Keycloak ⇄ DB Sync**
+  - DB changes propagated to Keycloak
+  - Keycloak changes reflected in DB (polling/webhooks)
+- **Audit & Monitoring**
+  - Tracks all user operations with geo-location and user-agent
+  - Searchable by user, action, and resource
+- **Caching**
+  - Redis or in-memory cache for read-heavy queries
+  - Automatic cache invalidation on user updates
+- **Swagger / OpenAPI**
+  - Auto-generated API documentation and interactive UI
+- **Logging**
+  - Structured JSON logs with `tracing` and `tracing-subscriber`
+- **NanoID-based IDs**
+  - Unique IDs with prefixes (`USR`, `AUD`) for users and audits
+
+---
+
+## Architecture
+
+
+
+Frontend / API Consumers
+│
+▼
+Interfaces (routes.rs, handlers.rs, middleware)
+│
+▼
+Application (UserService, AuditService, Commands/Queries, DTOs)
+│
+▼
+Domain (Entities, Value Objects, Events)
+│
+▼
+Infrastructure (Postgres Repositories, Cache, Keycloak Client, GeoIP)
+│
+▼
+Keycloak & PostgreSQL
+
+
+**Layers:**
+- **Domain:** Business entities, value objects, events
+- **Application:** Use cases, commands, queries, DTOs
+- **Infrastructure:** Repositories, Keycloak client, cache, geo-IP
+- **Interfaces:** HTTP routes, handlers, middleware, Swagger/OpenAPI
+
+---
+
+## Endpoints
+
+### Health & System
+- `GET /health` – Health check
+- `GET /metrics` – Metrics (optional)
+
+### Authentication
+- `POST /login` – Login (returns JWT)
+- `POST /refresh` – Refresh token
+- `GET /me` – Get current user profile
+
+### External Users
+- `POST /users/register` – Self-registration
+- `GET /users/verify?token=...` – Email verification
+
+### Admin/Internal Users
+- `POST /admin/users` – Create user
+- `GET /admin/users/{id}` – Get user by ID
+- `GET /admin/users` – Search users
+- `PUT /admin/users/{id}` – Update user
+- `DELETE /admin/users/{id}` – Deactivate/delete user
+
+### Roles / Access Control
+- `GET /roles` – List roles
+- `GET /users/{id}/roles` – Get user roles
+- `PUT /users/{id}/roles` – Update roles
+
+### Audit
+- `GET /audit` – List audit logs
+- `GET /audit/{id}` – Get specific audit
+
+### Keycloak Sync
+- `POST /sync/keycloak` – Manual DB → Keycloak sync
+- `POST /sync/keycloak/poll` – Poll Keycloak → DB sync
+
+### Cache
+- `POST /cache/clear` – Clear all cache
+- `POST /cache/clear/{user_id}` – Clear cache for specific user
+
+### Swagger / OpenAPI
+- `GET /swagger-ui` – Swagger UI
+- `GET /openapi.json` – OpenAPI JSON
+
+---
+
+## Tech Stack
+
+- **Rust** – Language
+- **Actix-Web + Actix-CORS** – Web framework
+- **PostgreSQL + SQLx** – Database
+- **Keycloak** – Identity & access management
+- **Redis / In-Memory** – Cache
+- **Tracing / Tracing-subscriber** – Logging
+- **Anyhow / Thiserror** – Error handling
+- **Utoipa / Utoipa-Swagger-UI** – OpenAPI documentation
+- **Dotenvy** – Environment variable management
+
+---
+
+## Setup & Run
+
+1. **Clone the repository**
+
+```bash
+git clone <repo-url>
+cd auth-service
+
+
+Setup environment
+
+cp .env.example .env
+# configure DATABASE_URL, SERVER_HOST, SERVER_PORT, Keycloak details
+
+
+Run Docker Compose (Postgres + Keycloak)
+
+docker-compose up -d
+
+
+Run migrations
+
+./scripts/migrate.sh
+
+
+Start the service
+
+cargo run
+
+
+Access Swagger UI
+
+http://localhost:3000/swagger-ui
+
+Database Migrations
+
+Migrations are stored in the migrations/ folder:
+
+001_create_users.sql – Users table
+
+002_create_audits.sql – Audit table
+
+003_create_outbox_events.sql – Domain events / outbox
+
+004_indexes.sql – Useful indexes for performance
+
+Bi-directional Keycloak Sync
+
+DB → Keycloak: Domain events trigger Keycloak user creation/update/deletion
+
+Keycloak → DB: Scheduled polling or webhooks update DB for changes
+
+Audit and cache invalidation are triggered on both sides
+
+Audit Logging
+
+Stores user actions, timestamp, geographic location, user-agent
+
+Searchable via /audit endpoints
+
+Automatically triggered on create/update/delete actions
+
+License
+
+This project is licensed under the MIT License.
+
+Notes
+
+All IDs use NanoID with prefixes (USR for users, AUD for audit entries)
+
+Commands and Queries follow CQRS pattern
+
+All endpoints are secured using JWT + Keycloak roles
+
+Caching is optional but recommended for high read loads

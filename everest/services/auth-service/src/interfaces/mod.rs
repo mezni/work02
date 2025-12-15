@@ -1,3 +1,1 @@
-pub mod api_doc;
-pub mod handlers;
-pub mod routes;
+pub mod http;

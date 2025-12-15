@@ -1,7 +1,6 @@
-pub mod error;
+pub mod cache;
 pub mod keycloak_client;
-pub mod user_repository;
+pub mod repositories;
 
-pub use error::DomainError;
+// Re-export for convenience
 pub use keycloak_client::KeycloakClient;
-pub use user_repository::PostgresUserRepository;
