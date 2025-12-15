@@ -1,4 +1,2 @@
-pub mod audit;
-pub mod events;
-pub mod user;
-pub mod value_objects;
+pub mod entities;
+pub mod repositories;

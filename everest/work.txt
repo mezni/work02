@@ -1,262 +1,193 @@
+Auth Service: summary
+- This service is NOT a login system.
+- It is a security backbone that:
+Delegates authentication & passwords to Keycloak
+Owns authorization, user metadata, and auditing
+Issues and validates JWT tokens trusted by all other services
+Passwords are NEVER stored or handled here.
+
+
+2 Core Responsibilities: This service MUST do the following:
+- Manage users (external & internal)
+- Enforce role + scope rules
+- Validate Keycloak JWT tokens
+- Sync users between Keycloak and PostgreSQL
+- Record all security-relevant actions
+- Expose a clean HTTP API with Swagger
+
+3- Authority Model
+| Concern                                  | Authority                |
+| ---------------------------------------- | ------------------------ |
+| Identity (email, password, verification) | **Keycloak**             |
+| Authorization (roles, scope, metadata)   | **PostgreSQL**           |
+| Tokens                                   | **Keycloak-issued JWTs** |
+| Validation                               | **Auth Service**         |
+Keycloak = Identity source of truth
+PostgreSQL = Business source of truth
+
+4- User Types & Rules
+- External Users (Self-Registration)
+Endpoint: POST /api/v1/auth/register
+Role: user
+Source: web
+network_id = X, station_id = X
+Email verification handled by Keycloak
+Stored in DB after Keycloak creation
+
+- Internal Users (Admin-Created)
+Endpoint: POST /api/v1/admin/users
+Source: internal
+Allowed roles:
+admin
+partner → must have network_id
+operator → must have network_id + station_id
+Created in DB + synced to Keycloak
+
+5- JWT Tokens (Critical)
+JWTs are issued by Keycloak and MUST contain:
+user_id (from DB)
+roles
+network_id
+station_id
+ex: {
+  "sub": "keycloak-user-id",
+  "user_id": "USR-xxxxxxxxxxxxx",
+  "roles": ["admin", "partner", "operator", "user"],
+  "network_id": "NET-xxx",
+  "station_id": "STA-xxx",
+  "iss": "https://keycloak/auth/realms/your-realm",
+  "exp": 1710000000,
+  "iat": 1709990000
+}
+
+
+Your service MUST:
+Validate JWT signature
+Cache Keycloak public keys in memory
+Extract claims
+Enforce permissions
+No database lookup is required for normal authorization
+
+
+6- env variables 
+DATABASE_URL=postgresql://postgres:password@localhost:6200/auth_db
+SERVER_HOST=0.0.0.0 (optional)
+SERVER_PORT=3000 (optional)
+RUST_LOG=info (optional)
+
+# Keycloak Configuration
+KEYCLOAK_URL=http://localhost:5080
+KEYCLOAK_REALM=myrealm
+
+# Frontend client (public, for user authentication)
+KEYCLOAK_AUTH_CLIENT_ID=auth-client
+
+# Backend service account (confidential, for admin operations)
+KEYCLOAK_BACKEND_CLIENT_ID=backend-admin
+KEYCLOAK_BACKEND_CLIENT_SECRET=backend-admin-secret
+
+
+7- API Surface (Required)
+Public
+POST /api/v1/auth/register
+GET /api/v1/health
+GET /api/v1/swagger-ui
+
+User
+GET /api/v1/users/me
+PUT /api/v1/users/me
+
+Admin
+POST /api/v1/admin/users
+GET /api/v1/admin/users
+GET /api/v1/admin/users?search=...
+PUT /api/v1/admin/users/{id}
+DELETE /api/v1/admin/users/{id} (soft delete)
+
+8- Background Job
+A scheduled job runs every few minutes to:
+Fetch users from Keycloak
+Sync roles, status, attributes into DB
+Detect and log changes
+This keeps DB and Keycloak consistent.
+
+9- project structure
 src/
+├── core/            # Shared utilities (config, logging, jwt, ids)
+├── domain/          # Business rules only
+├── application/     # Use cases (services, commands, queries)
+├── infrastructure/  # DB, Keycloak, cache implementations
+├── interfaces/      # HTTP handlers, routes, Swagger
 ├── main.rs
 ├── lib.rs
 
+
+src/
+├── main.rs
+├── lib.rs
 ├── core/
-│   ├── mod.rs
 │   ├── config.rs
 │   ├── logging.rs
 │   ├── errors.rs
 │   ├── database.rs
-│   ├── jwt.rs          # JWT validation & claims helpers
-│   └── tools.rs        # Time + ID generators
+│   ├── jwt.rs          # JWT validation & claim extraction
+│   └── id_generator.rs        # nanoid, time helpers
 
 ├── domain/
-│   ├── mod.rs
+│   ├── entities.rs     # User, Role
 │   ├── value_objects.rs
-│   ├── entities.rs
 │   ├── repositories.rs
 │   └── events.rs
 
 ├── application/
-│   ├── mod.rs
 │   ├── dtos.rs
 │   ├── commands.rs
 │   ├── queries.rs
 │   └── services.rs
 
 ├── infrastructure/
-│   ├── mod.rs
-│   ├── persistence.rs
-│   ├── keycloak.rs
-│   └── cache.rs
+│   ├── persistence.rs  # SQLx repositories
+│   ├── keycloak.rs     # Keycloak client
+│   └── cache.rs        # In-memory cache
 
 ├── interfaces/
-│   ├── mod.rs
-│   ├── openapi.rs
 │   ├── handlers.rs
-│   └── routes.rs
-
-
-        
-
-
-Here’s a full, professional README.md for your auth-service project based on everything we’ve designed so far, including architecture, endpoints, setup, and usage.
-
-# Auth Service
-
-**Auth Service** is a production-ready authentication and user management microservice written in Rust.  
-It integrates with **Keycloak** for authentication and role management and uses **PostgreSQL** as the primary database.  
-
-The service follows **DDD architecture** with layered design, CQRS-style commands and queries, audit logging, caching, and Swagger documentation.
-
----
-
-## Table of Contents
-
-- [Features](#features)  
-- [Architecture](#architecture)  
-- [Endpoints](#endpoints)  
-- [Tech Stack](#tech-stack)  
-- [Setup & Run](#setup--run)  
-- [Environment Variables](#environment-variables)  
-- [Database Migrations](#database-migrations)  
-- [Swagger / OpenAPI](#swagger--openapi)  
-- [Bi-directional Keycloak Sync](#bi-directional-keycloak-sync)  
-- [Audit Logging](#audit-logging)  
-- [License](#license)  
-
----
-
-## Features
-
-- **User Management**
-  - Self-registration for external users (role=user)
-  - Admin-created users with roles: admin, partner, operator
-  - Role-based constraints: network_id and station_id
-  - Full CRUD operations
-- **Authentication**
-  - JWT tokens with roles and attributes (`network_id`, `station_id`)
-  - Keycloak integration for secure authentication
-- **Bi-directional Keycloak ⇄ DB Sync**
-  - DB changes propagated to Keycloak
-  - Keycloak changes reflected in DB (polling/webhooks)
-- **Audit & Monitoring**
-  - Tracks all user operations with geo-location and user-agent
-  - Searchable by user, action, and resource
-- **Caching**
-  - Redis or in-memory cache for read-heavy queries
-  - Automatic cache invalidation on user updates
-- **Swagger / OpenAPI**
-  - Auto-generated API documentation and interactive UI
-- **Logging**
-  - Structured JSON logs with `tracing` and `tracing-subscriber`
-- **NanoID-based IDs**
-  - Unique IDs with prefixes (`USR`, `AUD`) for users and audits
-
----
-
-## Architecture
-
-
-
-Frontend / API Consumers
-│
-▼
-Interfaces (routes.rs, handlers.rs, middleware)
-│
-▼
-Application (UserService, AuditService, Commands/Queries, DTOs)
-│
-▼
-Domain (Entities, Value Objects, Events)
-│
-▼
-Infrastructure (Postgres Repositories, Cache, Keycloak Client, GeoIP)
-│
-▼
-Keycloak & PostgreSQL
-
-
-**Layers:**
-- **Domain:** Business entities, value objects, events
-- **Application:** Use cases, commands, queries, DTOs
-- **Infrastructure:** Repositories, Keycloak client, cache, geo-IP
-- **Interfaces:** HTTP routes, handlers, middleware, Swagger/OpenAPI
-
----
-
-## Endpoints
-
-### Health & System
-- `GET /health` – Health check
-- `GET /metrics` – Metrics (optional)
-
-### Authentication
-- `POST /login` – Login (returns JWT)
-- `POST /refresh` – Refresh token
-- `GET /me` – Get current user profile
-
-### External Users
-- `POST /users/register` – Self-registration
-- `GET /users/verify?token=...` – Email verification
-
-### Admin/Internal Users
-- `POST /admin/users` – Create user
-- `GET /admin/users/{id}` – Get user by ID
-- `GET /admin/users` – Search users
-- `PUT /admin/users/{id}` – Update user
-- `DELETE /admin/users/{id}` – Deactivate/delete user
-
-### Roles / Access Control
-- `GET /roles` – List roles
-- `GET /users/{id}/roles` – Get user roles
-- `PUT /users/{id}/roles` – Update roles
-
-### Audit
-- `GET /audit` – List audit logs
-- `GET /audit/{id}` – Get specific audit
-
-### Keycloak Sync
-- `POST /sync/keycloak` – Manual DB → Keycloak sync
-- `POST /sync/keycloak/poll` – Poll Keycloak → DB sync
-
-### Cache
-- `POST /cache/clear` – Clear all cache
-- `POST /cache/clear/{user_id}` – Clear cache for specific user
-
-### Swagger / OpenAPI
-- `GET /swagger-ui` – Swagger UI
-- `GET /openapi.json` – OpenAPI JSON
-
----
-
-## Tech Stack
-
-- **Rust** – Language
-- **Actix-Web + Actix-CORS** – Web framework
-- **PostgreSQL + SQLx** – Database
-- **Keycloak** – Identity & access management
-- **Redis / In-Memory** – Cache
-- **Tracing / Tracing-subscriber** – Logging
-- **Anyhow / Thiserror** – Error handling
-- **Utoipa / Utoipa-Swagger-UI** – OpenAPI documentation
-- **Dotenvy** – Environment variable management
-
----
-
-## Setup & Run
-
-1. **Clone the repository**
-
-```bash
-git clone <repo-url>
-cd auth-service
-
-
-Setup environment
-
-cp .env.example .env
-# configure DATABASE_URL, SERVER_HOST, SERVER_PORT, Keycloak details
-
-
-Run Docker Compose (Postgres + Keycloak)
-
-docker-compose up -d
-
-
-Run migrations
-
-./scripts/migrate.sh
-
-
-Start the service
-
-cargo run
-
-
-Access Swagger UI
-
-http://localhost:3000/swagger-ui
-
-Database Migrations
-
-Migrations are stored in the migrations/ folder:
-
-001_create_users.sql – Users table
-
-002_create_audits.sql – Audit table
-
-003_create_outbox_events.sql – Domain events / outbox
-
-004_indexes.sql – Useful indexes for performance
-
-Bi-directional Keycloak Sync
-
-DB → Keycloak: Domain events trigger Keycloak user creation/update/deletion
-
-Keycloak → DB: Scheduled polling or webhooks update DB for changes
-
-Audit and cache invalidation are triggered on both sides
-
-Audit Logging
-
-Stores user actions, timestamp, geographic location, user-agent
-
-Searchable via /audit endpoints
-
-Automatically triggered on create/update/delete actions
-
-License
-
-This project is licensed under the MIT License.
-
-Notes
-
-All IDs use NanoID with prefixes (USR for users, AUD for audit entries)
-
-Commands and Queries follow CQRS pattern
-
-All endpoints are secured using JWT + Keycloak roles
-
-Caching is optional but recommended for high read loads
+│   ├── routes.rs
+│   └── openapi.rs
+
+
+10- Layer Rules (DO NOT BREAK)
+❌ No business logic in HTTP handlers
+❌ No DB access outside repositories
+❌ No Keycloak calls outside infrastructure
+✅ Application layer orchestrates everything
+✅ Domain layer enforces invariants
+
+Hard Rules (Never Violate)
+❌ Never store passwords
+❌ Never trust client roles
+❌ Never bypass Keycloak
+❌ Never mix layers
+✅ Always audit admin actions
+✅ Always sync DB & Keycloak
+✅ Soft delete users only
+
+11- Tech Stack (Fixed)
+Rust
+Actix-Web
+SQLx + PostgreSQL  (use dynamic queries)
+Keycloak
+tracing
+dotenvy
+anyhow + thiserror
+utoipa + Swagger UI
+In-memory cache (HashMap / DashMap)
+nanoid for IDs
+
+12- ID Strategy
+
+All IDs are NanoID-based
+Prefixes:
+USR- → users
+AUD- → audits
+IDs are generated in core/id_generator.rs. nanoid(16)

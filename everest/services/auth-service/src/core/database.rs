@@ -1,40 +1,54 @@
-use sqlx::postgres::{PgPool, PgPoolOptions};
-use std::time::Duration;
+use sqlx::{postgres::PgPoolOptions, PgPool};
+use tracing::info;
 
-pub async fn create_pool(database_url: &str, max_connections: u32) -> anyhow::Result<PgPool> {
+pub async fn create_pool(database_url: &str) -> anyhow::Result<PgPool> {
     let pool = PgPoolOptions::new()
-        .max_connections(max_connections)
-        .acquire_timeout(Duration::from_secs(10))
+        .max_connections(10)
         .connect(database_url)
         .await?;
-
-    tracing::info!("Database pool created successfully");
+    info!("Database connection pool created");
     Ok(pool)
 }
 
 pub async fn run_migrations(pool: &PgPool) -> anyhow::Result<()> {
-    sqlx::migrate!("./migrations")
-        .run(pool)
-        .await?;
-    
-    tracing::info!("Migrations executed successfully");
+    sqlx::query(
+        r#"
+        CREATE TABLE IF NOT EXISTS users (
+            id VARCHAR(20) PRIMARY KEY,
+            keycloak_id VARCHAR(255) UNIQUE NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            source VARCHAR(20) NOT NULL,
+            roles TEXT[] NOT NULL DEFAULT '{}',
+            network_id VARCHAR(20),
+            station_id VARCHAR(20),
+            is_active BOOLEAN NOT NULL DEFAULT true,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            deleted_at TIMESTAMPTZ
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_id);
+        CREATE INDEX IF NOT EXISTS idx_users_deleted_at ON users(deleted_at);
+
+        CREATE TABLE IF NOT EXISTS audit_logs (
+            id VARCHAR(20) PRIMARY KEY,
+            user_id VARCHAR(20),
+            action VARCHAR(100) NOT NULL,
+            resource_type VARCHAR(50) NOT NULL,
+            resource_id VARCHAR(20),
+            details JSONB,
+            ip_address VARCHAR(45),
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+        CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+        "#,
+    )
+    .execute(pool)
+    .await?;
+
+    info!("Database migrations completed");
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_pool_creation() {
-        // This test requires a running PostgreSQL instance
-        // Skip in CI/CD environments without database
-        if std::env::var("DATABASE_URL").is_ok() {
-            let pool = create_pool(
-                &std::env::var("DATABASE_URL").unwrap(),
-                5
-            ).await;
-            assert!(pool.is_ok());
-        }
-    }
 }

@@ -2,55 +2,56 @@
 name = "auth-service"
 version = "0.1.0"
 edition = "2024"
-authors = ["M.MEZNI"]
-description = "Bornemap"
 
 [dependencies]
-# Web framework
-actix-web = "4.12.1"
+# Web Framework
 actix-cors = "0.7.1"
-
-# Async runtime
-tokio = { version = "1.48.0", features = ["full"] }
+actix-web = "4.12.1"
 
 # Database
-sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "json"] }
+sqlx = { version = "0.8.6", features = ["runtime-tokio-native-tls", "postgres", "chrono", "uuid"] }
+
+# Async Runtime
+tokio = { version = "1.48.0", features = ["full"] }
 
 # Serialization
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 
-# Error handling
+# Error Handling
 anyhow = "1.0.100"
 thiserror = "2.0.17"
 
+
 # Logging
 tracing = "0.1.43"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter", "json"] }
-tracing-actix-web = "0.7.20"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 # Configuration
 dotenvy = "0.15.7"
 
-# OpenAPI/Swagger
-utoipa = { version = "5.4.0", features = ["actix_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
 
-# Utilities
-chrono = { version = "0.4.42", features = ["serde"] }
-uuid = { version = "1.19.0", features = ["v4", "serde"] }
-nanoid = "0.4.0"
-validator = { version = "0.20.0", features = ["derive"] }
-
-# HTTP client for Keycloak
+# JWT & Crypto
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
 reqwest = { version = "0.12.25", features = ["json"] }
 
-# Security
-bcrypt = "0.17.1"
-jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+# Time
+chrono = { version = "0.4.42", features = ["serde"] }
 
-# GeoIP
-maxminddb = "0.27.0"
-async-trait = "0.1.89"
+# ID Generation
+nanoid = "0.4.0"
+
+# OpenAPI
+utoipa = { version = "5.4.0", features = ["actix_extras", "chrono"] }
+utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+
+# Async utilities
 futures = "0.3.31"
-futures-util = "0.3.31"
+async-trait = "0.1.89"
+
+# In-memory cache
+dashmap = "6.1.0"
+
+# Password validation (for external user validation only)
+validator = { version = "0.20.0", features = ["derive"] }
+
