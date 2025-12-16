@@ -51,6 +51,8 @@ touch src/core/errors.rs
 touch src/core/database.rs
 touch src/core/jwt.rs
 touch src/core/id_generator.rs
+touch src/core/constants.rs
+touch src/core/middleware.rs
 
 # =========================
 # Domain

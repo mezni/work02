@@ -1,3 +1,256 @@
+src/domain/
+├── mod.rs
+├── value_objects.rs
+├── entities.rs
+├── events.rs
+├── errors.rs
+└── repositories.rs
+
+
+-- ============================================
+-- MAIN USERS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS users (
+    user_id VARCHAR(32) PRIMARY KEY,              -- USR + nanoid
+    keycloak_id VARCHAR(255) UNIQUE NOT NULL,     -- Keycloak UUID
+    email VARCHAR(255) NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(20),
+    photo TEXT,
+    is_verified BOOLEAN DEFAULT FALSE,
+    role VARCHAR(50) NOT NULL DEFAULT 'user',
+    network_id VARCHAR(32) NOT NULL DEFAULT '',
+    station_id VARCHAR(32) NOT NULL DEFAULT '',
+    source VARCHAR(20) NOT NULL DEFAULT 'web',
+    is_active BOOLEAN DEFAULT TRUE,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    created_by VARCHAR(32),
+    updated_by VARCHAR(32),
+    
+    -- Constraints
+    CONSTRAINT valid_role CHECK (role IN ('user', 'admin', 'partner', 'operator')),
+    CONSTRAINT valid_source CHECK (source IN ('web', 'internal')),
+);
+
+-- ============================================
+-- REGISTRATION WORKFLOW TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_registrations (
+    registration_id VARCHAR(32) PRIMARY KEY,      -- REG + nanoid
+    email VARCHAR(255) NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(20),
+    
+    -- Keycloak integration
+    keycloak_id VARCHAR(255),                     -- Populated after Keycloak user creation
+    keycloak_status VARCHAR(20) DEFAULT 'pending', -- pending, created, verified, failed
+    
+    -- Verification
+    verification_token VARCHAR(255) NOT NULL,
+    verification_expires TIMESTAMP WITH TIME ZONE NOT NULL,
+    verification_attempts INTEGER DEFAULT 0,
+    last_verification_sent TIMESTAMP WITH TIME ZONE,
+    
+    -- Registration metadata
+    status VARCHAR(20) DEFAULT 'pending',         -- pending, verified, completed, failed, expired
+    source VARCHAR(20) DEFAULT 'web',             -- web, mobile, api, admin
+    ip_address INET,
+    user_agent TEXT,
+    device_info JSONB,                            -- {device_type, os, browser}
+    
+    -- Security
+    password_hash VARCHAR(255),                   -- Only if using local auth before Keycloak
+    temporary_password BOOLEAN DEFAULT TRUE,
+    
+    -- Additional data
+    metadata JSONB DEFAULT '{}'::jsonb,           -- Custom fields
+    preferences JSONB DEFAULT '{}'::jsonb,        -- User preferences
+    consent_data JSONB DEFAULT '{}'::jsonb,       -- GDPR/tracking consent
+    
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE,
+    
+    -- Constraints
+    CONSTRAINT valid_registration_status CHECK (
+        status IN ('pending', 'verified', 'completed', 'failed', 'expired')
+    ),
+    CONSTRAINT valid_keycloak_status CHECK (
+        keycloak_status IN ('pending', 'created', 'verified', 'failed')
+    ),
+    CONSTRAINT valid_source_type CHECK (
+        source IN ('web', 'mobile', 'api', 'admin', 'invite')
+    ),
+    CONSTRAINT check_registration_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
+);
+
+-- ============================================
+-- KEYCLOAK SYNC LOG TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS keycloak_sync_log (
+    sync_id SERIAL PRIMARY KEY,
+    registration_id VARCHAR(32) REFERENCES user_registrations(registration_id),
+    keycloak_id VARCHAR(255),
+    action VARCHAR(50) NOT NULL,                  -- create_user, update_user, delete_user, send_verification
+    status VARCHAR(20) NOT NULL,                  -- success, failed, pending
+    request_payload JSONB,
+    response_payload JSONB,
+    error_message TEXT,
+    http_status INTEGER,
+    retry_count INTEGER DEFAULT 0,
+    next_retry_at TIMESTAMP WITH TIME ZONE,
+    synced_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT valid_sync_action CHECK (
+        action IN ('create_user', 'update_user', 'delete_user', 'send_verification', 
+                  'update_password', 'update_email', 'verify_email')
+    ),
+    CONSTRAINT valid_sync_status CHECK (
+        status IN ('success', 'failed', 'pending', 'retrying')
+    )
+);
+
+-- ============================================
+-- EMAIL VERIFICATION LOGS
+-- ============================================
+CREATE TABLE IF NOT EXISTS email_verification_logs (
+    log_id SERIAL PRIMARY KEY,
+    registration_id VARCHAR(32) REFERENCES user_registrations(registration_id),
+    user_id VARCHAR(32) REFERENCES users(user_id),
+    email VARCHAR(255) NOT NULL,
+    action VARCHAR(50) NOT NULL,                  -- send_verification, resend_verification, verification_success
+    token_used VARCHAR(255),
+    ip_address INET,
+    user_agent TEXT,
+    status VARCHAR(20) NOT NULL,                  -- sent, delivered, opened, clicked, failed
+    provider_message_id VARCHAR(255),
+    provider_response JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT valid_verification_action CHECK (
+        action IN ('send_verification', 'resend_verification', 'verification_success', 
+                  'verification_failed', 'verification_expired')
+    ),
+    CONSTRAINT valid_verification_status CHECK (
+        status IN ('sent', 'delivered', 'opened', 'clicked', 'failed', 'bounced')
+    )
+);
+
+-- ============================================
+-- PASSWORD RESET TOKENS
+-- ============================================
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+    token_id SERIAL PRIMARY KEY,
+    user_id VARCHAR(32) REFERENCES users(user_id),
+    keycloak_id VARCHAR(255),
+    token_hash VARCHAR(255) NOT NULL,
+    token_type VARCHAR(20) DEFAULT 'password_reset', -- password_reset, email_change
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    used_at TIMESTAMP WITH TIME ZONE,
+    used_ip INET,
+    is_used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT valid_token_type CHECK (
+        token_type IN ('password_reset', 'email_change', 'account_activation')
+    )
+);
+
+-- ============================================
+-- LOGIN AUDIT LOG
+-- ============================================
+CREATE TABLE IF NOT EXISTS login_audit_log (
+    audit_id SERIAL PRIMARY KEY,
+    user_id VARCHAR(32) REFERENCES users(user_id),
+    keycloak_id VARCHAR(255),
+    email VARCHAR(255),
+    action VARCHAR(50) NOT NULL,                  -- login_success, login_failed, logout, token_refresh
+    ip_address INET NOT NULL,
+    user_agent TEXT,
+    location JSONB,                               -- {country, city, latitude, longitude}
+    device_fingerprint VARCHAR(255),
+    session_id VARCHAR(255),
+    details JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT valid_login_action CHECK (
+        action IN ('login_success', 'login_failed', 'logout', 'token_refresh', 
+                  'password_change', 'token_revoked')
+    )
+);
+
+-- ============================================
+-- USER PREFERENCES
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_preferences (
+    preference_id SERIAL PRIMARY KEY,
+    user_id VARCHAR(32) REFERENCES users(user_id) ON DELETE CASCADE,
+    preference_key VARCHAR(100) NOT NULL,
+    preference_value JSONB NOT NULL,
+    category VARCHAR(50) DEFAULT 'general',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    UNIQUE(user_id, preference_key, category)
+);
+
+-- ============================================
+-- INVITATIONS TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS user_invitations (
+    invitation_id VARCHAR(32) PRIMARY KEY,        -- INV + nanoid
+    inviter_id VARCHAR(32) REFERENCES users(user_id),
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'user',
+    network_id VARCHAR(32),
+    station_id VARCHAR(32),
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',         -- pending, accepted, expired, revoked
+    metadata JSONB DEFAULT '{}'::jsonb,
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    accepted_by VARCHAR(32) REFERENCES users(user_id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    CONSTRAINT valid_invitation_status CHECK (
+        status IN ('pending', 'accepted', 'expired', 'revoked')
+    ),
+    CONSTRAINT valid_invitation_role CHECK (
+        role IN ('user', 'admin', 'partner', 'operator')
+    )
+);
+
+-- ============================================
+-- RATE LIMITING TABLE
+-- ============================================
+CREATE TABLE IF NOT EXISTS rate_limits (
+    limit_id SERIAL PRIMARY KEY,
+    identifier VARCHAR(255) NOT NULL,             -- IP, email, user_id
+    action_type VARCHAR(50) NOT NULL,             -- registration, login, verification, password_reset
+    attempt_count INTEGER DEFAULT 1,
+    first_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_attempt TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    is_blocked BOOLEAN DEFAULT FALSE,
+    blocked_until TIMESTAMP WITH TIME ZONE,
+    block_reason TEXT,
+    
+    UNIQUE(identifier, action_type)
+);
+
+
+
+
+
+
+
 Auth Service: summary
 - This service is NOT a login system.
 - It is a security backbone that:
@@ -131,23 +384,25 @@ src/
 │   ├── errors.rs
 │   ├── database.rs
 │   ├── jwt.rs          # JWT validation & claim extraction
-│   └── id_generator.rs        # nanoid, time helpers
-
+│   ├── constants.rs         
 ├── domain/
-│   ├── entities.rs     # User, Role
+│   ├── user.rs    
+│   ├── token.rs    
 │   ├── value_objects.rs
 │   ├── repositories.rs
 │   └── events.rs
-
 ├── application/
-│   ├── dtos.rs
-│   ├── commands.rs
-│   ├── queries.rs
-│   └── services.rs
-
+│   ├── user_dtos.rs
+│   ├── user_commands.rs
+│   ├── user_queries.rs
+│   └── user_services.rs
+│   ├── auth_dtos.rs
+│   ├── auth_commands.rs
+│   ├── auth_queries.rs
+│   └── auth_services.rs
 ├── infrastructure/
-│   ├── persistence.rs  # SQLx repositories
-│   ├── keycloak.rs     # Keycloak client
+│   ├── user_repo.rs  # SQLx repositories
+│   ├── keycloak_client.rs     # Keycloak client
 │   └── cache.rs        # In-memory cache
 
 ├── interfaces/

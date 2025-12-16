@@ -1,9 +1,0 @@
-services:
-  auth-service:
-    build:
-      context: ../services
-      dockerfile: auth-service/Dockerfile
-    container_name: auth-service
-    ports:
-      - "3100:8080"
-    restart: unless-stopped
