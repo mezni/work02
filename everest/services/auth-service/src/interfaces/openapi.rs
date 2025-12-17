@@ -1,8 +1,6 @@
 // src/interfaces/openapi.rs
 use crate::application::*;
-use crate::interfaces::{
-    admin_handlers, audit_handlers, auth_handlers, health_handlers, user_handlers,
-};
+use crate::interfaces::{admin_handlers, audit_handlers, auth_handlers, health_handlers, sync_handlers, user_handlers};
 use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 
@@ -35,6 +33,11 @@ use utoipa::{Modify, OpenApi};
         
         // Audit
         audit_handlers::get_login_audit_logs,
+        
+        // Sync
+        sync_handlers::get_sync_stats,
+        sync_handlers::trigger_sync,
+        sync_handlers::sync_user,
     ),
     components(
         schemas(
@@ -72,6 +75,11 @@ use utoipa::{Modify, OpenApi};
             LoginAuditLogResponse,
             GetAuditLogsRequest,
             PaginatedAuditLogsResponse,
+            
+            // Sync DTOs
+            sync_handlers::SyncStatsResponse,
+            sync_handlers::TriggerSyncResponse,
+            sync_handlers::SyncUserResponse,
         )
     ),
     tags(
@@ -79,7 +87,8 @@ use utoipa::{Modify, OpenApi};
         (name = "Authentication", description = "User authentication and registration"),
         (name = "Users", description = "User profile management"),
         (name = "Admin - Users", description = "Administrative user management"),
-        (name = "Admin - Audit", description = "Audit log management")
+        (name = "Admin - Audit", description = "Audit log management"),
+        (name = "Admin - Sync", description = "Keycloak synchronization")
     ),
     modifiers(&SecurityAddon),
     info(
@@ -109,7 +118,9 @@ impl Modify for SecurityAddon {
                     HttpBuilder::new()
                         .scheme(HttpAuthScheme::Bearer)
                         .bearer_format("JWT")
-                        .description(Some("JWT token obtained from /api/v1/auth/login endpoint"))
+                        .description(Some(
+                            "JWT token obtained from /api/v1/auth/login endpoint"
+                        ))
                         .build(),
                 ),
             )

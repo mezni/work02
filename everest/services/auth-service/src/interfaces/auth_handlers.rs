@@ -4,8 +4,8 @@ use crate::application::{
     RefreshTokenRequest, RegisterRequest, RegisterResponse, RequestPasswordResetRequest,
     TokenResponse, VerifyEmailRequest, VerifyEmailResponse,
 };
-use crate::core::{AppError, extract_claims};
-use actix_web::{HttpRequest, HttpResponse, Responder, post, web};
+use crate::core::{extract_claims, AppError};
+use actix_web::{post, web, HttpRequest, HttpResponse, Responder};
 use validator::Validate;
 
 /// Register a new user
@@ -27,9 +27,9 @@ pub async fn register(
     http_req: HttpRequest,
 ) -> Result<impl Responder, AppError> {
     // Validate request
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     // Extract IP and user agent
     let ip_address = http_req
@@ -68,9 +68,9 @@ pub async fn verify_email(
     auth_service: web::Data<AuthService>,
     request: web::Json<VerifyEmailRequest>,
 ) -> Result<impl Responder, AppError> {
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     let response = auth_service
         .commands
@@ -98,9 +98,9 @@ pub async fn login(
     request: web::Json<LoginRequest>,
     http_req: HttpRequest,
 ) -> Result<impl Responder, AppError> {
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     let ip_address = http_req
         .connection_info()
@@ -137,9 +137,9 @@ pub async fn refresh_token(
     auth_service: web::Data<AuthService>,
     request: web::Json<RefreshTokenRequest>,
 ) -> Result<impl Responder, AppError> {
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     let response = auth_service
         .commands
@@ -171,9 +171,9 @@ pub async fn change_password(
 ) -> Result<impl Responder, AppError> {
     let claims = extract_claims(&http_req)?;
 
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     auth_service
         .commands
@@ -202,9 +202,9 @@ pub async fn request_password_reset(
     request: web::Json<RequestPasswordResetRequest>,
     http_req: HttpRequest,
 ) -> Result<impl Responder, AppError> {
-    request
-        .validate()
-        .map_err(|e| AppError::Validation(format!("Validation error: {}", e)))?;
+    request.validate().map_err(|e| {
+        AppError::Validation(format!("Validation error: {}", e))
+    })?;
 
     let ip_address = http_req
         .connection_info()
@@ -217,8 +217,7 @@ pub async fn request_password_reset(
         .await?;
 
     Ok(HttpResponse::Ok().json(AuthSuccessResponse {
-        message: "If an account exists with this email, a password reset link has been sent."
-            .to_string(),
+        message: "If an account exists with this email, a password reset link has been sent.".to_string(),
     }))
 }
 

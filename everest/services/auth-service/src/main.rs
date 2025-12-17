@@ -4,15 +4,17 @@ mod core;
 mod domain;
 mod infrastructure;
 mod interfaces;
+mod jobs;
 
-use crate::core::{Config, JwtValidator, create_pool, init_logging, run_migrations};
+use crate::core::{create_pool, init_logging, run_migrations, Config, JwtValidator};
 use crate::infrastructure::{
     KeycloakClient, PostgresAuditLogRepository, PostgresRegistrationRepository,
     PostgresUserRepository, TokenBlacklist,
 };
-use crate::interfaces::{ApiDoc, ServiceFactory, configure_routes};
+use crate::interfaces::{configure_routes, ApiDoc, ServiceFactory};
+use crate::jobs::KeycloakSyncJob;
 use actix_cors::Cors;
-use actix_web::{App, HttpServer, middleware::Logger, web};
+use actix_web::{middleware::Logger, web, App, HttpServer};
 use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -68,6 +70,21 @@ async fn main() -> std::io::Result<()> {
 
     let audit_queries = ServiceFactory::create_audit_queries(audit_repo);
 
+    // Initialize Keycloak sync job
+    let sync_job = Arc::new(KeycloakSyncJob::new(
+        pool.clone(),
+        user_repo.clone(),
+        keycloak_client.clone(),
+        300, // Sync every 5 minutes
+    ));
+
+    // Start sync job in background
+    let sync_job_handle = sync_job.clone();
+    tokio::spawn(async move {
+        sync_job_handle.start().await;
+    });
+    tracing::info!("Keycloak sync job started");
+
     // Server address
     let bind_address = format!("{}:{}", config.server.host, config.server.port);
     tracing::info!("Starting server on {}", bind_address);
@@ -81,7 +98,7 @@ async fn main() -> std::io::Result<()> {
             .allow_any_header()
             .max_age(3600);
 
-        App::new()
+        let app = App::new()
             // Middleware
             .wrap(Logger::default())
             .wrap(cors)
@@ -90,13 +107,17 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(auth_service.clone()))
             .app_data(web::Data::new(user_service.clone()))
             .app_data(web::Data::new(audit_queries.clone()))
+            .app_data(web::Data::from(sync_job.clone()))
             // Swagger UI
             .service(
                 SwaggerUi::new("/api/v1/swagger-ui/{_:.*}")
                     .url("/api/v1/openapi.json", ApiDoc::openapi()),
             )
             // Configure routes
-            .configure(configure_routes)
+            .configure(configure_routes);
+        
+        tracing::info!("Routes configured");
+        app
     })
     .bind(&bind_address)?
     .run()
