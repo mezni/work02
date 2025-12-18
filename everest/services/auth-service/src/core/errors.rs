@@ -1,105 +1,48 @@
-use actix_web::{HttpResponse, error::ResponseError, http::StatusCode};
-use serde::Serialize;
-use std::fmt;
+use actix_web::{error::ResponseError, http::StatusCode, HttpResponse};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Error, Debug)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    Database(#[from] sqlx::Error),
-    
-    #[error("Migration error: {0}")]
-    Migration(#[from] sqlx::migrate::MigrateError),
+    DatabaseError(#[from] sqlx::Error),
 
-    #[error("Authentication failed: {0}")]
-    Unauthorized(String),
-
-    #[error("Forbidden: {0}")]
-    Forbidden(String),
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 
     #[error("Not found: {0}")]
     NotFound(String),
 
-    #[error("Bad request: {0}")]
-    BadRequest(String),
-
-    #[error("Validation error: {0}")]
-    Validation(String),
-
-    #[error("JWT error: {0}")]
-    JwtError(String),
-
-    #[error("Keycloak error: {0}")]
-    Keycloak(String),
-
-    #[error("Internal server error: {0}")]
-    Internal(String),
-
     #[error("Conflict: {0}")]
     Conflict(String),
-}
 
-#[derive(Serialize)]
-struct ErrorResponse {
-    error: String,
-    message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    details: Option<String>,
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+
+    #[error("Keycloak error: {0}")]
+    KeycloakError(String),
+
+    #[error("Internal server error: {0}")]
+    InternalError(String),
 }
 
 impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
-            AppError::Unauthorized(_) | AppError::JwtError(_) => StatusCode::UNAUTHORIZED,
-            AppError::Forbidden(_) => StatusCode::FORBIDDEN,
+            AppError::ValidationError(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
-            AppError::BadRequest(_) | AppError::Validation(_) => StatusCode::BAD_REQUEST,
             AppError::Conflict(_) => StatusCode::CONFLICT,
-            AppError::Keycloak(_) => StatusCode::BAD_GATEWAY,
-            // Group all infrastructure/unhandled failures as 500
-            AppError::Database(_) | AppError::Migration(_) | AppError::Internal(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+            AppError::RateLimitExceeded => StatusCode::TOO_MANY_REQUESTS,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
     fn error_response(&self) -> HttpResponse {
-        let status = self.status_code();
-        
-        let error_type = match self {
-            AppError::Unauthorized(_) => "UNAUTHORIZED",
-            AppError::Forbidden(_) => "FORBIDDEN",
-            AppError::NotFound(_) => "NOT_FOUND",
-            AppError::BadRequest(_) => "BAD_REQUEST",
-            AppError::Validation(_) => "VALIDATION_ERROR",
-            AppError::Conflict(_) => "CONFLICT",
-            AppError::JwtError(_) => "JWT_ERROR",
-            AppError::Keycloak(_) => "KEYCLOAK_ERROR",
-            AppError::Database(_) | AppError::Migration(_) | AppError::Internal(_) => "INTERNAL_ERROR",
-        };
-
-        let message = match self {
-            // Security: Prevent leaking SQL syntax or file paths in production
-            AppError::Database(_) | AppError::Migration(_) | AppError::Internal(_) => {
-                "An internal error occurred".to_string()
-            }
-            _ => self.to_string(),
-        };
-
-        HttpResponse::build(status).json(ErrorResponse {
-            error: error_type.to_string(),
-            message,
-            details: None,
-        })
-    }
-}
-
-// Convenient result type for use across the application
-pub type AppResult<T> = Result<T, AppError>;
-
-// Convert anyhow errors to AppError automatically
-impl From<anyhow::Error> for AppError {
-    fn from(err: anyhow::Error) -> Self {
-        AppError::Internal(err.to_string())
+        HttpResponse::build(self.status_code()).json(serde_json::json!({
+            "error": self.to_string(),
+        }))
     }
 }

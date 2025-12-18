@@ -138,7 +138,7 @@ services:
       - "5800:5432"
     volumes:
       - auth-data:/var/lib/postgresql/data
-      - ./databases/auth-db/:/docker-entrypoint-initdb.d/:ro
+#      - ./databases/auth-db/:/docker-entrypoint-initdb.d/:ro
     networks:
       - ev-network
     healthcheck:

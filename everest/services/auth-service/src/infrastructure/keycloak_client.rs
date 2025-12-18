@@ -1,440 +1,363 @@
-// src/infrastructure/keycloak_client.rs
-use crate::core::{AppError, config::KeycloakConfig, errors::AppResult};
-use crate::domain::TokenResponse;
-use reqwest::{Client, StatusCode};
+use crate::core::errors::AppError;
+use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct KeycloakClient {
-    config: KeycloakConfig,
     client: Client,
+    base_url: String,
+    realm: String,
+    auth_client_id: String,
+    backend_client_id: String,
+    backend_client_secret: String,
+    token_cache: Arc<RwLock<Option<TokenCache>>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct KeycloakUser {
-    pub id: String,
-    pub username: String,
-    pub email: String,
-    #[serde(rename = "emailVerified")]
-    pub email_verified: bool,
-    pub enabled: bool,
-    #[serde(rename = "firstName")]
-    pub first_name: Option<String>,
-    #[serde(rename = "lastName")]
-    pub last_name: Option<String>,
-    pub attributes: Option<HashMap<String, Vec<String>>>,
+#[derive(Clone)]
+struct TokenCache {
+    access_token: String,
+    expires_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Deserialize)]
+struct TokenResponse {
+    access_token: String,
+    expires_in: i64,
+    #[serde(default)]
+    refresh_token: Option<String>,
+    #[serde(default)]
+    token_type: Option<String>,
+}
+
+#[derive(Serialize)]
 pub struct CreateUserRequest {
     pub username: String,
     pub email: String,
+    pub enabled: bool,
     #[serde(rename = "emailVerified")]
     pub email_verified: bool,
-    pub enabled: bool,
-    #[serde(rename = "firstName")]
+    #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
-    #[serde(rename = "lastName")]
+    #[serde(rename = "lastName", skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
-    pub credentials: Option<Vec<UserCredential>>,
-    pub attributes: Option<HashMap<String, Vec<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attributes: Option<serde_json::Value>,
+    #[serde(rename = "requiredActions", skip_serializing_if = "Option::is_none")]
+    pub required_actions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserCredential {
-    #[serde(rename = "type")]
-    pub credential_type: String,
-    pub value: String,
-    pub temporary: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct RoleRepresentation {
-    pub id: Option<String>,
-    pub name: String,
-    pub description: Option<String>,
+#[derive(Serialize)]
+struct UpdateUserRequest {
+    enabled: bool,
+    #[serde(rename = "emailVerified")]
+    email_verified: bool,
 }
 
 impl KeycloakClient {
-    pub fn new(config: KeycloakConfig) -> Self {
+    pub fn new(
+        base_url: String,
+        realm: String,
+        auth_client_id: String,
+        backend_client_id: String,
+        backend_client_secret: String,
+    ) -> Self {
         Self {
-            config,
-            client: Client::builder()
-                .timeout(std::time::Duration::from_secs(30))
-                .build()
-                .expect("Failed to create HTTP client"),
+            client: Client::new(),
+            base_url,
+            realm,
+            auth_client_id,
+            backend_client_id,
+            backend_client_secret,
+            token_cache: Arc::new(RwLock::new(None)),
         }
     }
 
-    /// Get admin access token
-    async fn get_admin_token(&self) -> AppResult<String> {
+    /// Get service account token for backend-admin client
+    async fn get_backend_token(&self) -> Result<String, AppError> {
+        // Check cache first
+        {
+            let cache = self.token_cache.read().await;
+            if let Some(ref cached) = *cache {
+                // Add 60 second buffer before expiration
+                if cached.expires_at > chrono::Utc::now() + chrono::Duration::seconds(60) {
+                    return Ok(cached.access_token.clone());
+                }
+            }
+        }
+
+        // Get new token
+        let token_url = format!(
+            "{}/realms/{}/protocol/openid-connect/token",
+            self.base_url, self.realm
+        );
+
         let params = [
-            ("client_id", self.config.backend_client_id.as_str()),
-            ("client_secret", self.config.backend_client_secret.as_str()),
             ("grant_type", "client_credentials"),
+            ("client_id", &self.backend_client_id),
+            ("client_secret", &self.backend_client_secret),
         ];
+
+        tracing::debug!("Requesting backend token from Keycloak");
 
         let response = self
             .client
-            .post(&self.config.token_endpoint())
+            .post(&token_url)
             .form(&params)
             .send()
             .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to get admin token: {}", e)))?;
+            .map_err(|e| AppError::KeycloakError(format!("Token request failed: {}", e)))?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to get admin token: {} - {}",
-                status, text
+        let status = response.status();
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Token request failed with status {}: {}",
+                status, body
             )));
         }
 
         let token_response: TokenResponse = response.json().await.map_err(|e| {
-            AppError::Keycloak(format!("Failed to parse admin token response: {}", e))
+            AppError::KeycloakError(format!("Failed to parse token response: {}", e))
         })?;
 
+        // Cache the token
+        {
+            let mut cache = self.token_cache.write().await;
+            *cache = Some(TokenCache {
+                access_token: token_response.access_token.clone(),
+                expires_at: chrono::Utc::now()
+                    + chrono::Duration::seconds(token_response.expires_in - 60),
+            });
+        }
+
+        tracing::debug!("Backend token obtained successfully");
         Ok(token_response.access_token)
     }
 
-    /// Authenticate user with username/password
-    pub async fn login(&self, username: &str, password: &str) -> AppResult<TokenResponse> {
-        let params = [
-            ("client_id", self.config.auth_client_id.as_str()),
-            ("grant_type", "password"),
-            ("username", username),
-            ("password", password),
-        ];
-
-        let response = self
-            .client
-            .post(&self.config.token_endpoint())
-            .form(&params)
-            .send()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Login request failed: {}", e)))?;
-
-        if !response.status().is_success() {
-            return Err(AppError::Unauthorized("Invalid credentials".to_string()));
-        }
-
-        let token_response: TokenResponse = response
-            .json()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to parse token response: {}", e)))?;
-
-        Ok(token_response)
-    }
-
-    /// Refresh access token
-    pub async fn refresh_token(&self, refresh_token: &str) -> AppResult<TokenResponse> {
-        let params = [
-            ("client_id", self.config.auth_client_id.as_str()),
-            ("grant_type", "refresh_token"),
-            ("refresh_token", refresh_token),
-        ];
-
-        let response = self
-            .client
-            .post(&self.config.token_endpoint())
-            .form(&params)
-            .send()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Token refresh failed: {}", e)))?;
-
-        if !response.status().is_success() {
-            return Err(AppError::Unauthorized("Invalid refresh token".to_string()));
-        }
-
-        let token_response: TokenResponse = response
-            .json()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to parse token response: {}", e)))?;
-
-        Ok(token_response)
-    }
-
     /// Create a new user in Keycloak
-    pub async fn create_user(&self, request: CreateUserRequest) -> AppResult<String> {
-        let admin_token = self.get_admin_token().await?;
+    pub async fn create_user(&self, request: CreateUserRequest) -> Result<String, AppError> {
+        let token = self.get_backend_token().await?;
+        let url = format!("{}/admin/realms/{}/users", self.base_url, self.realm);
+
+        tracing::debug!("Creating user in Keycloak: {}", request.email);
 
         let response = self
             .client
-            .post(&self.config.user_endpoint())
-            .bearer_auth(&admin_token)
+            .post(&url)
+            .bearer_auth(&token)
             .json(&request)
             .send()
             .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to create user: {}", e)))?;
+            .map_err(|e| AppError::KeycloakError(format!("Create user request failed: {}", e)))?;
 
-        if response.status() != StatusCode::CREATED {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to create user: {} - {}",
-                status, text
+        let status = response.status();
+
+        if !status.is_success() {
+            let body = response.text().await.unwrap_or_default();
+
+            if status.as_u16() == 409 {
+                return Err(AppError::Conflict(
+                    "User with this username or email already exists in Keycloak".to_string(),
+                ));
+            }
+
+            return Err(AppError::KeycloakError(format!(
+                "Create user failed with status {}: {}",
+                status, body
             )));
         }
 
         // Extract user ID from Location header
         let location = response
             .headers()
-            .get("Location")
-            .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| AppError::Keycloak("No Location header in response".to_string()))?;
+            .get("location")
+            .ok_or_else(|| AppError::KeycloakError("No Location header in response".to_string()))?
+            .to_str()
+            .map_err(|e| AppError::KeycloakError(format!("Invalid Location header: {}", e)))?;
 
         let user_id = location
             .split('/')
             .last()
-            .ok_or_else(|| AppError::Keycloak("Invalid Location header".to_string()))?
+            .ok_or_else(|| AppError::KeycloakError("Invalid user ID in Location".to_string()))?
             .to_string();
 
+        tracing::info!("User created in Keycloak with ID: {}", user_id);
         Ok(user_id)
     }
 
-    /// Get user by ID
-    pub async fn get_user(&self, keycloak_id: &str) -> AppResult<KeycloakUser> {
-        let admin_token = self.get_admin_token().await?;
-        let url = format!("{}/{}", self.config.user_endpoint(), keycloak_id);
-
-        let response = self
-            .client
-            .get(&url)
-            .bearer_auth(&admin_token)
-            .send()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to get user: {}", e)))?;
-
-        if !response.status().is_success() {
-            return Err(AppError::NotFound("User not found in Keycloak".to_string()));
-        }
-
-        let user: KeycloakUser = response
-            .json()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to parse user response: {}", e)))?;
-
-        Ok(user)
-    }
-
-    /// Update user in Keycloak
-    pub async fn update_user(
-        &self,
-        keycloak_id: &str,
-        email: Option<String>,
-        username: Option<String>,
-        first_name: Option<String>,
-        last_name: Option<String>,
-        enabled: Option<bool>,
-    ) -> AppResult<()> {
-        let admin_token = self.get_admin_token().await?;
-        let url = format!("{}/{}", self.config.user_endpoint(), keycloak_id);
-
-        let mut update_data = json!({});
-
-        if let Some(e) = email {
-            update_data["email"] = json!(e);
-        }
-        if let Some(u) = username {
-            update_data["username"] = json!(u);
-        }
-        if let Some(f) = first_name {
-            update_data["firstName"] = json!(f);
-        }
-        if let Some(l) = last_name {
-            update_data["lastName"] = json!(l);
-        }
-        if let Some(en) = enabled {
-            update_data["enabled"] = json!(en);
-        }
-
-        let response = self
-            .client
-            .put(&url)
-            .bearer_auth(&admin_token)
-            .json(&update_data)
-            .send()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to update user: {}", e)))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to update user: {} - {}",
-                status, text
-            )));
-        }
-
-        Ok(())
-    }
-
-    /// Delete/disable user in Keycloak
-    pub async fn disable_user(&self, keycloak_id: &str) -> AppResult<()> {
-        self.update_user(keycloak_id, None, None, None, None, Some(false))
-            .await
-    }
-
-    /// Set user password
-    pub async fn set_password(
-        &self,
-        keycloak_id: &str,
-        password: &str,
-        temporary: bool,
-    ) -> AppResult<()> {
-        let admin_token = self.get_admin_token().await?;
+    /// Enable a user and mark email as verified
+    pub async fn enable_user(&self, keycloak_id: &str) -> Result<(), AppError> {
+        let token = self.get_backend_token().await?;
         let url = format!(
-            "{}/{}/reset-password",
-            self.config.user_endpoint(),
-            keycloak_id
+            "{}/admin/realms/{}/users/{}",
+            self.base_url, self.realm, keycloak_id
         );
 
-        let credential = UserCredential {
-            credential_type: "password".to_string(),
-            value: password.to_string(),
-            temporary,
+        tracing::debug!("Enabling user in Keycloak: {}", keycloak_id);
+
+        let update_request = UpdateUserRequest {
+            enabled: true,
+            email_verified: true,
         };
 
         let response = self
             .client
             .put(&url)
-            .bearer_auth(&admin_token)
-            .json(&credential)
+            .bearer_auth(&token)
+            .json(&update_request)
             .send()
             .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to set password: {}", e)))?;
+            .map_err(|e| AppError::KeycloakError(format!("Enable user request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to set password: {} - {}",
-                status, text
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Enable user failed with status {}: {}",
+                status, body
             )));
         }
 
+        tracing::info!("User enabled in Keycloak: {}", keycloak_id);
         Ok(())
     }
 
-    /// Send password reset email
-    pub async fn send_password_reset_email(&self, keycloak_id: &str) -> AppResult<()> {
-        let admin_token = self.get_admin_token().await?;
+    /// Send verification email to user
+    pub async fn send_verify_email(&self, keycloak_id: &str) -> Result<(), AppError> {
+        let token = self.get_backend_token().await?;
         let url = format!(
-            "{}/{}/execute-actions-email",
-            self.config.user_endpoint(),
-            keycloak_id
+            "{}/admin/realms/{}/users/{}/execute-actions-email",
+            self.base_url, self.realm, keycloak_id
         );
 
-        let actions = vec!["UPDATE_PASSWORD"];
+        tracing::debug!("Sending verification email via Keycloak: {}", keycloak_id);
 
         let response = self
             .client
             .put(&url)
-            .bearer_auth(&admin_token)
-            .json(&actions)
+            .bearer_auth(&token)
+            .json(&vec!["VERIFY_EMAIL"])
             .send()
             .await
             .map_err(|e| {
-                AppError::Keycloak(format!("Failed to send password reset email: {}", e))
+                AppError::KeycloakError(format!("Send verification email failed: {}", e))
             })?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to send password reset email: {} - {}",
-                status, text
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Send verification email failed with status {}: {}",
+                status, body
             )));
         }
 
+        tracing::info!(
+            "Verification email sent via Keycloak for user: {}",
+            keycloak_id
+        );
         Ok(())
     }
 
-    /// Assign role to user
-    pub async fn assign_role(&self, keycloak_id: &str, role: &str) -> AppResult<()> {
-        let admin_token = self.get_admin_token().await?;
-
-        // Get available realm roles
-        let roles_url = format!(
-            "{}/admin/realms/{}/roles",
-            self.config.url, self.config.realm
+    /// Get user details from Keycloak
+    pub async fn get_user(&self, keycloak_id: &str) -> Result<serde_json::Value, AppError> {
+        let token = self.get_backend_token().await?;
+        let url = format!(
+            "{}/admin/realms/{}/users/{}",
+            self.base_url, self.realm, keycloak_id
         );
 
         let response = self
             .client
-            .get(&roles_url)
-            .bearer_auth(&admin_token)
+            .get(&url)
+            .bearer_auth(&token)
             .send()
             .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to get roles: {}", e)))?;
-
-        let roles: Vec<RoleRepresentation> = response
-            .json()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to parse roles: {}", e)))?;
-
-        let role_repr = roles
-            .into_iter()
-            .find(|r| r.name == role)
-            .ok_or_else(|| AppError::Keycloak(format!("Role '{}' not found", role)))?;
-
-        // Assign role to user
-        let assign_url = format!(
-            "{}/{}/role-mappings/realm",
-            self.config.user_endpoint(),
-            keycloak_id
-        );
-
-        let response = self
-            .client
-            .post(&assign_url)
-            .bearer_auth(&admin_token)
-            .json(&vec![role_repr])
-            .send()
-            .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to assign role: {}", e)))?;
+            .map_err(|e| AppError::KeycloakError(format!("Get user request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to assign role: {} - {}",
-                status, text
+            if status.as_u16() == 404 {
+                return Err(AppError::NotFound("User not found in Keycloak".to_string()));
+            }
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Get user failed with status {}: {}",
+                status, body
             )));
         }
 
-        Ok(())
+        let user: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| AppError::KeycloakError(format!("Failed to parse user: {}", e)))?;
+
+        Ok(user)
     }
 
-    /// Send verification email
-    pub async fn send_verification_email(&self, keycloak_id: &str) -> AppResult<()> {
-        let admin_token = self.get_admin_token().await?;
+    /// Disable a user in Keycloak
+    pub async fn disable_user(&self, keycloak_id: &str) -> Result<(), AppError> {
+        let token = self.get_backend_token().await?;
         let url = format!(
-            "{}/{}/send-verify-email",
-            self.config.user_endpoint(),
-            keycloak_id
+            "{}/admin/realms/{}/users/{}",
+            self.base_url, self.realm, keycloak_id
         );
+
+        tracing::debug!("Disabling user in Keycloak: {}", keycloak_id);
 
         let response = self
             .client
             .put(&url)
-            .bearer_auth(&admin_token)
+            .bearer_auth(&token)
+            .json(&json!({ "enabled": false }))
             .send()
             .await
-            .map_err(|e| AppError::Keycloak(format!("Failed to send verification email: {}", e)))?;
+            .map_err(|e| AppError::KeycloakError(format!("Disable user request failed: {}", e)))?;
 
         if !response.status().is_success() {
             let status = response.status();
-            let text = response.text().await.unwrap_or_default();
-            return Err(AppError::Keycloak(format!(
-                "Failed to send verification email: {} - {}",
-                status, text
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Disable user failed with status {}: {}",
+                status, body
             )));
         }
 
+        tracing::info!("User disabled in Keycloak: {}", keycloak_id);
+        Ok(())
+    }
+
+    /// Delete a user from Keycloak
+    pub async fn delete_user(&self, keycloak_id: &str) -> Result<(), AppError> {
+        let token = self.get_backend_token().await?;
+        let url = format!(
+            "{}/admin/realms/{}/users/{}",
+            self.base_url, self.realm, keycloak_id
+        );
+
+        tracing::debug!("Deleting user from Keycloak: {}", keycloak_id);
+
+        let response = self
+            .client
+            .delete(&url)
+            .bearer_auth(&token)
+            .send()
+            .await
+            .map_err(|e| AppError::KeycloakError(format!("Delete user request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Delete user failed with status {}: {}",
+                status, body
+            )));
+        }
+
+        tracing::info!("User deleted from Keycloak: {}", keycloak_id);
         Ok(())
     }
 }
