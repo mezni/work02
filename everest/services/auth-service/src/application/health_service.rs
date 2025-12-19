@@ -13,17 +13,18 @@ pub struct HealthReport {
 pub struct HealthService;
 
 impl HealthService {
+    /// Returns the system health status, including DB connectivity.
     pub async fn check_system_status(db_pool: &PgPool) -> HealthReport {
         let db_ok = sqlx::query("SELECT 1").execute(db_pool).await.is_ok();
 
         HealthReport {
-            status: if db_ok {
-                "UP".to_string()
-            } else {
-                "DOWN".to_string()
-            },
+            status: match db_ok {
+                true => "UP",
+                false => "DOWN",
+            }
+            .to_string(),
             db_connected: db_ok,
-            version: APP_VERSION.to_string(), // Use the constant here
+            version: APP_VERSION.to_string(),
         }
     }
 }

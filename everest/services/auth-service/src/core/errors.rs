@@ -10,11 +10,17 @@ pub enum AppError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
-    #[error("Internal server error")]
-    Internal,
+    #[error("Validation error: {0}")]
+    ValidationError(String),
 
-    #[error("Not found")]
-    NotFound,
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
+    #[error("Internal server error: {0}")]
+    Internal(String),
+
+    #[error("Not found: {0}")] // Added {0} to match the String payload
+    NotFound(String),
 }
 
 #[derive(Serialize)]
@@ -25,10 +31,13 @@ struct ErrorResponse {
 impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
-            AppError::Conflict(_) => StatusCode::CONFLICT,
+            // Use the (_) pattern to acknowledge the String payload for all variants
+            AppError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::DatabaseError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-            AppError::NotFound => StatusCode::NOT_FOUND,
+            AppError::Conflict(_) => StatusCode::CONFLICT,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            AppError::NotFound(_) => StatusCode::NOT_FOUND,
         }
     }
 

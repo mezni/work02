@@ -3,7 +3,12 @@ use utoipa::OpenApi;
 
 // Import the DTOs from the application layer
 use crate::application::health_service::HealthReport;
-use crate::application::user_registration_dto::{RegisterUserRequest, RegisterUserResponse};
+use crate::application::user_registration_dto::{
+    RegisterUserRequest,
+    RegisterUserResponse,
+    VerifyRegistrationRequest,
+    VerifyRegistrationResponse, // Added these
+};
 
 // Import the Handlers from the interface layer
 use crate::interfaces::http::{health_handler, user_registration_handler};
@@ -12,13 +17,16 @@ use crate::interfaces::http::{health_handler, user_registration_handler};
 #[openapi(
     paths(
         health_handler::get_health,
-        user_registration_handler::register_user
+        user_registration_handler::register_user,
+        user_registration_handler::verify_user // Added path handler
     ),
     components(
         schemas(
             HealthReport,
             RegisterUserRequest,
-            RegisterUserResponse
+            RegisterUserResponse,
+            VerifyRegistrationRequest,  // Added schema
+            VerifyRegistrationResponse   // Added schema
         )
     ),
     info(
