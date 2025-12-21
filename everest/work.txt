@@ -1,0 +1,558 @@
+Clean architecture for user self-registration is all about separating concerns and making it easy to test and maintain. Here's a high-level overview:
+Domain Layer
+
+    Entities: User
+    Use Cases: RegisterUser
+        Handles business logic for registration (e.g., validate input, check for existing users)
+        Interfaces with UserRepository
+
+Application Layer
+
+    DTOs: RegisterUserRequest, RegisterUserResponse
+    Interfaces: UserRepository (defines methods for data access)
+
+Infrastructure Layer
+
+    Implementations: UserRepositoryImpl (database-specific implementation)
+    Frameworks: authentication libraries, database drivers
+
+Presentation Layer
+
+    Controllers: handles HTTP requests, calls RegisterUser use case
+    Models: maps to RegisterUserRequest DTO
+
+
+user_registration/
+├── Cargo.toml
+├── src/
+│   ├── domain/
+│   │   ├── user.rs
+│   │   ├── register_user.rs
+│   │   └── errors.rs
+│   ├── application/
+│   │   ├── register_user_request.rs
+│   │   ├── register_user_response.rs
+│   │   └── user_repository.rs
+│   ├── infrastructure/
+│   │   ├── repositories/
+│   │   │   └── user_repository_impl.rs
+│   │   └── frameworks/
+│   │       └── auth/
+│   │           └── auth_provider.rs
+│   ├── presentation/
+│   │   ├── user_controller.rs
+│   │   └── register_user_model.rs
+│   └── lib.rs
+│   └── main.rs
+
+
+/src
+├── main.rs                 # Entry point: wires up dependencies and starts the server
+├── lib.rs                  # Module declarations (mod api, domain, etc.)
+│
+├── domain/                 # Layer 1: Core Business Logic (No dependencies)
+│   ├── mod.rs
+│   ├── entities.rs         # User struct, Order struct
+│   └── repositories.rs     # Traits (interfaces) for DB operations
+│
+├── application/            # Layer 2: Use Cases (Orchestration)
+│   ├── mod.rs
+│   ├── dtos.rs             # Request/Response objects (RegisterUserRequest)
+│   └── user_service.rs     # Logic like "register_user" or "login"
+│
+├── infrastructure/         # Layer 3: External Tools (DB, Email, Auth)
+│   ├── mod.rs
+│   ├── postgres/
+│   │   ├── mod.rs
+│   │   └── user_repo_impl.rs # Concrete SQL queries (SQLx/Diesel)
+│   └── auth/               # JWT or Password hashing logic
+│
+└── api/                    # Layer 4: Presentation (Web Framework)
+    ├── mod.rs
+    ├── routes.rs           # URL routing
+    ├── handlers/           # Controller-like functions
+    │   ├── mod.rs
+    │   └── user_handler.rs # Translates HTTP to Service calls
+    └── middleware/         # Auth guards, logging
+
+
+
+
+
+
+
+Health & Status
+    GET /health: Service health check (no auth)
+
+Registration & Verification
+    POST /register: Create new registration (no auth)
+    POST /verify: Verify registration token (no auth)
+    POST /verify/resend: Resend verification email (no auth)
+
+Authentication
+    POST /auth/login: User login (no auth)    
+
+
+    Files:
+        main.rs
+        lib.rs
+        core/constants.rs
+        core/state.rs
+        core/config.rs
+        core/database.rs
+        core/id_generator.rs
+        core/logging.rs
+        core/errors.rs
+    Libraries:
+        actix-web
+        tokio
+        thiserror
+        anyhow
+        tracing
+        tracing-subscriber
+    Functionality:
+        Actix-web application setup
+        CORS (Cross-Origin Resource Sharing) setup
+        Application state management in state.rs
+        Logging setup using tracing and tracing-subscriber
+        Error handling using thiserror and anyhow
+        keep main minimal
+
+sequenceDiagram
+    participant C as Client (Frontend)
+    participant A as Auth Service
+    participant K as Keycloak
+    participant DB as Service Database
+    participant J as Job/Cron Service
+
+    %% ====================
+    %% REGISTRATION FLOW
+    %% ====================
+    Note over C,A: 1. REGISTRATION FLOW
+    C->>A: POST /api/v1/register
+    A->>K: Check if user exists
+    K-->>A: User not found
+    A->>DB: Create user record (status: "pending_verification")
+    DB-->>A: User saved
+    A->>K: Create user (enabled: false, emailVerified: false)
+    K-->>A: User created in Keycloak
+    A->>K: Send verification email
+    A->>DB: Set verification expiry (24h)
+    A-->>C: 201 Created - Verification email sent
+
+    %% ====================
+    %% VERIFICATION FLOWS
+    %% ====================
+    
+    %% Successful verification
+    Note over C,A: 2. EMAIL VERIFICATION (SUCCESS)
+    C->>A: POST /api/v1/register/verify
+    A->>DB: Check verification expiry
+    DB-->>A: Still valid (<24h)
+    A->>K: Verify email token/OTP
+    K-->>A: Email verified
+    A->>K: Enable user account
+    A->>DB: Update user status to "active"
+    A-->>C: 200 OK - Account activated
+
+    %% Expired verification
+    Note over C,A: 3. EMAIL VERIFICATION (EXPIRED)
+    C->>A: POST /api/v1/register/verify
+    A->>DB: Check verification expiry
+    DB-->>A: Verification expired (>24h)
+    A->>DB: Update status to "verification_expired"
+    A->>K: Delete temporary user
+    A-->>C: 410 Gone - Verification expired
+
+    %% Resend verification
+    Note over C,A: 4. RESEND VERIFICATION
+    C->>A: POST /api/v1/register/resend
+    A->>DB: Check last sent time & expiry
+    DB-->>A: Can resend (within limits)
+    A->>K: Resend verification email
+    K-->>A: Email sent
+    A->>DB: Update resend count & timestamp
+    A-->>C: 200 OK - New verification sent
+
+    %% ====================
+    %% AUTHENTICATION FLOWS
+    %% ====================
+
+    %% Successful login (verified user)
+    Note over C,A: 5. LOGIN FLOW (VERIFIED USER)
+    C->>A: POST /api/v1/auth/login
+    A->>K: Authenticate user (OAuth2/OpenID)
+    K-->>A: Return tokens (access, refresh, id_token)
+    A->>DB: Store session/refresh token
+    A-->>C: 200 OK with tokens
+
+    %% Login attempt for unverified user
+    Note over C,A: 6. LOGIN FLOW (UNVERIFIED USER)
+    C->>A: POST /api/v1/auth/login
+    A->>K: Authenticate user
+    K-->>A: Authentication successful but user disabled
+    A->>DB: Check user status
+    DB-->>A: Status = "pending_verification"
+    A-->>C: 403 Forbidden - Account not verified
+
+
+Auth Service: summary
+- This service is NOT a login system.
+- It is a security backbone that:
+Delegates authentication & passwords to Keycloak
+Owns authorization, user metadata, and auditing
+Issues and validates JWT tokens trusted by all other services
+Passwords are NEVER stored or handled here.
+
+
+Core Responsibilities: This service MUST do the following:
+- Manage users (external & internal)
+- Enforce role + scope rules
+- Validate Keycloak JWT tokens
+- Sync users between Keycloak and PostgreSQL
+- Record all security-relevant actions
+- Expose a clean HTTP API with Swagger
+
+Authority Model
+| Concern                                  | Authority                |
+| ---------------------------------------- | ------------------------ |
+| Identity (email, password, verification) | **Keycloak**             |
+| Authorization (roles, scope, metadata)   | **PostgreSQL**           |
+| Tokens                                   | **Keycloak-issued JWTs** |
+| Validation                               | **Auth Service**         |
+Keycloak = Identity source of truth
+PostgreSQL = Business source of truth
+
+User Types & Rules
+- External Users (Self-Registration)
+Endpoint: POST /api/v1/auth/register
+Role: user
+Source: web
+network_id = X, station_id = X
+Email verification handled by Keycloak
+Stored in DB after Keycloak creation
+
+
+JWT Tokens (Critical)
+JWTs are issued by Keycloak and MUST contain:
+user_id (from DB)
+roles
+network_id
+station_id
+ex: {
+  "sub": "keycloak-user-id",
+  "user_id": "USR-xxxxxxxxxxxxx",
+  "roles": ["user"],
+  "network_id": "NET-xxx",
+  "station_id": "STA-xxx",
+  "iss": "https://keycloak/auth/realms/your-realm",
+  "exp": 1710000000,
+  "iat": 1709990000
+}
+
+
+Your service MUST:
+Validate JWT signature
+Cache Keycloak public keys in memory
+Extract claims
+Enforce permissions
+No database lookup is required for normal authorization
+
+
+6- env variables 
+DATABASE_URL=postgresql://postgres:password@localhost:6200/auth_db
+SERVER_HOST=0.0.0.0 (optional)
+SERVER_PORT=3000 (optional)
+RUST_LOG=info (optional)
+
+# Keycloak Configuration
+KEYCLOAK_URL=http://localhost:5080
+KEYCLOAK_REALM=myrealm
+
+# Frontend client (public, for user authentication)
+KEYCLOAK_AUTH_CLIENT_ID=auth-client
+
+# Backend service account (confidential, for admin operations)
+KEYCLOAK_BACKEND_CLIENT_ID=backend-admin
+KEYCLOAK_BACKEND_CLIENT_SECRET=backend-admin-secret
+
+
+
+
+Domain Layer:
+   enums , value_objects,  
+   Entities
+   Interfaces for  Repositories
+   Interfaces for Services
+
+
+Application Layer
+,   Handles business logic for registration (e.g., validate input, check for existing users)
+    DTOs: RegisterUserRequest, RegisterUserResponse
+    Implementation of services
+
+Infrastructure Layer
+    Implementations of postgres repositories
+    keycloak client interface 
+
+Presentation Layer
+    Controllers: handles HTTP requests, calls services
+    Models: maps to  DTOs
+
+
+
+
+
+
+
+
+
+Functional Requirements
+
+    User Registration
+        Handle POST /register request
+        Check if user exists in Keycloak
+        Create user record in PostgreSQL with status "pending_verification"
+        Create user in Keycloak with enabled=false and emailVerified=false
+        Send verification email via Keycloak
+        Set verification expiry (24h)
+        Return 201 Created - Verification email sent
+    Email Verification
+        Handle POST /verify request
+        Check verification expiry
+        Verify email token/OTP with Keycloak
+        Enable user account in Keycloak
+        Update user status to "active" in PostgreSQL
+        Return 200 OK - Account activated
+    Resend Verification
+        Handle POST /verify/resend request
+        Check last sent time & expiry
+        Resend verification email via Keycloak
+        Update resend count & timestamp
+        Return 200 OK - New verification sent
+    Login
+        Handle POST /auth/login request
+        Authenticate user with Keycloak (OAuth2/OpenID)
+        Return tokens (access, refresh, id_token) if successful
+        Store session/refresh token in PostgreSQL
+        Return 200 OK with tokens
+    JWT Token Validation
+        Validate JWT signature
+        Cache Keycloak public keys in memory
+        Extract claims (user_id, roles, network_id, station_id)
+        Enforce permissions
+
+Non-Functional Requirements
+
+    Security
+        Use HTTPS/TLS for all communication
+        Store sensitive data (e.g., client secrets) securely
+    Performance
+        Use caching for Keycloak public keys
+        Optimize database queries
+    Scalability
+        Use a load balancer and multiple instances
+        Use a distributed database (PostgreSQL with replication)
+    Logging and Monitoring
+        Use tracing and tracing-subscriber for logging
+        Integrate with a monitoring tool (e.g., Prometheus)
+
+Technical Requirements
+
+    Rust Version: 1.70+
+    Dependencies:
+        actix-web
+        tokio
+        thiserror
+        anyhow
+        tracing
+        tracing-subscriber
+        keycloak
+        postgres
+    Environment Variables:
+        DATABASE_URL
+        SERVER_HOST
+        SERVER_PORT
+        RUST_LOG
+        KEYCLOAK_URL
+        KEYCLOAK_REALM
+        KEYCLOAK_AUTH_CLIENT_ID
+        KEYCLOAK_BACKEND_CLIENT_ID
+        KEYCLOAK_BACKEND_CLIENT_SECRET
+
+API Endpoints
+
+    POST /register: Create new registration
+    POST /verify: Verify registration token
+    POST /verify/resend: Resend verification email
+    POST /auth/login: User login
+
+Database Schema
+
+    users table:
+        id (primary key)
+        email
+        status (pending_verification, active, verification_expired)
+        verification_expiry
+        resend_count
+        resend_timestamp
+
+Keycloak Configuration
+
+    Realm: myrealm
+    Client ID: auth-client (public)
+    Client ID: backend-admin (confidential)
+
+
+
+
+
+Technical Requirements
+Rust and Dependencies
+
+    Rust version: 1.70+
+    Dependencies:
+        actix-web = "4.3.1"
+        tokio = { version = "1.24.2", features = ["full"] }
+        thiserror = "1.0.38"
+        anyhow = "1.0.70"
+        tracing = "0.1.37"
+        tracing-subscriber = "0.3.17"
+        keycloak = "0.10.0"
+        postgres = "0.19.4"
+        serde = { version = "1.0.158", features = ["derive"] }
+        serde_json = "1.0.96"
+        jsonwebtoken = "8.1.1"
+        utoipa = "2.1.1" # Swagger
+        utoipa-swagger-ui = "2.1.1" # Swagger UI
+
+Environment Variables
+
+    DATABASE_URL=postgresql://postgres:password@localhost:6200/auth_db
+    SERVER_HOST=0.0.0.0 (optional)
+    SERVER_PORT=3000 (optional)
+    RUST_LOG=info (optional)
+    KEYCLOAK_URL=http://localhost:5080
+    KEYCLOAK_REALM=myrealm
+    KEYCLOAK_AUTH_CLIENT_ID=auth-client
+    KEYCLOAK_BACKEND_CLIENT_ID=backend-admin
+    KEYCLOAK_BACKEND_CLIENT_SECRET=backend-admin-secret
+
+Keycloak Configuration
+
+    Realm: myrealm
+    Client ID: auth-client (public)
+    Client ID: backend-admin (confidential)
+    Client Secret: backend-admin-secret
+
+PostgreSQL Database
+
+    Database name: auth_db
+    Username: postgres
+    Password: password
+    Host: localhost
+    Port: 6200
+
+API Endpoints
+
+    POST /register: Create new registration
+    POST /verify: Verify registration token
+    POST /verify/resend: Resend verification email
+    POST /auth/login: User login
+    GET /swagger-ui: Swagger UI
+    GET /api-docs/openapi.json: OpenAPI spec
+
+Swagger Configuration
+
+    Add utoipa and utoipa-swagger-ui dependencies
+    Create an OpenAPI instance with your API docs
+    Serve Swagger UI at /swagger-ui
+    Serve OpenAPI spec at /api-docs/openapi.json
+
+Project Structure
+
+    src/
+        main.rs
+        lib.rs
+        core/
+            constants.rs
+            state.rs
+            config.rs
+            database.rs
+            id_generator.rs  (all db ids should be XXX-nanoid(16) eg for users USR-nanoid(16) for registration REG-nanoid(16))
+            logging.rs
+            errors.rs
+        domain/
+            enums.rs
+            value_objects.rs
+            entities.rs
+            repositories.rs  (interfaces)
+            services.rs (interfaces)
+        application/
+            registration_service.rs
+            authentication_service.rs
+            register_user_dto.rs (request , response)
+        infrastructure/
+            persistence/
+                repositories.rs
+            keycloak/
+                client.rs
+        presentation/
+            registration_controller.rs
+            authentication_controller.rs
+            register_user_model.rs
+            openapi.rs
+
+
+CREATE TABLE IF NOT EXISTS user_registrations (
+    registration_id VARCHAR(32) PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(20),
+    verification_token VARCHAR(100) UNIQUE NOT NULL,
+    verification_code VARCHAR(10),
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    keycloak_id VARCHAR(255),
+    user_id VARCHAR(32),
+    resend_count INTEGER DEFAULT 0,
+    expires_at TIMESTAMP NOT NULL,
+    verified_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    ip_address VARCHAR(50),
+    user_agent TEXT,
+    
+    CONSTRAINT valid_registration_status CHECK (status IN ('pending', 'verified', 'expired', 'cancelled')),
+    CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    user_id VARCHAR(32) PRIMARY KEY,
+    keycloak_id VARCHAR(255) UNIQUE NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    username VARCHAR(100) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone VARCHAR(20),
+    photo TEXT,
+    is_verified BOOLEAN DEFAULT FALSE,
+    role VARCHAR(50) NOT NULL DEFAULT 'user',
+    network_id VARCHAR(32) NOT NULL DEFAULT '',
+    station_id VARCHAR(32) NOT NULL DEFAULT '',
+    source VARCHAR(20) NOT NULL DEFAULT 'web',
+    is_active BOOLEAN DEFAULT TRUE,
+    deleted_at TIMESTAMP,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    created_by VARCHAR(32),
+    updated_by VARCHAR(32),
+    
+    CONSTRAINT valid_role CHECK (role IN ('user', 'admin', 'partner', 'operator')),
+    CONSTRAINT valid_source CHECK (source IN ('web', 'internal')),
+    CONSTRAINT check_deleted CHECK (
+        (deleted_at IS NULL AND is_active = TRUE) OR 
+        (deleted_at IS NOT NULL AND is_active = FALSE)
+    )
+);
