@@ -101,6 +101,7 @@ pub trait KeycloakClient: Send + Sync {
     async fn logout(&self, refresh_token: &str) -> AppResult<()>;
     async fn verify_token(&self, access_token: &str) -> AppResult<serde_json::Value>;
     async fn get_user_info(&self, access_token: &str) -> AppResult<serde_json::Value>;
+    async fn send_verification_email(&self, keycloak_id: &str) -> AppResult<()>;
 }
 
 // ============================================================================
@@ -471,5 +472,34 @@ impl KeycloakClient for HttpKeycloakClient {
         resp.json()
             .await
             .map_err(|e| AppError::NetworkError(e.to_string()))
+    }
+
+    async fn send_verification_email(&self, keycloak_id: &str) -> AppResult<()> {
+        let token = self.get_admin_token().await?;
+
+        // Keycloak Admin API endpoint to trigger specific actions (like email verification)
+        let url = format!("{}/execute-actions-email", self.user_endpoint(keycloak_id));
+
+        // We send a PUT request with the action we want the user to perform
+        let actions = vec!["VERIFY_EMAIL"];
+
+        let resp = self
+            .http
+            .put(url)
+            .bearer_auth(token)
+            .json(&actions)
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Failed to send email: {}",
+                body
+            )));
+        }
+
+        Ok(())
     }
 }

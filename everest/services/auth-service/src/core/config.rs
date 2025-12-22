@@ -18,6 +18,9 @@ pub struct Config {
 
     // Public Client (User Auth)
     pub keycloak_auth_client_id: String,
+
+    pub verification_expiry_hours: u64,
+    pub refresh_token_expiry_days: u64,
 }
 
 impl Config {
@@ -43,6 +46,16 @@ impl Config {
 
             keycloak_auth_client_id: std::env::var("KEYCLOAK_AUTH_CLIENT_ID")
                 .expect("AUTH_CLIENT_ID must be set"),
+
+            verification_expiry_hours: std::env::var("VERIFICATION_EXPIRY_HOURS")
+                .unwrap_or_else(|_| "24".to_string())
+                .parse()
+                .unwrap_or(24),
+
+            refresh_token_expiry_days: std::env::var("REFRESH_TOKEN_EXPIRY_DAYS")
+                .unwrap_or_else(|_| "365".to_string())
+                .parse()
+                .unwrap_or(365),
         }
     }
 }

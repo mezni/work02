@@ -1,11 +1,15 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use serde::Serialize;
+use sqlx;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("Database error: {0}")]
-    DatabaseError(String),
+    DatabaseError(#[from] sqlx::Error),
+
+    #[error("Internal server error")]
+    InternalError,
 
     #[error("Keycloak error: {0}")]
     KeycloakError(String),
@@ -27,6 +31,18 @@ pub enum AppError {
 
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
+
+    #[error("Already exists: {0}")]
+    AlreadyExists(String),
+
+    #[error("Token has expired")]
+    TokenExpired,
+
+    #[error("Maximum resend attempts reached")]
+    MaxResendAttemptsReached,
+
+    #[error("Resend cooldown is still active")]
+    ResendCooldownActive,
 }
 
 #[derive(Serialize)]
@@ -37,18 +53,36 @@ struct ErrorResponse {
 impl ResponseError for AppError {
     fn status_code(&self) -> StatusCode {
         match self {
-            AppError::Internal(_) | AppError::DatabaseError(_) | AppError::KeycloakError(_) => {
-                StatusCode::INTERNAL_SERVER_ERROR
-            }
-            AppError::Conflict(_) => StatusCode::CONFLICT,
+            // 500 Errors
+            AppError::Internal(_)
+            | AppError::InternalError
+            | AppError::DatabaseError(_)
+            | AppError::KeycloakError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+
+            // 409 Errors
+            AppError::Conflict(_) | AppError::AlreadyExists(_) => StatusCode::CONFLICT,
+
+            // 400 Errors
             AppError::BadRequest(_) | AppError::ValidationError(_) => StatusCode::BAD_REQUEST,
+
+            // 404 Errors
             AppError::NotFound(_) => StatusCode::NOT_FOUND,
+
+            // 401 Errors
             AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
+
+            // 410 Errors (Gone)
+            AppError::TokenExpired => StatusCode::GONE,
+
+            // 429 Errors (Rate Limiting)
+            AppError::MaxResendAttemptsReached | AppError::ResendCooldownActive => {
+                StatusCode::TOO_MANY_REQUESTS
+            }
         }
     }
 
     fn error_response(&self) -> HttpResponse {
-        // Log the actual error for the developer before hiding details in the response
+        // Ensure tracing is imported in your crate or use log::error!
         tracing::error!("{}", self.to_string());
 
         HttpResponse::build(self.status_code()).json(ErrorResponse {

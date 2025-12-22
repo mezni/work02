@@ -1,4 +1,20 @@
--- Create users table
+-- Enable extension if you want case-insensitive email/usernames (optional)
+-- CREATE EXTENSION IF NOT EXISTS citext;
+
+-- =============================================================================
+-- 1. Helper Function for Automatic updated_at
+-- =============================================================================
+CREATE OR REPLACE FUNCTION update_modified_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- =============================================================================
+-- 2. Users Table
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS users (
     user_id VARCHAR(32) PRIMARY KEY,
     keycloak_id VARCHAR(255) UNIQUE NOT NULL,
@@ -14,10 +30,10 @@ CREATE TABLE IF NOT EXISTS users (
     station_id VARCHAR(32) NOT NULL DEFAULT '',
     source VARCHAR(20) NOT NULL DEFAULT 'web',
     is_active BOOLEAN DEFAULT TRUE,
-    deleted_at TIMESTAMP,
-    last_login_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
+    last_login_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(32),
     updated_by VARCHAR(32),
     
@@ -29,7 +45,14 @@ CREATE TABLE IF NOT EXISTS users (
     )
 );
 
--- Create user_registrations table
+CREATE TRIGGER update_user_modtime
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE PROCEDURE update_modified_column();
+
+-- =============================================================================
+-- 3. User Registrations Table
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS user_registrations (
     registration_id VARCHAR(32) PRIMARY KEY,
     email VARCHAR(255) NOT NULL,
@@ -42,9 +65,9 @@ CREATE TABLE IF NOT EXISTS user_registrations (
     keycloak_id VARCHAR(255) UNIQUE NOT NULL,
     user_id VARCHAR(32),
     resend_count INTEGER DEFAULT 0,
-    expires_at TIMESTAMP NOT NULL,
-    verified_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     ip_address VARCHAR(50),
     user_agent TEXT,
     source VARCHAR(20) NOT NULL DEFAULT 'web',
@@ -53,42 +76,47 @@ CREATE TABLE IF NOT EXISTS user_registrations (
     CONSTRAINT fk_user_id FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE SET NULL
 );
 
--- Create refresh_tokens table
+-- =============================================================================
+-- 4. Refresh Tokens Table
+-- =============================================================================
 CREATE TABLE IF NOT EXISTS refresh_tokens (
     token_id VARCHAR(32) PRIMARY KEY,
     user_id VARCHAR(32) NOT NULL,
     refresh_token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT NOW(),
-    revoked_at TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    revoked_at TIMESTAMPTZ,
     ip_address VARCHAR(50),
     user_agent TEXT,
     
     CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
--- Create indexes for better query performance
+-- =============================================================================
+-- 5. Indexes
+-- =============================================================================
+-- User Indexes
 CREATE INDEX IF NOT EXISTS idx_user_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_user_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_user_keycloak_id ON users(keycloak_id);
+-- Partial index for active users (smaller and faster)
 CREATE INDEX IF NOT EXISTS idx_user_is_active ON users(is_active) WHERE is_active = TRUE;
 
+-- Registration Indexes
 CREATE INDEX IF NOT EXISTS idx_registration_email ON user_registrations(email);
 CREATE INDEX IF NOT EXISTS idx_registration_token ON user_registrations(verification_token);
 CREATE INDEX IF NOT EXISTS idx_registration_status ON user_registrations(status);
 CREATE INDEX IF NOT EXISTS idx_registration_expires ON user_registrations(expires_at);
 
+-- Token Indexes
 CREATE INDEX IF NOT EXISTS idx_refresh_token_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_refresh_token_expires ON refresh_tokens(expires_at);
+-- Partial index for valid tokens only
 CREATE INDEX IF NOT EXISTS idx_refresh_token_revoked ON refresh_tokens(revoked_at) WHERE revoked_at IS NULL;
 
--- Comments for documentation
-COMMENT ON TABLE users IS 'Stores verified user accounts';
-COMMENT ON TABLE user_registrations IS 'Temporary storage for pending user registrations';
-COMMENT ON TABLE refresh_tokens IS 'Stores refresh tokens for session management';
-
-COMMENT ON COLUMN users.keycloak_id IS 'Unique identifier from Keycloak';
-COMMENT ON COLUMN users.is_verified IS 'Always true for users created after verification';
-COMMENT ON COLUMN user_registrations.verification_token IS 'Unique token sent to user email for verification';
-COMMENT ON COLUMN user_registrations.expires_at IS 'Timestamp when the registration expires (default 24 hours)';
-COMMENT ON COLUMN refresh_tokens.revoked_at IS 'Timestamp when token was revoked, NULL if still valid';
+-- =============================================================================
+-- 6. Comments
+-- =============================================================================
+COMMENT ON TABLE users IS 'Verified user accounts sync with Keycloak';
+COMMENT ON TABLE user_registrations IS 'Temporary storage for pending sign-ups';
+COMMENT ON TABLE refresh_tokens IS 'OIDC session management tokens';

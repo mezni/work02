@@ -1,17 +1,37 @@
-use crate::application::health_dto::HealthResponseDto;
-use crate::presentation::controllers::health_controller;
+use crate::application::authentication_dto::*;
+use crate::application::registration_dto::*;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(health_controller::get_health),
-    components(schemas(HealthResponseDto))
+    paths(
+        crate::presentation::controllers::authentication_controller::login,
+        crate::presentation::controllers::authentication_controller::verify,
+        crate::presentation::controllers::authentication_controller::refresh_token,
+        crate::presentation::controllers::health_controller::get_health,
+        crate::presentation::controllers::registration_controller::register,
+        crate::presentation::controllers::registration_controller::resend_verification,
+    ),
+    components(schemas(
+        Metadata,
+        RegisterRequest,
+        RegisterResponse,
+        ResendVerificationRequest,
+        ResendVerificationResponse,
+        LoginRequest,
+        LoginResponse,
+        AuthMetadata,
+        RefreshTokenRequest,
+        RefreshTokenResponse,
+        VerifyRequest,
+        VerifyResponse,
+        VerifyMetadata
+    ))
 )]
 pub struct ApiDoc;
 
-// ENSURE THIS IS "pub fn"
 pub fn configure_openapi(cfg: &mut actix_web::web::ServiceConfig) {
+    use utoipa_swagger_ui::SwaggerUi;
     cfg.service(
         SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", ApiDoc::openapi()),
     );
