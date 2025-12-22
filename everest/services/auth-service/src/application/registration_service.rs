@@ -10,11 +10,9 @@ use crate::core::{
 use crate::domain::{
     entities::UserRegistration,
     enums::{RegistrationStatus, Source},
-    repositories::{RegistrationRepository, UserRepository},
     value_objects::{Email, Password, Username},
 };
-use crate::infrastructure::keycloak_client::KeycloakClient; // CRITICAL: Import trait
-use crate::infrastructure::persistence::{RegistrationRepositoryImpl, UserRepositoryImpl};
+use crate::infrastructure::keycloak_client::KeycloakClient;
 use actix_web::web;
 use chrono::{TimeDelta, Utc};
 use std::collections::HashMap;
@@ -37,28 +35,26 @@ impl RegistrationService {
         let username = Username::new(request.username)?;
         let password = Password::new(request.password)?;
 
-        // 2. Repository Setup
-        let user_repo = UserRepositoryImpl::new(state.db_pool.clone());
-        let reg_repo = RegistrationRepositoryImpl::new(state.db_pool.clone());
-
-        // 3. Duplicate Checks
-        if user_repo.find_by_email(email.value()).await?.is_some() {
-            return Err(AppError::AlreadyExists(
-                "Email already registered".to_string(),
-            ));
+        // 2. Duplicate Checks using AppState injected repositories
+        if state
+            .user_repo
+            .find_by_email(email.value())
+            .await?
+            .is_some()
+        {
+            return Err(AppError::AlreadyExists("Email already registered".into()));
         }
 
-        if user_repo
+        if state
+            .user_repo
             .find_by_username(username.value())
             .await?
             .is_some()
         {
-            return Err(AppError::AlreadyExists(
-                "Username already taken".to_string(),
-            ));
+            return Err(AppError::AlreadyExists("Username already taken".into()));
         }
 
-        // 4. Logic & Keycloak Prep
+        // 3. Logic & Keycloak Prep
         let registration_id = generate_id(REGISTRATION_PREFIX);
         let verification_token = generate_verification_token();
         let expires_at = Utc::now()
@@ -67,22 +63,16 @@ impl RegistrationService {
 
         // Package attributes for Keycloak
         let mut attributes = HashMap::new();
-
-        // Add Email attribute
         attributes.insert("email".to_string(), vec![email.value().to_string()]);
-
-        // System Metadata
         attributes.insert("network_id".to_string(), vec!["-".to_string()]);
         attributes.insert("station_id".to_string(), vec!["-".to_string()]);
         attributes.insert("role".to_string(), vec!["user".to_string()]);
-
-        // Security/Verification
         attributes.insert(
             "verification_token".to_string(),
             vec![verification_token.clone()],
         );
 
-        // 5. Keycloak Call
+        // 4. Keycloak Call
         let keycloak_id = state
             .keycloak_client
             .create_user(
@@ -93,7 +83,7 @@ impl RegistrationService {
             )
             .await?;
 
-        // 6. Persistence
+        // 5. Persistence via AppState repository
         let registration = UserRegistration {
             registration_id: registration_id.clone(),
             email: email.value().to_string(),
@@ -114,7 +104,7 @@ impl RegistrationService {
             source: Source::Web,
         };
 
-        reg_repo.create(&registration).await?;
+        state.reg_repo.create(&registration).await?;
 
         Ok(RegisterResponse {
             registration_id,
@@ -129,9 +119,10 @@ impl RegistrationService {
         email: String,
     ) -> Result<ResendVerificationResponse, AppError> {
         let email_obj = Email::new(email)?;
-        let reg_repo = RegistrationRepositoryImpl::new(state.db_pool.clone());
 
-        let registration = reg_repo
+        // Using injected reg_repo from state
+        let registration = state
+            .reg_repo
             .find_by_email(email_obj.value())
             .await?
             .ok_or_else(|| AppError::NotFound("Registration not found".to_string()))?;
@@ -159,10 +150,13 @@ impl RegistrationService {
             + TimeDelta::try_hours(state.config.verification_expiry_hours as i64)
                 .unwrap_or_default();
 
-        reg_repo
+        // Update via state repositories
+        state
+            .reg_repo
             .update_verification_token(&registration.registration_id, &new_token, new_expires_at)
             .await?;
-        reg_repo
+        state
+            .reg_repo
             .increment_resend_count(&registration.registration_id)
             .await?;
 

@@ -8,10 +8,6 @@ use crate::core::{
 use crate::domain::{
     entities::{RefreshToken, User},
     enums::{RegistrationStatus, UserRole},
-    repositories::{RefreshTokenRepository, RegistrationRepository, UserRepository},
-};
-use crate::infrastructure::persistence::{
-    RefreshTokenRepositoryImpl, RegistrationRepositoryImpl, UserRepositoryImpl,
 };
 use actix_web::web;
 use chrono::{Duration, Utc};
@@ -25,11 +21,9 @@ impl AuthenticationService {
         state: web::Data<AppState>,
         request: VerifyRequest,
     ) -> Result<VerifyResponse, AppError> {
-        let reg_repo = RegistrationRepositoryImpl::new(state.db_pool.clone());
-        let user_repo = UserRepositoryImpl::new(state.db_pool.clone());
-        let token_repo = RefreshTokenRepositoryImpl::new(state.db_pool.clone());
-
-        let registration = reg_repo
+        // 1. Use state.reg_repo instead of local Impl
+        let registration = state
+            .reg_repo
             .find_by_token(&request.token)
             .await?
             .ok_or_else(|| AppError::NotFound("Invalid token".to_string()))?;
@@ -39,19 +33,20 @@ impl AuthenticationService {
         }
 
         if registration.expires_at < Utc::now() {
-            reg_repo
+            state
+                .reg_repo
                 .update_status(&registration.registration_id, "expired")
                 .await?;
             return Err(AppError::TokenExpired);
         }
 
-        // 1. Enable in Keycloak
+        // 2. Enable in Keycloak
         state
             .keycloak_client
             .enable_user(&registration.keycloak_id)
             .await?;
 
-        // 2. Create local User
+        // 3. Create local User
         let user_id = generate_id(USER_PREFIX);
         let user = User {
             user_id: user_id.clone(),
@@ -76,15 +71,18 @@ impl AuthenticationService {
             updated_by: None,
         };
 
-        user_repo.create(&user).await?;
-        reg_repo
+        // Use state.user_repo and state.reg_repo
+        state.user_repo.create(&user).await?;
+        state
+            .reg_repo
             .update_status(&registration.registration_id, "verified")
             .await?;
-        reg_repo
+        state
+            .reg_repo
             .update_user_id(&registration.registration_id, &user_id)
             .await?;
 
-        // 3. Fix: Removed 3rd argument (Client ID) as per your trait definition
+        // 4. Authenticate
         let token_data = state
             .keycloak_client
             .authenticate(&registration.username, "temporary_or_stored_password")
@@ -94,7 +92,6 @@ impl AuthenticationService {
             token_id: generate_id(TOKEN_PREFIX),
             user_id: user_id.clone(),
             refresh_token: token_data.refresh_token.clone(),
-            // Fix: Cast u64 to i64
             expires_at: Utc::now() + Duration::days(state.config.refresh_token_expiry_days as i64),
             created_at: Utc::now(),
             revoked_at: None,
@@ -104,7 +101,9 @@ impl AuthenticationService {
                 .and_then(|m| m.verification_ip.clone()),
             user_agent: request.metadata.as_ref().and_then(|m| m.user_agent.clone()),
         };
-        token_repo.create(&refresh_token_entity).await?;
+
+        // Use state.token_repo
+        state.token_repo.create(&refresh_token_entity).await?;
 
         Ok(VerifyResponse {
             user_id,
@@ -120,34 +119,33 @@ impl AuthenticationService {
         state: web::Data<AppState>,
         request: LoginRequest,
     ) -> Result<LoginResponse, AppError> {
-        // Fix: Removed 3rd argument (Client ID)
         let token_data = state
             .keycloak_client
             .authenticate(&request.username, &request.password)
             .await?;
 
-        let user_repo = UserRepositoryImpl::new(state.db_pool.clone());
-        let token_repo = RefreshTokenRepositoryImpl::new(state.db_pool.clone());
-
-        let user = user_repo
+        // Use state.user_repo
+        let user = state
+            .user_repo
             .find_by_username(&request.username)
             .await?
             .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
 
-        user_repo.update_last_login(&user.user_id).await?;
+        state.user_repo.update_last_login(&user.user_id).await?;
 
         let refresh_entity = RefreshToken {
             token_id: generate_id(TOKEN_PREFIX),
             user_id: user.user_id.clone(),
             refresh_token: token_data.refresh_token.clone(),
-            // Fix: Cast u64 to i64
             expires_at: Utc::now() + Duration::days(state.config.refresh_token_expiry_days as i64),
             created_at: Utc::now(),
             revoked_at: None,
             ip_address: request.metadata.as_ref().and_then(|m| m.login_ip.clone()),
             user_agent: request.metadata.as_ref().and_then(|m| m.user_agent.clone()),
         };
-        token_repo.create(&refresh_entity).await?;
+
+        // Use state.token_repo
+        state.token_repo.create(&refresh_entity).await?;
 
         Ok(LoginResponse {
             user_id: user.user_id,
@@ -164,8 +162,9 @@ impl AuthenticationService {
         state: web::Data<AppState>,
         token: String,
     ) -> Result<RefreshTokenResponse, AppError> {
-        let token_repo = RefreshTokenRepositoryImpl::new(state.db_pool.clone());
-        let stored = token_repo
+        // Use state.token_repo
+        let stored = state
+            .token_repo
             .find_by_token(&token)
             .await?
             .ok_or_else(|| AppError::Unauthorized("Invalid session".into()))?;
@@ -174,22 +173,22 @@ impl AuthenticationService {
             return Err(AppError::TokenExpired);
         }
 
-        // Fix: Removed 2nd argument
         let token_data = state.keycloak_client.refresh_token(&token).await?;
 
-        token_repo.revoke(&stored.token_id).await?;
+        state.token_repo.revoke(&stored.token_id).await?;
+
         let new_token = RefreshToken {
             token_id: generate_id(TOKEN_PREFIX),
             user_id: stored.user_id,
             refresh_token: token_data.refresh_token.clone(),
-            // Fix: Cast u64 to i64
             expires_at: Utc::now() + Duration::days(state.config.refresh_token_expiry_days as i64),
             created_at: Utc::now(),
             revoked_at: None,
             ip_address: stored.ip_address,
             user_agent: stored.user_agent,
         };
-        token_repo.create(&new_token).await?;
+
+        state.token_repo.create(&new_token).await?;
 
         Ok(RefreshTokenResponse {
             access_token: token_data.access_token,
