@@ -67,12 +67,16 @@ impl RegistrationService {
 
         // Package attributes for Keycloak
         let mut attributes = HashMap::new();
-        if let Some(first) = &request.first_name {
-            attributes.insert("firstName".to_string(), vec![first.clone()]);
-        }
-        if let Some(last) = &request.last_name {
-            attributes.insert("lastName".to_string(), vec![last.clone()]);
-        }
+
+        // Add Email attribute
+        attributes.insert("email".to_string(), vec![email.value().to_string()]);
+
+        // System Metadata
+        attributes.insert("network_id".to_string(), vec!["-".to_string()]);
+        attributes.insert("station_id".to_string(), vec!["-".to_string()]);
+        attributes.insert("role".to_string(), vec!["user".to_string()]);
+
+        // Security/Verification
         attributes.insert(
             "verification_token".to_string(),
             vec![verification_token.clone()],

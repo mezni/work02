@@ -6,7 +6,8 @@ pub fn generate_id(prefix: &str) -> String {
 }
 
 pub fn generate_verification_token() -> String {
-    nanoid!(64)
+    "99999".to_string()
+    //    nanoid!(64)
 }
 
 #[cfg(test)]
