@@ -79,7 +79,8 @@ pub async fn run() -> anyhow::Result<()> {
             .configure(presentation::openapi::configure_openapi)
             .service(
                 web::scope("/api/v1")
-                    .configure(presentation::controllers::registration_controller::configure),
+                    .configure(presentation::controllers::registration_controller::configure)
+                    .configure(presentation::controllers::authentication_controller::configure),
             )
     })
     .bind(&server_addr)?

@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS user_registrations (
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     phone VARCHAR(20),
-    verification_token VARCHAR(255) UNIQUE NOT NULL,
+    verification_token VARCHAR(255)  NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     keycloak_id VARCHAR(255) UNIQUE NOT NULL,
     user_id VARCHAR(32),

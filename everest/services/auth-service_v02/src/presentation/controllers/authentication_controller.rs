@@ -48,3 +48,12 @@ pub async fn refresh_token(
         Err(err) => err.error_response(),
     }
 }
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.service(
+        web::scope("/auth")
+            .route("/login", web::post().to(login))
+            .route("/verify", web::post().to(verify))
+            .route("/refresh", web::post().to(refresh_token)),
+    );
+}
