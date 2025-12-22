@@ -1,8 +1,8 @@
 use crate::AppState;
 use crate::application::authentication_dto::*;
 use crate::application::authentication_service::AuthenticationService;
-// Add ResponseError here 
-use actix_web::{HttpResponse, Responder, web, ResponseError}; 
+// Add ResponseError here
+use actix_web::{HttpResponse, Responder, ResponseError, web};
 
 #[utoipa::path(
     post,
