@@ -22,3 +22,4 @@ tracing-actix-web = "0.7.20"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 utoipa = { version = "5.4.0", features = ["actix_extras", "chrono"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["actix-web"] }
+validator = { version = "0.20.0", features = ["derive"] }

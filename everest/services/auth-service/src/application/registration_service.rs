@@ -1,29 +1,28 @@
 use crate::AppState;
+use crate::application::dtos::registration::{
+    RegisterUserRequest, ResendVerificationRequest, VerifyUserRequest,
+};
 use std::sync::Arc;
 
-#[derive(Clone)]
 pub struct RegistrationService {
     state: Arc<AppState>,
 }
 
 impl RegistrationService {
+    // This is the "associated item" the compiler says is missing
     pub fn new(state: Arc<AppState>) -> Self {
         Self { state }
     }
 
-    pub async fn register_user(&self) -> String {
-        // Use self.state.db_pool or self.state.config here
-        format!(
-            "register_user for realm: {}",
-            self.state.config.keycloak_realm
-        )
+    pub async fn register_user(&self, req: RegisterUserRequest) -> String {
+        format!("Registration successful for {}", req.username)
     }
 
-    pub async fn verify_registration(&self) -> String {
-        "verify_registration placeholder".to_string()
+    pub async fn verify_registration(&self, req: VerifyUserRequest) -> String {
+        format!("Verification successful for {}", req.email)
     }
 
-    pub async fn resend_verification(&self) -> String {
-        "resend_verification placeholder".to_string()
+    pub async fn resend_verification(&self, req: ResendVerificationRequest) -> String {
+        format!("Resent token to {}", req.email)
     }
 }
