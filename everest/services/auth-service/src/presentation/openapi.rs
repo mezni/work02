@@ -1,6 +1,6 @@
-use utoipa::OpenApi;
 use crate::application::dtos::health::HealthResponse;
 use crate::presentation::controllers::health_controller;
+use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(

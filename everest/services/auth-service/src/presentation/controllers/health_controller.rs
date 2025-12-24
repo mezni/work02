@@ -1,7 +1,7 @@
-use actix_web::{get, web, HttpResponse, Responder};
-use crate::application::health_service::HealthService;
-use crate::application::dtos::health::HealthResponse;
 use crate::AppState;
+use crate::application::dtos::health::HealthResponse;
+use crate::application::health_service::HealthService;
+use actix_web::{HttpResponse, Responder, get, web};
 
 #[utoipa::path(
     get,

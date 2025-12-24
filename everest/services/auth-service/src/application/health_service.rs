@@ -1,6 +1,6 @@
 use crate::application::dtos::health::HealthResponse;
-use crate::core::database::DbPool;
 use crate::core::constants::APP_VERSION;
+use crate::core::database::DbPool;
 
 pub struct HealthService;
 
