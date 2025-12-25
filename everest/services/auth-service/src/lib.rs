@@ -4,15 +4,14 @@ use std::sync::Arc;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
+pub mod application;
 pub mod core;
 pub mod domain;
 pub mod infrastructure;
+pub mod presentation;
 use crate::core::{config::Config, database};
 use crate::infrastructure::keycloak_client::HttpKeycloakClient;
-
-#[derive(OpenApi)]
-#[openapi(paths(), components())]
-struct ApiDoc;
+use presentation::{controllers::health_controller, openapi::ApiDoc};
 
 pub struct AppState {
     pub config: Config,
@@ -58,8 +57,7 @@ pub async fn run() -> anyhow::Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
-        // Add your routes here, e.g.:
-        // .configure(crate::presentation::controllers::init_routes)
+            .service(web::scope("/api/v1").service(health_controller::health_check))
     })
     .bind(&server_addr)?
     .run()
