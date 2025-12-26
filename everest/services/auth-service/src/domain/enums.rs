@@ -2,38 +2,28 @@ use serde::{Deserialize, Serialize};
 use sqlx::Type;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
-#[sqlx(type_name = "text")]
+#[sqlx(type_name = "varchar", rename_all = "lowercase")] // Changed to varchar
 pub enum UserRole {
-    #[sqlx(rename = "user")]
     User,
-    #[sqlx(rename = "admin")]
     Admin,
-    #[sqlx(rename = "partner")]
     Partner,
-    #[sqlx(rename = "operator")]
     Operator,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
-#[sqlx(type_name = "text")]
+#[sqlx(type_name = "varchar", rename_all = "lowercase")] // Changed to varchar
 pub enum RegistrationStatus {
-    #[sqlx(rename = "pending")]
+    Created,
     Pending,
-    #[sqlx(rename = "verified")]
     Verified,
-    #[sqlx(rename = "expired")]
     Expired,
-    #[sqlx(rename = "cancelled")]
     Cancelled,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
-#[sqlx(type_name = "text")]
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)] // Added PartialEq for consistency
+#[sqlx(type_name = "varchar", rename_all = "lowercase")] // Changed to varchar
 pub enum Source {
-    #[sqlx(rename = "web")]
     Web,
-    #[sqlx(rename = "mobile")]
     Mobile,
-    #[sqlx(rename = "internal")]
     Internal,
 }

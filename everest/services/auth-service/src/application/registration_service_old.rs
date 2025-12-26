@@ -39,6 +39,21 @@ impl RegistrationServiceTrait for RegistrationService {
             return Err(AppError::Conflict("Email already registered".into()));
         }
 
+        
+        // Create user in Keycloak
+        let keycloak_id = self
+            .state
+            .keycloak_client
+            .create_user(&email, &username, &password, None)
+            .await
+            .map_err(|e| AppError::Keycloak(e.to_string()))?;
+
+        self.state
+            .keycloak_client
+            .disable_user(&keycloak_id)
+            .await
+            .map_err(|e| AppError::Keycloak(e.to_string()))?;
+
         let verification_token = nanoid::nanoid!(32);
         let expires_at = Utc::now() + chrono::Duration::hours(VERIFICATION_TOKEN_EXPIRY_HOURS);
 
@@ -50,8 +65,8 @@ impl RegistrationServiceTrait for RegistrationService {
             last_name,
             phone,
             verification_token,
-            status: RegistrationStatus::Created,
-            keycloak_id: String::new(),
+            status: RegistrationStatus::Pending,
+            keycloak_id,
             user_id: None,
             resend_count: 0,
             expires_at,
@@ -59,10 +74,20 @@ impl RegistrationServiceTrait for RegistrationService {
             created_at: Utc::now(),
             ip_address,
             user_agent,
-            source: Source::Web,
+            source: match source.as_str() {
+                "mobile" => Source::Mobile,
+                "internal" => Source::Internal,
+                _ => Source::Web,
+            },
         };
 
         let created = self.state.registration_repo.create(&registration).await?;
+
+        self.state
+            .keycloak_client
+            .send_verification_email(&created.keycloak_id)
+            .await
+            .map_err(|e| AppError::Keycloak(e.to_string()))?;
 
         Ok(created)
     }
