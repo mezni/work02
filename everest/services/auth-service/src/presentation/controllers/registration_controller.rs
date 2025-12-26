@@ -10,12 +10,11 @@ use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use validator::Validate;
 
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api/v1")
-            .route("/register", web::post().to(register_user))
-            .route("/verify", web::post().to(verify_registration))
-            .route("/verify/resend", web::post().to(resend_verification)),
-    );
+    // No web::scope here!
+    // These routes will now be relative to whatever scope calls .configure()
+    cfg.route("/register", web::post().to(register_user))
+        .route("/verify", web::post().to(verify_registration))
+        .route("/verify/resend", web::post().to(resend_verification));
 }
 
 #[utoipa::path(

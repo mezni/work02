@@ -44,20 +44,19 @@ impl RegistrationServiceTrait for RegistrationService {
         let mut attributes = HashMap::new();
         attributes.insert("network_id".to_string(), vec!["X".to_string()]);
         attributes.insert("station_id".to_string(), vec!["X".to_string()]);
-        attributes.insert(
-            "source".to_string(),
-            vec![format!("{:?}", source).to_lowercase()],
-        );
 
-        if let Some(ref p) = phone {
-            attributes.insert("phone".to_string(), vec![p.clone()]);
-        }
-
+        attributes.insert("original_email".to_string(), vec![email.clone()]);
         // 3. Create User in Keycloak (Disabled by default)
         let keycloak_id = self
             .state
             .keycloak_client
             .create_user(&email, &username, &password, Some(attributes))
+            .await
+            .map_err(|e| AppError::Keycloak(e.to_string()))?;
+
+        self.state
+            .keycloak_client
+            .disable_user(&keycloak_id)
             .await
             .map_err(|e| AppError::Keycloak(e.to_string()))?;
 
@@ -97,42 +96,45 @@ impl RegistrationServiceTrait for RegistrationService {
     }
 
     async fn verify(&self, email: String, token: String) -> AppResult<User> {
-        // Find registration by token
+        // 1. Fetch the registration record by EMAIL
+        // (This is safer because emails are unique and indexed)
         let mut registration = self
             .state
             .registration_repo
-            .find_by_token(&token)
+            .find_by_email(&email)
             .await?
-            .ok_or_else(|| AppError::NotFound("Invalid verification token".into()))?;
+            .ok_or_else(|| AppError::NotFound("No registration found for this email".into()))?;
 
-        // Security check: ensure token belongs to the providing email
-        if registration.email != email {
-            return Err(AppError::BadRequest("Token does not match email".into()));
+        // 2. SECURITY CHECK: Compare the provided token with the stored token
+        if registration.verification_token != token {
+            return Err(AppError::BadRequest("Invalid verification token".into()));
         }
 
+        // 3. Status check: Ensure not already verified
         if registration.status == RegistrationStatus::Verified {
-            return Err(AppError::BadRequest("Already verified".into()));
+            return Err(AppError::BadRequest("Account is already verified".into()));
         }
 
+        // 4. Expiration check
         if Utc::now() > registration.expires_at {
             registration.status = RegistrationStatus::Expired;
             self.state.registration_repo.update(&registration).await?;
-            return Err(AppError::BadRequest("Verification link expired".into()));
+            return Err(AppError::BadRequest("Verification link has expired".into()));
         }
 
-        // Extract Keycloak ID safely from Option<String>
+        // 5. Extract Keycloak ID safely
         let kc_id = registration.keycloak_id.as_deref().ok_or_else(|| {
             AppError::Internal("Missing Keycloak ID in registration record".into())
         })?;
 
-        // 1. Enable User in Keycloak
+        // 6. ACTIVATE: Enable the user in Keycloak (was disabled during register)
         self.state
             .keycloak_client
             .enable_user(kc_id)
             .await
             .map_err(|e| AppError::Keycloak(e.to_string()))?;
 
-        // 2. Create the final User entity in local DB
+        // 7. PERSIST: Create the final User entity in the local DB
         let user = User {
             user_id: Generator::generate_user_id(),
             keycloak_id: kc_id.to_string(),
@@ -144,7 +146,7 @@ impl RegistrationServiceTrait for RegistrationService {
             photo: None,
             is_verified: true,
             role: UserRole::User,
-            network_id: "X".to_string(),
+            network_id: "X".to_string(), // Set defaults or pull from registration attributes
             station_id: "X".to_string(),
             source: registration.source.clone(),
             is_active: true,
@@ -158,7 +160,7 @@ impl RegistrationServiceTrait for RegistrationService {
 
         let created_user = self.state.user_repo.create(&user).await?;
 
-        // 3. Update Registration record to link to the new user_id
+        // 8. FINALIZE: Update registration status and link to user_id
         registration.status = RegistrationStatus::Verified;
         registration.user_id = Some(created_user.user_id.clone());
         registration.verified_at = Some(Utc::now());
