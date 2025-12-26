@@ -1,46 +1,52 @@
-use crate::application::dtos::registration::*;
+use crate::AppState;
+use crate::application::dtos::registration::{
+    RegisterRequest, RegisterResponse, ResendRequest, ResendResponse, VerifyRequest, VerifyResponse,
+};
+use crate::application::registration_service::RegistrationService;
 use crate::core::errors::AppError;
-use crate::domain::services::RegistrationService;
-use actix_web::{HttpRequest, HttpResponse, ResponseError, post, web};
-use std::sync::Arc;
+use crate::domain::services::RegistrationService as RegistrationServiceTrait;
+use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use validator::Validate;
+
+pub fn configure(cfg: &mut web::ServiceConfig) {
+    cfg.route("/register", web::post().to(register_user))
+        .route("/verify", web::post().to(verify_registration))
+        .route("/verify/resend", web::post().to(resend_verification));
+}
 
 #[utoipa::path(
     post,
     path = "/api/v1/register",
     request_body = RegisterRequest,
     responses(
-        (status = 201, description = "Registration successful", body = RegisterResponse),
-        (status = 400, description = "Invalid input"),
-        (status = 409, description = "Email already exists")
+        (status = 201, description = "User registered successfully", body = RegisterResponse),
+        (status = 400, description = "Validation error"),
+        (status = 409, description = "User already exists")
     ),
     tag = "Registration"
 )]
-#[post("/register")]
-pub async fn register(
-    service: web::Data<Arc<dyn RegistrationService>>,
+pub async fn register_user(
+    state: web::Data<AppState>,
     req: HttpRequest,
     body: web::Json<RegisterRequest>,
-) -> HttpResponse {
-    if let Err(e) = body.0.validate() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": e.to_string()
-        }));
-    }
+) -> Result<impl Responder, AppError> {
+    body.validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
     let ip_address = req
         .connection_info()
         .realip_remote_addr()
         .map(|s| s.to_string());
-
     let user_agent = req
         .headers()
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
         .map(|s| s.to_string());
 
-    match service
+    let svc = RegistrationService::new(state.into_inner());
+
+    // Added "web" as default source since it's missing from your RegisterRequest DTO
+    let registration = svc
         .register(
             body.email.clone(),
             body.username.clone(),
@@ -48,20 +54,17 @@ pub async fn register(
             body.first_name.clone(),
             body.last_name.clone(),
             body.phone.clone(),
-            body.source.clone(),
+            "web".to_string(), // Default source
             ip_address,
             user_agent,
         )
-        .await
-    {
-        Ok(registration) => HttpResponse::Created().json(RegisterResponse {
-            registration_id: registration.registration_id,
-            email: registration.email,
-            message: "Registration successful. Please check your email to verify your account."
-                .to_string(),
-        }),
-        Err(e) => e.error_response(),
-    }
+        .await?;
+
+    Ok(HttpResponse::Created().json(RegisterResponse {
+        registration_id: registration.registration_id,
+        email: registration.email,
+        message: "Registration successful. Please check your email.".into(),
+    }))
 }
 
 #[utoipa::path(
@@ -69,26 +72,27 @@ pub async fn register(
     path = "/api/v1/verify",
     request_body = VerifyRequest,
     responses(
-        (status = 200, description = "Verification successful", body = VerifyResponse),
-        (status = 400, description = "Invalid or expired token"),
-        (status = 404, description = "Token not found")
+        (status = 200, description = "Account verified", body = VerifyResponse),
+        (status = 400, description = "Invalid/Expired token")
     ),
     tag = "Registration"
 )]
-#[post("/verify")]
-pub async fn verify(
-    service: web::Data<Arc<dyn RegistrationService>>,
+pub async fn verify_registration(
+    state: web::Data<AppState>,
     body: web::Json<VerifyRequest>,
-) -> HttpResponse {
-    match service.verify(body.token.clone()).await {
-        Ok(user) => HttpResponse::Ok().json(VerifyResponse {
-            user_id: user.user_id,
-            email: user.email,
-            username: user.username,
-            message: "Email verified successfully. You can now login.".to_string(),
-        }),
-        Err(e) => e.error_response(),
-    }
+) -> Result<impl Responder, AppError> {
+    body.validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
+
+    let svc = RegistrationService::new(state.into_inner());
+    let user = svc.verify(body.token.clone()).await?;
+
+    Ok(HttpResponse::Ok().json(VerifyResponse {
+        user_id: user.user_id,
+        email: user.email,
+        username: user.username,
+        message: "Email verified successfully.".into(),
+    }))
 }
 
 #[utoipa::path(
@@ -97,27 +101,21 @@ pub async fn verify(
     request_body = ResendRequest,
     responses(
         (status = 200, description = "Verification email resent", body = ResendResponse),
-        (status = 400, description = "Cannot resend"),
-        (status = 404, description = "Registration not found")
+        (status = 404, description = "User not found")
     ),
     tag = "Registration"
 )]
-#[post("/verify/resend")]
 pub async fn resend_verification(
-    service: web::Data<Arc<dyn RegistrationService>>,
+    state: web::Data<AppState>,
     body: web::Json<ResendRequest>,
-) -> HttpResponse {
-    if let Err(e) = body.0.validate() {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "Validation failed",
-            "details": e.to_string()
-        }));
-    }
+) -> Result<impl Responder, AppError> {
+    body.validate()
+        .map_err(|e| AppError::ValidationError(e.to_string()))?;
 
-    match service.resend_verification(body.email.clone()).await {
-        Ok(_) => HttpResponse::Ok().json(ResendResponse {
-            message: "Verification email has been resent.".to_string(),
-        }),
-        Err(e) => e.error_response(),
-    }
+    let svc = RegistrationService::new(state.into_inner());
+    svc.resend_verification(body.email.clone()).await?;
+
+    Ok(HttpResponse::Ok().json(ResendResponse {
+        message: "Verification email has been resent.".into(),
+    }))
 }

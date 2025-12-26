@@ -1,19 +1,17 @@
-//use crate::application::dtos::authentication::*;
-use crate::application::dtos::health::*;
-//use crate::application::dtos::registration::*;
-use crate::presentation::controllers::{
-    health_controller::*,
-    // authentication_controller::*, health_controller::*, registration_controller::*,
+use crate::application::dtos::health::HealthResponse;
+use crate::application::dtos::registration::{
+    RegisterRequest, RegisterResponse, ResendRequest, ResendResponse, VerifyRequest, VerifyResponse,
 };
+use crate::presentation::controllers::{health_controller, registration_controller};
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
 #[openapi(
     paths(
-        health_check,
-//        register,
-//        verify,
-//        resend_verification,
+        health_controller::health_check,
+registration_controller::register_user,         // Not 'register'
+        registration_controller::verify_registration,  // Not 'verify'
+        registration_controller::resend_verification,
 //        login,
 //        logout,
 //        refresh_token,
@@ -21,12 +19,12 @@ use utoipa::OpenApi;
     components(
         schemas(
             HealthResponse,
-//            RegisterRequest,
-//            RegisterResponse,
-//            VerifyRequest,
-//            VerifyResponse,
-//            ResendRequest,
-//            ResendResponse,
+            RegisterRequest,
+            RegisterResponse,
+            VerifyRequest,
+            VerifyResponse,
+            ResendRequest,
+            ResendResponse,
 //            LoginRequest,
 //            LoginResponseDto,
 //            UserInfoDto,
@@ -37,7 +35,7 @@ use utoipa::OpenApi;
     ),
     tags(
         (name = "Health", description = "Health check endpoints"),
-//        (name = "Registration", description = "User registration and verification"),
+        (name = "Registration", description = "User registration and verification"),
 //        (name = "Authentication", description = "User authentication"),
     ),
     info(
