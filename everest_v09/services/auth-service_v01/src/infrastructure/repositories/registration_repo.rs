@@ -16,34 +16,31 @@ impl PgRegistrationRepository {
 
 #[async_trait]
 impl RegistrationRepository for PgRegistrationRepository {
-    async fn create(&self, reg: &UserRegistration) -> AppResult<UserRegistration> {
-        // Included user_id in insert since it's in the struct,
-        // though it's likely NULL at creation time.
+    async fn create(&self, registration: &UserRegistration) -> AppResult<UserRegistration> {
         let result = sqlx::query_as::<_, UserRegistration>(
             r#"
             INSERT INTO user_registrations (
                 registration_id, email, username, first_name, last_name, phone,
-                verification_token, status, keycloak_id, user_id, expires_at,
+                verification_token, status, keycloak_id, expires_at,
                 ip_address, user_agent, source
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             RETURNING *
             "#,
         )
-        .bind(&reg.registration_id)
-        .bind(&reg.email)
-        .bind(&reg.username)
-        .bind(&reg.first_name)
-        .bind(&reg.last_name)
-        .bind(&reg.phone)
-        .bind(&reg.verification_token)
-        .bind(&reg.status)
-        .bind(&reg.keycloak_id) // Option<String> maps to NULL automatically
-        .bind(&reg.user_id) // Option<String> maps to NULL automatically
-        .bind(reg.expires_at)
-        .bind(&reg.ip_address)
-        .bind(&reg.user_agent)
-        .bind(&reg.source)
+        .bind(&registration.registration_id)
+        .bind(&registration.email)
+        .bind(&registration.username)
+        .bind(&registration.first_name)
+        .bind(&registration.last_name)
+        .bind(&registration.phone)
+        .bind(&registration.verification_token)
+        .bind(&registration.status)
+        .bind(&registration.keycloak_id)
+        .bind(registration.expires_at)
+        .bind(&registration.ip_address)
+        .bind(&registration.user_agent)
+        .bind(&registration.source)
         .fetch_one(&self.pool)
         .await?;
 
@@ -62,7 +59,6 @@ impl RegistrationRepository for PgRegistrationRepository {
     }
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<UserRegistration>> {
-        // Added ORDER BY to ensure we get the most recent registration attempt
         let result = sqlx::query_as::<_, UserRegistration>(
             "SELECT * FROM user_registrations WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
         )
@@ -84,27 +80,22 @@ impl RegistrationRepository for PgRegistrationRepository {
         Ok(result)
     }
 
-    async fn update(&self, reg: &UserRegistration) -> AppResult<UserRegistration> {
+    async fn update(&self, registration: &UserRegistration) -> AppResult<UserRegistration> {
         let result = sqlx::query_as::<_, UserRegistration>(
             r#"
             UPDATE user_registrations
-            SET status = $2, 
-                keycloak_id = $3,
-                user_id = $4, 
-                resend_count = $5,
-                verified_at = $6, 
-                expires_at = $7
+            SET status = $2, user_id = $3, resend_count = $4,
+                verified_at = $5, expires_at = $6
             WHERE registration_id = $1
             RETURNING *
             "#,
         )
-        .bind(&reg.registration_id)
-        .bind(&reg.status)
-        .bind(&reg.keycloak_id)
-        .bind(&reg.user_id)
-        .bind(reg.resend_count)
-        .bind(reg.verified_at)
-        .bind(reg.expires_at)
+        .bind(&registration.registration_id)
+        .bind(&registration.status)
+        .bind(&registration.user_id)
+        .bind(registration.resend_count)
+        .bind(registration.verified_at)
+        .bind(registration.expires_at)
         .fetch_one(&self.pool)
         .await?;
 

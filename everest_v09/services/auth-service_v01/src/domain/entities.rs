@@ -5,13 +5,13 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
 pub struct User {
     pub user_id: String,
-    pub keycloak_id: String, // NOT NULL in SQL
-    pub email: String,       // NOT NULL in SQL
-    pub username: String,    // NOT NULL in SQL
+    pub keycloak_id: String,
+    pub email: String,
+    pub username: String,
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub phone: Option<String>,
-    pub photo: Option<String>, // Was String, must be Option
+    pub photo: Option<String>,
     pub is_verified: bool,
     pub role: UserRole,
     pub network_id: String,
@@ -36,10 +36,8 @@ pub struct UserRegistration {
     pub phone: Option<String>,
     pub verification_token: String,
     pub status: RegistrationStatus,
-    // FIX: keycloak_id is nullable in your SQL schema
-    pub keycloak_id: Option<String>,
+    pub keycloak_id: String,
     pub user_id: Option<String>,
-    // SQL default is 0, but field is technically NOT NULL (implicit)
     pub resend_count: i32,
     pub expires_at: DateTime<Utc>,
     pub verified_at: Option<DateTime<Utc>>,

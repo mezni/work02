@@ -29,19 +29,14 @@ pub struct RegisterResponse {
 
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct VerifyRequest {
-    #[validate(email)]
-    pub email: String,
-
-    /// The token sent to the user's email
-    #[validate(length(min = 1))]
     pub token: String,
 }
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct VerifyResponse {
     pub user_id: String,
-    pub username: String,
     pub email: String,
+    pub username: String,
     pub message: String,
 }
 

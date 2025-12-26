@@ -1,6 +1,5 @@
+use super::entities::{User, UserRegistration};
 use crate::core::errors::AppResult;
-use crate::domain::entities::{User, UserRegistration};
-use crate::domain::enums::{Source, UserRole};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -13,17 +12,16 @@ pub trait RegistrationService: Send + Sync {
         first_name: Option<String>,
         last_name: Option<String>,
         phone: Option<String>,
-        source: Source,
+        source: String,
         ip_address: Option<String>,
         user_agent: Option<String>,
     ) -> AppResult<UserRegistration>;
 
-    // Matches implementation: Returns User
-    async fn verify(&self, email: String, token: String) -> AppResult<User>;
+    async fn verify(&self, token: String) -> AppResult<User>;
 
-    // Matches implementation: Returns ()
     async fn resend_verification(&self, email: String) -> AppResult<()>;
 }
+
 #[async_trait]
 pub trait AuthenticationService: Send + Sync {
     async fn login(&self, username: String, password: String) -> AppResult<LoginResponse>;
@@ -45,5 +43,5 @@ pub struct UserInfo {
     pub user_id: String,
     pub email: String,
     pub username: String,
-    pub role: UserRole,
+    pub role: String,
 }

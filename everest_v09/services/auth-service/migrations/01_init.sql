@@ -22,11 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     keycloak_id     VARCHAR(255) UNIQUE NOT NULL,
 
     email           VARCHAR(255) UNIQUE NOT NULL,
-    email_normalized VARCHAR(255)
-        GENERATED ALWAYS AS (LOWER(email)) STORED,
     username        VARCHAR(100) UNIQUE NOT NULL,
-    username_normalized VARCHAR(100)
-        GENERATED ALWAYS AS (LOWER(username)) STORED,
 
     first_name      VARCHAR(100),
     last_name       VARCHAR(100),
@@ -82,7 +78,7 @@ CREATE TABLE IF NOT EXISTS user_registrations (
     phone               VARCHAR(20),
 
     verification_token  VARCHAR(255) NOT NULL,
-    status              VARCHAR(20) NOT NULL DEFAULT 'created',
+    status              VARCHAR(20) NOT NULL DEFAULT 'pending',
 
     keycloak_id         VARCHAR(255) UNIQUE,
     user_id             VARCHAR(32),

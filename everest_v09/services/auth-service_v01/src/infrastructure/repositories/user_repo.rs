@@ -17,8 +17,6 @@ impl PgUserRepository {
 #[async_trait]
 impl UserRepository for PgUserRepository {
     async fn create(&self, user: &User) -> AppResult<User> {
-        // Note: email_normalized and username_normalized are omitted
-        // because they are GENERATED ALWAYS columns.
         let result = sqlx::query_as::<_, User>(
             r#"
             INSERT INTO users (
@@ -53,9 +51,8 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn find_by_id(&self, user_id: &str) -> AppResult<Option<User>> {
-        // Using 'is_active = TRUE' to match your check_deleted constraint
         let result = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE user_id = $1 AND is_active = TRUE",
+            "SELECT * FROM users WHERE user_id = $1 AND deleted_at IS NULL",
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -65,19 +62,19 @@ impl UserRepository for PgUserRepository {
     }
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<User>> {
-        // Querying against the base email; Postgres will handle the comparison
-        let result =
-            sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1 AND is_active = TRUE")
-                .bind(email)
-                .fetch_optional(&self.pool)
-                .await?;
+        let result = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL",
+        )
+        .bind(email)
+        .fetch_optional(&self.pool)
+        .await?;
 
         Ok(result)
     }
 
     async fn find_by_keycloak_id(&self, keycloak_id: &str) -> AppResult<Option<User>> {
         let result = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE keycloak_id = $1 AND is_active = TRUE",
+            "SELECT * FROM users WHERE keycloak_id = $1 AND deleted_at IS NULL",
         )
         .bind(keycloak_id)
         .fetch_optional(&self.pool)
@@ -90,18 +87,10 @@ impl UserRepository for PgUserRepository {
         let result = sqlx::query_as::<_, User>(
             r#"
             UPDATE users
-            SET email = $2, 
-                username = $3, 
-                first_name = $4, 
-                last_name = $5,
-                phone = $6, 
-                photo = $7, 
-                is_verified = $8, 
-                role = $9,
-                network_id = $10, 
-                station_id = $11, 
-                is_active = $12,
-                updated_by = $13
+            SET email = $2, username = $3, first_name = $4, last_name = $5,
+                phone = $6, photo = $7, is_verified = $8, role = $9,
+                network_id = $10, station_id = $11, is_active = $12,
+                updated_at = CURRENT_TIMESTAMP, updated_by = $13
             WHERE user_id = $1
             RETURNING *
             "#,
