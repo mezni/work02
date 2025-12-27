@@ -379,6 +379,7 @@ impl KeycloakClient for HttpKeycloakClient {
             ("client_id", self.auth_id.as_str()),
             ("username", username),
             ("password", password),
+            ("scope", "openid"),
         ];
 
         let resp = self

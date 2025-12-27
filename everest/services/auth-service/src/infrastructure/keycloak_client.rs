@@ -379,6 +379,7 @@ impl KeycloakClient for HttpKeycloakClient {
             ("client_id", self.auth_id.as_str()),
             ("username", username),
             ("password", password),
+            ("scope", "openid"),
         ];
 
         let resp = self
@@ -390,8 +391,21 @@ impl KeycloakClient for HttpKeycloakClient {
             .map_err(|e| AppError::NetworkError(e.to_string()))?;
 
         if !resp.status().is_success() {
-            return Err(AppError::AuthenticationError("Login failed".into()));
+            let status = resp.status();
+            let error_body = resp.text().await.unwrap_or_default();
+
+            // Log this to your server console so you can see it
+            eprintln!(
+                "Keycloak Auth Failed | Status: {} | Body: {}",
+                status, error_body
+            );
+
+            return Err(AppError::AuthenticationError(format!(
+                "Login failed ({}): {}",
+                status, error_body
+            )));
         }
+
         resp.json::<TokenResponse>()
             .await
             .map_err(|e| AppError::NetworkError(e.to_string()))

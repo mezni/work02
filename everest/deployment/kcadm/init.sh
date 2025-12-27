@@ -121,20 +121,19 @@ create_mapper() {
   kc create clients/"$FRONTEND_UUID"/protocol-mappers/models -r "$REALM" -f -
 }
 
-OIDC_ROLES="user,admin,partner,operator"
-
 create_mapper <<EOF
 {
-  "name":"filtered-roles",
-  "protocol":"openid-connect",
-  "protocolMapper":"oidc-role-name-mapper",
-  "config":{
-    "claim.name":"roles",
-    "multivalued":"true",
-    "access.token.claim":"true",
-    "id.token.claim":"true",
-    "userinfo.token.claim":"true",
-    "role":"$OIDC_ROLES"
+  "name": "realm-roles-mapper",
+  "protocol": "openid-connect",
+  "protocolMapper": "oidc-usermodel-realm-role-mapper",
+  "config": {
+    "multivalued": "true",
+    "userinfo.token.claim": "true",
+    "user.attribute": "roles",
+    "id.token.claim": "true",
+    "access.token.claim": "true",
+    "claim.name": "roles",
+    "jsonType.label": "String"
   }
 }
 EOF

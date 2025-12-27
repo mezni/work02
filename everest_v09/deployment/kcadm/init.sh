@@ -95,8 +95,10 @@ kc create clients -r "$REALM" \
   -s standardFlowEnabled=true \
   -s directAccessGrantsEnabled=true \
   -s redirectUris='["http://localhost:8081/*"]' \
-  -s webOrigins='["http://localhost:8081"]'
-
+  -s webOrigins='["http://localhost:8081"]' \
+  -s fullScopeAllowed=true \
+  -s "defaultClientScopes=[\"web-origins\",\"roles\",\"profile\",\"email\",\"openid\"]"
+  
 log "Configuring backend client"
 kc get clients -r "$REALM" -q clientId="$BACKEND_CLIENT_ID" | grep -q id || \
 kc create clients -r "$REALM" \
