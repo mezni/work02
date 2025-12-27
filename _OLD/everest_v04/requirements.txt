@@ -36,16 +36,14 @@ User Profile
     DELETE /users/me: Delete own account (auth required)
 
 Admin Endpoints
-
     GET /admin/users: List all users (admin auth)
     GET /admin/users/{id}: Get user by ID (admin auth)
     POST /admin/users: Create user (admin auth)
     PUT /admin/users/{id}: Update user (admin auth)
     DELETE /admin/users/{id}: Delete user (admin auth)
-    ... (rest of admin endpoints)
+
 
 Invitations
-
     POST /invitations: Create invitation (admin auth)
     GET /invitations: List invitations (admin auth)
     GET /invitations/{code}: Get invitation (no auth)

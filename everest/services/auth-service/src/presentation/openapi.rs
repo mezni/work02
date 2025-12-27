@@ -1,16 +1,25 @@
-use crate::application::dtos::health::HealthResponse;
-use crate::application::dtos::registration::{
-    RegisterRequest, RegisterResponse, ResendRequest, ResendResponse, VerifyRequest, VerifyResponse,
-};
-// Added this import to bring Auth DTOs into scope for the OpenApi macro
 use crate::application::dtos::authentication::{
     LoginRequest, LoginResponseDto, LogoutRequest, MessageResponse, RefreshTokenRequest,
     UserInfoDto,
 };
-use crate::presentation::controllers::{
-    authentication_controller, health_controller, registration_controller,
+use crate::application::dtos::health::HealthResponse;
+use crate::application::dtos::registration::{
+    RegisterRequest, RegisterResponse, ResendRequest, ResendResponse, VerifyRequest, VerifyResponse,
 };
-use utoipa::OpenApi;
+// Add Admin and Invitation DTOs
+use crate::application::dtos::admin::{
+    CreateUserRequest, UpdateUserRequest, UserListResponse, UserResponse,
+};
+use crate::presentation::controllers::{
+    admin_controller, // Ensure this module is created and exported
+    authentication_controller,
+    health_controller,
+    registration_controller,
+};
+use utoipa::{
+    Modify, OpenApi,
+    openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme},
+};
 
 #[derive(OpenApi)]
 #[openapi(
@@ -22,6 +31,12 @@ use utoipa::OpenApi;
         authentication_controller::login,
         authentication_controller::logout,
         authentication_controller::refresh_token,
+        // Add Admin paths
+        admin_controller::list_users,
+        admin_controller::get_user,
+        admin_controller::create_user,
+        admin_controller::update_user,
+        admin_controller::delete_user,
     ),
     components(
         schemas(
@@ -38,17 +53,42 @@ use utoipa::OpenApi;
             RefreshTokenRequest,
             LogoutRequest,
             MessageResponse,
+            // Add Admin schemas
+            UserResponse,
+            UserListResponse,
+            CreateUserRequest,
+            UpdateUserRequest,
         )
     ),
+    modifiers(&SecurityAddon),
     tags(
         (name = "Health", description = "Health check endpoints"),
         (name = "Registration", description = "User registration and verification"),
         (name = "Authentication", description = "User authentication"),
+        (name = "Admin", description = "Administrative user management"),
     ),
     info(
         title = "Authentication Service API",
         version = "1.0.0",
-        description = "API for user registration, verification, and authentication"
+        description = "API for user registration, verification, authentication, and administration"
     )
 )]
 pub struct ApiDoc;
+
+/// Helper struct to inject Bearer Token security into Swagger UI
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let components = openapi.components.as_mut().unwrap();
+        components.add_security_scheme(
+            "bearer_auth",
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .build(),
+            ),
+        )
+    }
+}

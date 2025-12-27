@@ -1,3 +1,4 @@
+use crate::infrastructure::keycloak_client;
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 use std::fmt;
 
@@ -56,6 +57,12 @@ impl ResponseError for AppError {
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         Self::Database(err)
+    }
+}
+
+impl From<keycloak_client::AppError> for AppError {
+    fn from(err: keycloak_client::AppError) -> Self {
+        AppError::Keycloak(err.to_string())
     }
 }
 

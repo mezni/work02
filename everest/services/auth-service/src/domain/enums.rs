@@ -27,3 +27,16 @@ pub enum Source {
     Mobile,
     Internal,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
+#[sqlx(type_name = "varchar", rename_all = "lowercase")] // Changed to varchar
+pub enum InvitationStatus {
+    #[sqlx(rename = "pending")]
+    Pending,
+    #[sqlx(rename = "accepted")]
+    Accepted,
+    #[sqlx(rename = "expired")]
+    Expired,
+    #[sqlx(rename = "cancelled")]
+    Cancelled,
+}

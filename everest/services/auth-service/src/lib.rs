@@ -16,8 +16,8 @@ use crate::infrastructure::repositories::{
     registration_repo::PgRegistrationRepository, user_repo::PgUserRepository,
 };
 use presentation::{
-    controllers::authentication_controller, controllers::health_controller,
-    controllers::registration_controller, openapi::ApiDoc,
+    controllers::admin_controller, controllers::authentication_controller,
+    controllers::health_controller, controllers::registration_controller, openapi::ApiDoc,
 };
 
 pub struct AppState {
@@ -78,7 +78,8 @@ pub async fn run() -> anyhow::Result<()> {
                 web::scope("/api/v1")
                     .configure(health_controller::configure)
                     .configure(registration_controller::configure)
-                    .configure(authentication_controller::configure),
+                    .configure(authentication_controller::configure)
+                    .configure(admin_controller::configure),
             )
     })
     .bind(&server_addr)?

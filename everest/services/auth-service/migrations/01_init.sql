@@ -285,31 +285,33 @@ CREATE TABLE IF NOT EXISTS user_preferences (
 -- =============================================================================
 -- 9. User Invitations
 -- =============================================================================
-CREATE TABLE IF NOT EXISTS user_invitations (
+CREATE TABLE IF NOT EXISTS invitations (
     invitation_id   VARCHAR(32) PRIMARY KEY,
-
+    code            VARCHAR(32) UNIQUE NOT NULL,
     email           VARCHAR(255) NOT NULL,
     role            VARCHAR(50) NOT NULL,
-
-    network_id      VARCHAR(32),
-    station_id      VARCHAR(32),
-
     invited_by      VARCHAR(32) NOT NULL,
-
-    token           VARCHAR(100) UNIQUE NOT NULL,
     status          VARCHAR(20) NOT NULL DEFAULT 'pending',
+    expires_at      TIMESTAMPTZ NOT NULL,
+    accepted_at     TIMESTAMPTZ,
+    accepted_by     VARCHAR(32),
+    created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    metadata        JSONB,
 
-    expires_at      TIMESTAMP NOT NULL,
-    accepted_at     TIMESTAMP,
-
-    created_at      TIMESTAMP DEFAULT NOW(),
-
-    CONSTRAINT valid_invitation_role CHECK (
-        role IN ('admin', 'partner', 'operator')
-    ),
     CONSTRAINT valid_invitation_status CHECK (
         status IN ('pending', 'accepted', 'expired', 'cancelled')
-    )
+    ),
+    CONSTRAINT valid_invitation_role CHECK (
+        role IN ('user', 'admin', 'partner', 'operator')
+    ),
+    CONSTRAINT fk_invitation_invited_by
+        FOREIGN KEY (invited_by)
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+    CONSTRAINT fk_invitation_accepted_by
+        FOREIGN KEY (accepted_by)
+        REFERENCES users(user_id)
+        ON DELETE SET NULL
 );
 
 -- =============================================================================
@@ -318,3 +320,32 @@ CREATE TABLE IF NOT EXISTS user_invitations (
 COMMENT ON TABLE users IS 'Verified user accounts synchronized with Keycloak';
 COMMENT ON TABLE user_registrations IS 'Temporary storage for pending user registrations';
 COMMENT ON TABLE refresh_tokens IS 'OIDC refresh token lifecycle management';
+
+
+
+
+INSERT INTO users (
+    user_id,
+    keycloak_id,
+    email,
+    username,
+    phone,
+    role,
+    network_id,
+    station_id,
+    source,
+    created_by,
+    updated_by
+) VALUES (
+    'USR-cccccccccccccccc',
+    'kc-123456',
+    'system@example.com',
+    'system',
+    '+1234567890',
+    'admin',
+    'X',
+    'X',
+    'internal',
+    'USR-cccccccccccccccc',
+    'USR-cccccccccccccccc'
+);

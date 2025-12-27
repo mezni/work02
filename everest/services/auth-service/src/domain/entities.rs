@@ -48,3 +48,18 @@ pub struct UserRegistration {
     pub user_agent: Option<String>,
     pub source: Source,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
+pub struct Invitation {
+    pub invitation_id: String,
+    pub code: String,
+    pub email: String,
+    pub role: super::enums::UserRole,
+    pub invited_by: String,
+    pub status: super::enums::InvitationStatus,
+    pub expires_at: DateTime<Utc>,
+    pub accepted_at: Option<DateTime<Utc>>,
+    pub accepted_by: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub metadata: Option<serde_json::Value>,
+}

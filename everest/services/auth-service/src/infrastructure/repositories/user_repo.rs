@@ -133,4 +133,36 @@ impl UserRepository for PgUserRepository {
 
         Ok(())
     }
+
+    async fn list_active(&self, limit: i64, offset: i64) -> AppResult<Vec<User>> {
+        let result = sqlx::query_as::<_, User>(
+            r#"
+            SELECT * FROM users 
+            WHERE is_active = TRUE 
+            ORDER BY created_at DESC 
+            LIMIT $1 OFFSET $2
+            "#,
+        )
+        .bind(limit)
+        .bind(offset)
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(result)
+    }
+
+    async fn count_active(&self, network_id: Option<&str>) -> AppResult<i64> {
+        let query = match network_id {
+            Some(_) => "SELECT COUNT(*) FROM users WHERE is_active = TRUE AND network_id = $1",
+            None => "SELECT COUNT(*) FROM users WHERE is_active = TRUE",
+        };
+
+        let mut q = sqlx::query_scalar::<_, i64>(query);
+        if let Some(nid) = network_id {
+            q = q.bind(nid);
+        }
+
+        let count = q.fetch_one(&self.pool).await?;
+        Ok(count)
+    }
 }
