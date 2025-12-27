@@ -16,7 +16,10 @@ use crate::infrastructure::repositories::{
     invitation_repo::PgInvitationRepository, registration_repo::PgRegistrationRepository,
     user_repo::PgUserRepository,
 };
-use presentation::{controllers::health_controller, openapi::ApiDoc};
+use presentation::{
+    controllers::authentication_controller, controllers::health_controller,
+    controllers::registration_controller, openapi::ApiDoc,
+};
 
 pub struct AppState {
     pub config: Config,
@@ -75,7 +78,12 @@ pub async fn run() -> anyhow::Result<()> {
             .service(
                 SwaggerUi::new("/swagger-ui/{_:.*}").url("/api-docs/openapi.json", openapi.clone()),
             )
-            .service(web::scope("/api/v1").configure(health_controller::configure))
+            .service(
+                web::scope("/api/v1")
+                    .configure(health_controller::configure)
+                    .configure(registration_controller::configure)
+                    .configure(authentication_controller::configure),
+            )
     })
     .bind(&server_addr)?
     .run()

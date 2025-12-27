@@ -55,7 +55,6 @@ pub async fn validate_token(
     keycloak_url: &str,
     realm: &str,
 ) -> Result<Claims, AppError> {
-    // Fetch the JWKS from Keycloak
     let jwks_url = format!(
         "{}/realms/{}/protocol/openid-connect/certs",
         keycloak_url, realm
@@ -69,25 +68,20 @@ pub async fn validate_token(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to parse JWKS: {}", e)))?;
 
-    // Decode the token header to get the key ID (kid)
     let header = decode_header(token)
         .map_err(|e| AppError::Unauthorized(format!("Invalid token header: {}", e)))?;
-
     let kid = header
         .kid
         .ok_or_else(|| AppError::Unauthorized("No kid in token header".to_string()))?;
 
-    // Find the matching key in JWKS
     let keys = jwks["keys"]
         .as_array()
         .ok_or_else(|| AppError::Internal("Invalid JWKS format".to_string()))?;
-
     let key = keys
         .iter()
         .find(|k| k["kid"].as_str() == Some(&kid))
         .ok_or_else(|| AppError::Unauthorized("Key not found in JWKS".to_string()))?;
 
-    // Extract the public key components
     let n = key["n"]
         .as_str()
         .ok_or_else(|| AppError::Internal("Missing 'n' in JWKS key".to_string()))?;
@@ -95,35 +89,29 @@ pub async fn validate_token(
         .as_str()
         .ok_or_else(|| AppError::Internal("Missing 'e' in JWKS key".to_string()))?;
 
-    // Create the decoding key
     let decoding_key = DecodingKey::from_rsa_components(n, e)
         .map_err(|e| AppError::Internal(format!("Failed to create decoding key: {}", e)))?;
 
-    // Set up validation
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_audience(&["account"]);
     validation.set_issuer(&[format!("{}/realms/{}", keycloak_url, realm)]);
 
-    // Decode and validate the token
     let token_data = decode::<Claims>(token, &decoding_key, &validation)
         .map_err(|e| AppError::Unauthorized(format!("Token validation failed: {}", e)))?;
 
     Ok(token_data.claims)
 }
+
 pub async fn jwt_validator(
-    mut req: ServiceRequest,
+    req: ServiceRequest,
     credentials: BearerAuth,
 ) -> Result<ServiceRequest, (Error, ServiceRequest)> {
     let token = credentials.token();
 
-    let app_state = match req.app_data::<actix_web::web::Data<crate::AppState>>() {
-        Some(data) => data,
-        None => {
-            return Err((
-                AppError::Internal("App state not found".to_string()).into(),
-                req,
-            ));
-        }
+    let app_state = req.app_data::<actix_web::web::Data<crate::AppState>>();
+    let app_state = match app_state {
+        Some(state) => state,
+        None => return Err((AppError::Internal("App state not found".into()).into(), req)),
     };
 
     match validate_token(
@@ -134,6 +122,7 @@ pub async fn jwt_validator(
     .await
     {
         Ok(claims) => {
+            let mut req = req;
             req.extensions_mut().insert(claims);
             Ok(req)
         }
@@ -148,30 +137,19 @@ pub fn require_role(
     BearerAuth,
 )
     -> futures::future::LocalBoxFuture<'static, Result<ServiceRequest, (Error, ServiceRequest)>> {
-    move |mut req: ServiceRequest, credentials: BearerAuth| {
+    move |req, credentials| {
         Box::pin(async move {
-            let token = credentials.token();
+            let req = jwt_validator(req, credentials).await?;
 
-            let app_state = match req.app_data::<actix_web::web::Data<crate::AppState>>() {
-                Some(data) => data,
-                None => {
-                    return Err((
-                        AppError::Internal("App state not found".to_string()).into(),
-                        req,
-                    ));
-                }
+            // Borrow extensions safely
+            let claims_opt = {
+                let extensions_ref = req.extensions();
+                extensions_ref.get::<Claims>().cloned()
             };
 
-            match validate_token(
-                token,
-                &app_state.config.keycloak_url,
-                &app_state.config.keycloak_realm,
-            )
-            .await
-            {
-                Ok(claims) => {
+            match claims_opt {
+                Some(claims) => {
                     if claims.has_role(required_role) {
-                        req.extensions_mut().insert(claims);
                         Ok(req)
                     } else {
                         Err((
@@ -184,7 +162,10 @@ pub fn require_role(
                         ))
                     }
                 }
-                Err(e) => Err((e.into(), req)),
+                None => Err((
+                    AppError::Unauthorized("Claims not found".into()).into(),
+                    req,
+                )),
             }
         })
     }

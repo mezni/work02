@@ -11,7 +11,7 @@ use crate::application::health_service::HealthService;
         (status = 200, description = "Service Health Status", body = HealthResponse),
         (status = 503, description = "Service Unhealthy", body = HealthResponse)
     ),
-    tag = "System"
+    tag = "Health"
 )]
 #[get("/health")]
 pub async fn health_check(state: web::Data<AppState>) -> impl Responder {

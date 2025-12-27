@@ -5,8 +5,8 @@ use crate::domain::services::AuthenticationService as AuthServiceTrait;
 use actix_web::{HttpResponse, Responder, ResponseError, web};
 use validator::Validate;
 
+/// Configure authentication routes
 pub fn configure(cfg: &mut web::ServiceConfig) {
-    // We wrap routes in a scope here so lib.rs stays clean
     cfg.service(
         web::scope("/auth")
             .route("/login", web::post().to(login))
@@ -21,6 +21,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
     request_body = LoginRequest,
     responses(
         (status = 200, description = "Login successful", body = LoginResponseDto),
+        (status = 400, description = "Validation error"),
         (status = 401, description = "Invalid credentials"),
         (status = 403, description = "Account not verified or inactive")
     ),
@@ -31,6 +32,7 @@ pub async fn login(state: web::Data<AppState>, body: web::Json<LoginRequest>) ->
         return HttpResponse::BadRequest().body(e.to_string());
     }
 
+    // Use Arc<AppState> for service
     let service = AuthenticationService::new(state.into_inner());
 
     match service
@@ -61,7 +63,10 @@ pub async fn login(state: web::Data<AppState>, body: web::Json<LoginRequest>) ->
         (status = 200, description = "Logout successful", body = MessageResponse),
         (status = 401, description = "Invalid token")
     ),
-    tag = "Authentication"
+    tag = "Authentication",
+    security(
+        ("bearerAuth" = [])
+    )
 )]
 pub async fn logout(state: web::Data<AppState>, body: web::Json<LogoutRequest>) -> impl Responder {
     let service = AuthenticationService::new(state.into_inner());
