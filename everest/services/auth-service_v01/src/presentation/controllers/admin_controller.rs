@@ -1,7 +1,7 @@
 use crate::application::dtos::admin::*;
 use crate::core::errors::AppError;
 use crate::domain::services::{AdminService as AdminServiceTrait, CreateUserData, UpdateUserData};
-use actix_web::{HttpResponse, Responder, delete, get, post, put, web};
+use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
 use serde::Deserialize;
 use std::sync::Arc;
 use utoipa::IntoParams;

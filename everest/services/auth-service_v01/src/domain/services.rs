@@ -33,7 +33,7 @@ pub trait AuthenticationService: Send + Sync {
 
 #[async_trait]
 pub trait AdminService: Send + Sync {
-    async fn list_users(&self, limit: i64, offset: i64) -> AppResult<(Vec<User>, i64)>;
+async fn list_users(&self, limit: i64, offset: i64) -> AppResult<(Vec<User>, i64)>;
     async fn get_user(&self, user_id: &str) -> AppResult<User>;
     async fn create_user(&self, user_data: CreateUserData) -> AppResult<User>;
     async fn update_user(&self, user_id: &str, user_data: UpdateUserData) -> AppResult<User>;
