@@ -189,3 +189,42 @@ for ROLE in "${ADMIN_ROLES[@]}"; do
 done
 
 log "Keycloak bootstrap completed successfully"
+
+
+########################################
+# Create Initial Admin User
+########################################
+ADMIN_USERNAME="system"
+ADMIN_EMAIL="system@example.com"
+ADMIN_PASSWORD="password"
+
+log "Checking for initial system user: $ADMIN_USERNAME"
+
+# 1. Check if user exists, if not create them
+USER_EXISTS=$(kc get users -r "$REALM" -q username="$ADMIN_USERNAME" --fields id --format csv | tail -n1)
+
+if [[ -z "$USER_EXISTS" || "$USER_EXISTS" == "id" ]]; then
+  log "Creating system user..."
+  
+  # Create the user
+  kc create users -r "$REALM" \
+    -s username="$ADMIN_USERNAME" \
+    -s email="$ADMIN_EMAIL" \
+    -s enabled=true \
+    -s emailVerified=true
+  
+  # 2. Set the password
+  kc set-password -r "$REALM" \
+    --username "$ADMIN_USERNAME" \
+    --new-password "$ADMIN_PASSWORD" \
+    
+  # 3. Assign the 'admin' realm role
+  kc add-roles -r "$REALM" \
+    --uusername "$ADMIN_USERNAME" \
+    --rolename admin
+    
+    
+  log "System user created and 'admin' role assigned."
+else
+  log "System user already exists."
+fi
