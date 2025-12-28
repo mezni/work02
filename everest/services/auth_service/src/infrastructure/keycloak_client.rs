@@ -92,6 +92,7 @@ pub trait KeycloakClient: Send + Sync {
         password: &str,
         attributes: Option<HashMap<String, Vec<String>>>,
     ) -> AppResult<String>;
+    async fn delete_user(&self, user_id: &str) -> AppResult<()>;
     async fn get_user(&self, user_id: &str) -> AppResult<KeycloakUser>;
     async fn enable_user(&self, user_id: &str) -> AppResult<()>;
     async fn disable_user(&self, user_id: &str) -> AppResult<()>;
@@ -267,6 +268,28 @@ impl KeycloakClient for HttpKeycloakClient {
                 "No user ID in Location header".into(),
             ))?;
         Ok(loc.split('/').last().unwrap_or_default().to_string())
+    }
+
+    async fn delete_user(&self, user_id: &str) -> AppResult<()> {
+        let token = self.get_admin_token().await?;
+
+        let resp = self
+            .http
+            .delete(self.user_endpoint(user_id)) // Uses your existing helper
+            .bearer_auth(token)
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(e.to_string()))?;
+
+        if !resp.status().is_success() && resp.status() != 404 {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(AppError::KeycloakError(format!(
+                "Failed to delete user {}: {}",
+                user_id, body
+            )));
+        }
+
+        Ok(())
     }
 
     async fn get_user(&self, user_id: &str) -> AppResult<KeycloakUser> {

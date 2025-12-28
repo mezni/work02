@@ -1,9 +1,11 @@
-use actix_web::{post, web, HttpRequest, HttpResponse};
-use crate::application::dtos::registration::{RegisterRequest, RegisterResponse, VerifyRequest, ResendRequest, MessageResponse};
+use crate::application::dtos::registration::{
+    MessageResponse, RegisterRequest, RegisterResponse, ResendRequest, VerifyRequest,
+};
 use crate::application::registration_service::RegistrationServiceImpl;
 use crate::core::errors::AppError;
 use crate::domain::enums::Source;
 use crate::domain::services::RegistrationService;
+use actix_web::{post, web, HttpRequest, HttpResponse};
 use std::sync::Arc;
 
 #[utoipa::path(
@@ -27,7 +29,7 @@ pub async fn register(
         .connection_info()
         .realip_remote_addr()
         .map(|s| s.to_string());
-    
+
     let user_agent = req
         .headers()
         .get("user-agent")
@@ -69,7 +71,9 @@ pub async fn verify(
     body: web::Json<VerifyRequest>,
     service: web::Data<Arc<RegistrationServiceImpl>>,
 ) -> Result<HttpResponse, AppError> {
-    service.verify(body.email.clone(), body.token.clone()).await?;
+    service
+        .verify(body.email.clone(), body.token.clone())
+        .await?;
 
     Ok(HttpResponse::Ok().json(MessageResponse {
         message: "Account verified and activated.".to_string(),

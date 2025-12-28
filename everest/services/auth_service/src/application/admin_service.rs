@@ -43,7 +43,12 @@ impl AdminService for AdminServiceImpl {
 
     async fn create_user(&self, user_data: CreateUserData) -> AppResult<User> {
         // Check for existing user
-        if self.user_repo.find_by_email(&user_data.email).await?.is_some() {
+        if self
+            .user_repo
+            .find_by_email(&user_data.email)
+            .await?
+            .is_some()
+        {
             return Err(AppError::Conflict("Email already exists".to_string()));
         }
 

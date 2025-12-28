@@ -1,7 +1,7 @@
-use actix_web::{get, web, HttpResponse};
 use crate::application::dtos::health::HealthResponse;
 use crate::application::health_service::HealthService;
 use crate::core::errors::AppError;
+use actix_web::{get, web, HttpResponse};
 use std::sync::Arc;
 
 #[utoipa::path(

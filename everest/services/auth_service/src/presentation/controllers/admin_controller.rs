@@ -1,12 +1,12 @@
-use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
 use crate::application::admin_service::AdminServiceImpl;
 use crate::application::dtos::admin::{
-    CreateUserRequest, UpdateUserRequest, UserResponse, MessageResponse,
+    CreateUserRequest, MessageResponse, UpdateUserRequest, UserResponse,
 };
 use crate::core::auth::{extract_bearer_token, validate_admin_role};
 use crate::core::errors::AppError;
 use crate::domain::services::AdminService;
 use crate::domain::value_objects::{CreateUserData, UpdateUserData};
+use actix_web::{delete, get, post, put, web, HttpRequest, HttpResponse};
 use std::sync::Arc;
 
 #[utoipa::path(

@@ -6,7 +6,7 @@ pub struct Config {
     pub port: u16,
     pub database_url: String,
     pub log_level: String,
-    
+
     // Keycloak
     pub keycloak_url: String,
     pub keycloak_realm: String,
@@ -27,7 +27,7 @@ impl Config {
                 .expect("PORT must be a number"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             log_level: env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
-            
+
             keycloak_url: env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set"),
             keycloak_realm: env::var("KEYCLOAK_REALM").expect("KEYCLOAK_REALM must be set"),
             keycloak_auth_client_id: env::var("KEYCLOAK_AUTH_CLIENT_ID")

@@ -1,4 +1,3 @@
-use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use crate::application::dtos::invitation::{
     AcceptInvitationRequest, CreateInvitationRequest, InvitationResponse, MessageResponse,
 };
@@ -6,6 +5,7 @@ use crate::application::invitation_service::InvitationServiceImpl;
 use crate::core::auth::{extract_bearer_token, validate_admin_role};
 use crate::core::errors::AppError;
 use crate::domain::services::InvitationService;
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse};
 use std::sync::Arc;
 
 #[utoipa::path(

@@ -7,26 +7,26 @@ pub enum AppError {
     // Database
     DatabaseError(String),
     NotFound(String),
-    
+
     // Validation
     ValidationError(String),
     Conflict(String),
-    
+
     // Authentication
     Unauthorized(String),
     Forbidden(String),
-    
+
     // External services
     KeycloakError(String),
     NetworkError(String),
-    
+
     // Business logic
     VerificationExpired,
     VerificationInvalid,
     ResendLimitExceeded,
     InvitationExpired,
     InvitationInvalid,
-    
+
     // Generic
     InternalError(String),
 }
@@ -118,11 +118,19 @@ impl From<sqlx::Error> for AppError {
 impl From<crate::infrastructure::keycloak_client::AppError> for AppError {
     fn from(err: crate::infrastructure::keycloak_client::AppError) -> Self {
         match err {
-            crate::infrastructure::keycloak_client::AppError::KeycloakError(msg) => Self::KeycloakError(msg),
-            crate::infrastructure::keycloak_client::AppError::NetworkError(msg) => Self::NetworkError(msg),
-            crate::infrastructure::keycloak_client::AppError::AuthenticationError(msg) => Self::Unauthorized(msg),
+            crate::infrastructure::keycloak_client::AppError::KeycloakError(msg) => {
+                Self::KeycloakError(msg)
+            }
+            crate::infrastructure::keycloak_client::AppError::NetworkError(msg) => {
+                Self::NetworkError(msg)
+            }
+            crate::infrastructure::keycloak_client::AppError::AuthenticationError(msg) => {
+                Self::Unauthorized(msg)
+            }
             crate::infrastructure::keycloak_client::AppError::NotFound(msg) => Self::NotFound(msg),
-            crate::infrastructure::keycloak_client::AppError::Unauthorized(msg) => Self::Unauthorized(msg),
+            crate::infrastructure::keycloak_client::AppError::Unauthorized(msg) => {
+                Self::Unauthorized(msg)
+            }
         }
     }
 }

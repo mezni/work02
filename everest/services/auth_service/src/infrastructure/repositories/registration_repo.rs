@@ -53,7 +53,7 @@ impl RegistrationRepository for PgRegistrationRepository {
 
     async fn find_by_id(&self, registration_id: &str) -> AppResult<Option<UserRegistration>> {
         let result = sqlx::query_as::<_, UserRegistration>(
-            "SELECT * FROM user_registrations WHERE registration_id = $1"
+            "SELECT * FROM user_registrations WHERE registration_id = $1",
         )
         .bind(registration_id)
         .fetch_optional(&self.pool)
@@ -64,7 +64,7 @@ impl RegistrationRepository for PgRegistrationRepository {
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<UserRegistration>> {
         let result = sqlx::query_as::<_, UserRegistration>(
-            "SELECT * FROM user_registrations WHERE email = $1 ORDER BY created_at DESC LIMIT 1"
+            "SELECT * FROM user_registrations WHERE email = $1 ORDER BY created_at DESC LIMIT 1",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -75,7 +75,7 @@ impl RegistrationRepository for PgRegistrationRepository {
 
     async fn find_by_token(&self, token: &str) -> AppResult<Option<UserRegistration>> {
         let result = sqlx::query_as::<_, UserRegistration>(
-            "SELECT * FROM user_registrations WHERE verification_token = $1"
+            "SELECT * FROM user_registrations WHERE verification_token = $1",
         )
         .bind(token)
         .fetch_optional(&self.pool)

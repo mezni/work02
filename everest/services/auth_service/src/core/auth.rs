@@ -18,16 +18,18 @@ pub fn extract_bearer_token(req: &HttpRequest) -> AppResult<String> {
         .and_then(|h| h.to_str().ok())
         .and_then(|auth| auth.strip_prefix("Bearer "))
         .map(|token| token.to_string())
-        .ok_or_else(|| AppError::Unauthorized("Missing or invalid Authorization header".to_string()))
+        .ok_or_else(|| {
+            AppError::Unauthorized("Missing or invalid Authorization header".to_string())
+        })
 }
 
 pub async fn validate_admin_role(token: &str) -> AppResult<TokenClaims> {
     let claims = decode_token(token)?;
-    
+
     if !claims.roles.contains(&"admin".to_string()) {
         return Err(AppError::Forbidden("Admin role required".to_string()));
     }
-    
+
     Ok(claims)
 }
 
@@ -49,7 +51,7 @@ fn decode_token(_token: &str) -> AppResult<TokenClaims> {
     //        &validation
     //    )?;
     //    return Ok(token_data.claims);
-    
+
     // TEMPORARY MOCK FOR DEVELOPMENT ONLY
     Ok(TokenClaims {
         sub: "mock-user-id".to_string(),

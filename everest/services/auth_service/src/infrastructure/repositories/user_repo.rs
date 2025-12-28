@@ -51,7 +51,7 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_id(&self, user_id: &str) -> AppResult<Option<User>> {
         let result = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE user_id = $1 AND status != 'deleted'"
+            "SELECT * FROM users WHERE user_id = $1 AND status != 'deleted'",
         )
         .bind(user_id)
         .fetch_optional(&self.pool)
@@ -62,7 +62,7 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_email(&self, email: &str) -> AppResult<Option<User>> {
         let result = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE email = $1 AND status != 'deleted'"
+            "SELECT * FROM users WHERE email = $1 AND status != 'deleted'",
         )
         .bind(email)
         .fetch_optional(&self.pool)
@@ -73,7 +73,7 @@ impl UserRepository for PgUserRepository {
 
     async fn find_by_keycloak_id(&self, keycloak_id: &str) -> AppResult<Option<User>> {
         let result = sqlx::query_as::<_, User>(
-            "SELECT * FROM users WHERE keycloak_id = $1 AND status != 'deleted'"
+            "SELECT * FROM users WHERE keycloak_id = $1 AND status != 'deleted'",
         )
         .bind(keycloak_id)
         .fetch_optional(&self.pool)
@@ -144,7 +144,7 @@ impl UserRepository for PgUserRepository {
     async fn count_active(&self, network_id: Option<&str>) -> AppResult<i64> {
         let count: (i64,) = if let Some(net_id) = network_id {
             sqlx::query_as(
-                "SELECT COUNT(*) FROM users WHERE status != 'deleted' AND network_id = $1"
+                "SELECT COUNT(*) FROM users WHERE status != 'deleted' AND network_id = $1",
             )
             .bind(net_id)
             .fetch_one(&self.pool)

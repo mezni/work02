@@ -1,4 +1,3 @@
-use actix_web::{post, web, HttpResponse};
 use crate::application::authentication_service::AuthenticationServiceImpl;
 use crate::application::dtos::authentication::{
     LoginRequest, LoginResponse, LogoutRequest, RefreshRequest, ValidateRequest, ValidateResponse,
@@ -7,6 +6,7 @@ use crate::core::auth::extract_bearer_token;
 use crate::core::errors::AppError;
 use crate::domain::services::AuthenticationService;
 use actix_web::HttpRequest;
+use actix_web::{post, web, HttpResponse};
 use std::sync::Arc;
 
 #[utoipa::path(

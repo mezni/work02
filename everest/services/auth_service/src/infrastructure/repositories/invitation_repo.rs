@@ -45,30 +45,27 @@ impl InvitationRepository for PgInvitationRepository {
     }
 
     async fn find_by_id(&self, invitation_id: &str) -> AppResult<Option<Invitation>> {
-        let result = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations WHERE invitation_id = $1"
-        )
-        .bind(invitation_id)
-        .fetch_optional(&self.pool)
-        .await?;
+        let result =
+            sqlx::query_as::<_, Invitation>("SELECT * FROM invitations WHERE invitation_id = $1")
+                .bind(invitation_id)
+                .fetch_optional(&self.pool)
+                .await?;
 
         Ok(result)
     }
 
     async fn find_by_code(&self, code: &str) -> AppResult<Option<Invitation>> {
-        let result = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations WHERE code = $1"
-        )
-        .bind(code)
-        .fetch_optional(&self.pool)
-        .await?;
+        let result = sqlx::query_as::<_, Invitation>("SELECT * FROM invitations WHERE code = $1")
+            .bind(code)
+            .fetch_optional(&self.pool)
+            .await?;
 
         Ok(result)
     }
 
     async fn find_by_email(&self, email: &str) -> AppResult<Vec<Invitation>> {
         let results = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations WHERE email = $1 ORDER BY created_at DESC"
+            "SELECT * FROM invitations WHERE email = $1 ORDER BY created_at DESC",
         )
         .bind(email)
         .fetch_all(&self.pool)
@@ -79,7 +76,7 @@ impl InvitationRepository for PgInvitationRepository {
 
     async fn list(&self, limit: i64, offset: i64) -> AppResult<Vec<Invitation>> {
         let results = sqlx::query_as::<_, Invitation>(
-            "SELECT * FROM invitations ORDER BY created_at DESC LIMIT $1 OFFSET $2"
+            "SELECT * FROM invitations ORDER BY created_at DESC LIMIT $1 OFFSET $2",
         )
         .bind(limit)
         .bind(offset)

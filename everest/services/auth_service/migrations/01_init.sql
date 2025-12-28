@@ -75,3 +75,25 @@ CREATE INDEX idx_invitations_code ON invitations(code);
 CREATE INDEX idx_invitations_email ON invitations(email);
 CREATE INDEX idx_invitations_status ON invitations(status);
 CREATE INDEX idx_invitations_expires_at ON invitations(expires_at);
+
+INSERT INTO users (
+    user_id,
+    keycloak_id,
+    email,
+    username,
+    phone,
+    role,
+    network_id,
+    station_id,
+    source
+) VALUES (
+    'USR-cccccccccccccccc',
+    'kc-123456',
+    'system@example.com',
+    'system',
+    '+1234567890',
+    'admin',
+    'X',
+    'X',
+    'admin'
+);

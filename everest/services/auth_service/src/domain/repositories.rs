@@ -19,6 +19,7 @@ pub trait RegistrationRepository: Send + Sync {
     async fn create(&self, registration: &UserRegistration) -> AppResult<UserRegistration>;
     async fn find_by_id(&self, registration_id: &str) -> AppResult<Option<UserRegistration>>;
     async fn find_by_email(&self, email: &str) -> AppResult<Option<UserRegistration>>;
+    async fn find_by_token(&self, token: &str) -> AppResult<Option<UserRegistration>>;
     async fn update(&self, registration: &UserRegistration) -> AppResult<UserRegistration>;
 }
 
@@ -27,6 +28,7 @@ pub trait InvitationRepository: Send + Sync {
     async fn create(&self, invitation: &Invitation) -> AppResult<Invitation>;
     async fn find_by_id(&self, invitation_id: &str) -> AppResult<Option<Invitation>>;
     async fn find_by_code(&self, code: &str) -> AppResult<Option<Invitation>>;
+    async fn find_by_email(&self, email: &str) -> AppResult<Vec<Invitation>>;
     async fn list(&self, limit: i64, offset: i64) -> AppResult<Vec<Invitation>>;
     async fn update(&self, invitation: &Invitation) -> AppResult<Invitation>;
     async fn delete(&self, invitation_id: &str) -> AppResult<()>;

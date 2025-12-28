@@ -136,9 +136,7 @@ impl RegistrationService for RegistrationServiceImpl {
         self.keycloak.enable_user(keycloak_id).await?;
 
         // Assign default role
-        self.keycloak
-            .assign_role(keycloak_id, ROLE_USER)
-            .await?;
+        self.keycloak.assign_role(keycloak_id, ROLE_USER).await?;
 
         // Create user record
         let user = User {

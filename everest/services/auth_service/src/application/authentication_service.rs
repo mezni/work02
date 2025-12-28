@@ -25,10 +25,7 @@ impl AuthenticationServiceImpl {
 
         Ok(ValidateResponse {
             active: token_info["active"].as_bool().unwrap_or(false),
-            sub: token_info["sub"]
-                .as_str()
-                .unwrap_or_default()
-                .to_string(),
+            sub: token_info["sub"].as_str().unwrap_or_default().to_string(),
             username: token_info["preferred_username"]
                 .as_str()
                 .map(|s| s.to_string()),
