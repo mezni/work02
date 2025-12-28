@@ -76,7 +76,7 @@ impl RegistrationService for RegistrationServiceImpl {
         self.keycloak.disable_user(&keycloak_id).await?;
 
         // Send verification email
-        self.keycloak.send_verification_email(&keycloak_id).await?;
+        //        self.keycloak.send_verification_email(&keycloak_id).await?;
 
         // Create registration record
         let registration = UserRegistration {

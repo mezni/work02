@@ -1,3 +1,5 @@
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::Modify;
 use utoipa::OpenApi;
 
 #[derive(OpenApi)]
@@ -44,6 +46,7 @@ use utoipa::OpenApi;
         crate::application::dtos::invitation::AcceptInvitationRequest,
         crate::application::dtos::invitation::MessageResponse,
     )),
+    modifiers(&SecurityAddon),
     tags(
         (name = "Health", description = "Health check endpoints"),
         (name = "Registration", description = "User registration and verification"),
@@ -58,3 +61,23 @@ use utoipa::OpenApi;
     )
 )]
 pub struct ApiDoc;
+
+struct SecurityAddon;
+
+impl Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        // We get the components, or create them if they don't exist
+        let components = openapi.components.as_mut().unwrap();
+
+        components.add_security_scheme(
+            "bearer_auth", // This MUST match the name in your controller path macros
+            SecurityScheme::Http(
+                HttpBuilder::new()
+                    .scheme(HttpAuthScheme::Bearer)
+                    .bearer_format("JWT")
+                    .description(Some("Enter your Keycloak JWT token".to_string()))
+                    .build(),
+            ),
+        );
+    }
+}

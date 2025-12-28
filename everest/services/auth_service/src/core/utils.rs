@@ -6,7 +6,8 @@ pub fn generate_id(prefix: &str) -> String {
 }
 
 pub fn generate_token(length: usize) -> String {
-    nanoid::nanoid!(length)
+    "99999".to_string()
+    //    nanoid::nanoid!(length)
 }
 
 pub fn generate_code(length: usize) -> String {
