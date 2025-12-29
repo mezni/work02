@@ -91,7 +91,7 @@ services:
       - "5700:5432"
     volumes:
       - evcs-data:/var/lib/postgresql
-      - ./databases/evcs-db/:/docker-entrypoint-initdb.d/:ro
+#      - ./databases/evcs-db/:/docker-entrypoint-initdb.d/:ro
     networks:
       - ev-network
     healthcheck:
