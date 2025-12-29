@@ -23,6 +23,8 @@ pub struct Station {
     pub address: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
+    /// Standardized to serde_json::Value to handle PostgreSQL hstore/jsonb
+    /// and resolve type mismatches between DTOs and Repository.
     pub tags: Option<serde_json::Value>,
     pub network_id: Option<String>,
     pub created_by: Option<String>,
@@ -38,7 +40,7 @@ pub struct Connector {
     pub connector_type_id: i64,
     pub status_id: i64,
     pub current_type_id: i64,
-    pub power_kw: Option<f64>, // Changed from BigDecimal to f64
+    pub power_kw: Option<f64>,
     pub voltage: Option<i32>,
     pub amperage: Option<i32>,
     pub count_available: i32,

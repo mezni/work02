@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateNetworkData {
@@ -24,7 +25,7 @@ pub struct CreateStationData {
     pub address: Option<String>,
     pub latitude: f64,
     pub longitude: f64,
-    pub tags: Option<serde_json::Value>,
+    pub tags: Option<Value>, // Use Value here
     pub network_id: Option<String>,
 }
 
@@ -34,7 +35,7 @@ pub struct UpdateStationData {
     pub address: Option<String>,
     pub latitude: Option<f64>,
     pub longitude: Option<f64>,
-    pub tags: Option<serde_json::Value>,
+    pub tags: Option<Value>, // Use Value here
     pub network_id: Option<String>,
 }
 

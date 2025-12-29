@@ -38,7 +38,10 @@ pub async fn create_station(
             address: body.address.clone(),
             latitude: body.latitude,
             longitude: body.longitude,
-            tags: body.tags.clone(),
+            tags: body
+                .tags
+                .as_ref()
+                .map(|t| serde_json::to_value(t).unwrap_or_default()),
             network_id: body.network_id.clone(),
         })
         .await?;
@@ -138,7 +141,10 @@ pub async fn update_station(
                 address: body.address.clone(),
                 latitude: body.latitude,
                 longitude: body.longitude,
-                tags: body.tags.clone(),
+                tags: body
+                    .tags
+                    .as_ref()
+                    .map(|t| serde_json::to_value(t).unwrap_or_default()),
                 network_id: body.network_id.clone(),
             },
         )
