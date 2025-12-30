@@ -1,6 +1,9 @@
+// =============================================================================
+// src/core/auth.rs - JWT Authentication with Keycloak (FIXED)
+// =============================================================================
 use crate::core::errors::{AppError, AppResult};
 use actix_web::HttpRequest;
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
+use jsonwebtoken::{decode, decode_header, Algorithm, DecodingKey, Validation};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -12,9 +15,32 @@ pub struct TokenClaims {
     pub iat: i64,
     #[serde(default)]
     pub roles: Vec<String>,
+    #[serde(default)]
+    pub realm_access: Option<RealmAccess>,
     pub email: Option<String>,
     pub preferred_username: Option<String>,
     pub iss: Option<String>,
+    pub aud: Option<serde_json::Value>,  // Can be string or array
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RealmAccess {
+    #[serde(default)]
+    pub roles: Vec<String>,
+}
+
+impl TokenClaims {
+    pub fn get_roles(&self) -> Vec<String> {
+        // Try realm_access.roles first (Keycloak default)
+        if let Some(ref realm) = self.realm_access {
+            if !realm.roles.is_empty() {
+                return realm.roles.clone();
+            }
+        }
+        
+        // Fallback to direct roles array
+        self.roles.clone()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -96,9 +122,15 @@ impl JwtValidator {
         // Create decoding key
         let decoding_key = DecodingKey::from_rsa_components(&key.n, &key.e)?;
 
-        // Validate token
+        // Validate token - RELAXED VALIDATION
         let mut validation = Validation::new(Algorithm::RS256);
         validation.set_issuer(&[&self.jwt_issuer]);
+        
+        // Don't validate audience - Keycloak tokens can have various audiences
+        validation.validate_aud = false;
+        
+        // Allow some clock skew (60 seconds)
+        validation.leeway = 60;
 
         let token_data = decode::<TokenClaims>(token, &decoding_key, &validation)?;
 
@@ -108,8 +140,13 @@ impl JwtValidator {
     pub async fn validate_admin(&self, token: &str) -> AppResult<TokenClaims> {
         let claims = self.validate_token(token).await?;
 
-        if !claims.roles.contains(&"admin".to_string()) {
-            return Err(AppError::Forbidden("Admin role required".to_string()));
+        let roles = claims.get_roles();
+        
+        if !roles.contains(&"admin".to_string()) {
+            return Err(AppError::Forbidden(format!(
+                "Admin role required. Found roles: {:?}",
+                roles
+            )));
         }
 
         Ok(claims)

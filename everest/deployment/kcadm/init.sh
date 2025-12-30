@@ -190,6 +190,24 @@ done
 
 log "Keycloak bootstrap completed successfully"
 
+########################################
+# Audience Mapper (Fixes InvalidAudience)
+########################################
+log "Adding audience mapper to frontend client"
+
+create_mapper <<EOF
+{
+  "name": "audience-mapper",
+  "protocol": "openid-connect",
+  "protocolMapper": "oidc-audience-mapper",
+  "config": {
+    "included.client.audience": "$FRONTEND_CLIENT_ID",
+    "id.token.claim": "false",
+    "access.token.claim": "true"
+  }
+}
+EOF
+
 
 ########################################
 # Create Initial Admin User

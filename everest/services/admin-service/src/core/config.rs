@@ -15,11 +15,11 @@ impl Config {
         dotenvy::dotenv().ok();
 
         Self {
-            host: env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string()),
-            port: env::var("PORT")
+            host: env::var("SERVER_HOST").unwrap_or_else(|_| "0.0.0.0".to_string()),
+            port: env::var("SERVER_PORT")
                 .unwrap_or_else(|_| "3000".to_string())
                 .parse()
-                .expect("PORT must be a number"),
+                .expect("SERVER_PORT must be a number"),
             database_url: env::var("DATABASE_URL").expect("DATABASE_URL must be set"),
             log_level: env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
             jwt_issuer: env::var("JWT_ISSUER").expect("JWT_ISSUER must be set"),

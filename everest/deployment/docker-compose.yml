@@ -155,17 +155,17 @@ services:
       dockerfile: Dockerfile
     container_name: auth-service
     environment:
-      DATABASE_URL: postgresql://postgres:password@auth-db:5800/auth_db
+      DATABASE_URL: postgresql://postgres:password@auth-db:5432/auth_db
 #      SERVER_HOST: 0.0.0.0
-#      SERVER_PORT: 3000
+      SERVER_PORT: 3100
 #      RUST_LOG: info
-      KEYCLOAK_URL: http://keycloak:5080
+      KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: myrealm
       KEYCLOAK_AUTH_CLIENT_ID: auth-client
       KEYCLOAK_BACKEND_CLIENT_ID: backend-admin
       KEYCLOAK_BACKEND_CLIENT_SECRET: backend-admin-secret
     ports:
-      - "3100:3000"
+      - "3100:3100"
     depends_on:
       auth-db:
         condition: service_healthy
@@ -173,7 +173,7 @@ services:
       - ev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3100/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -188,14 +188,14 @@ services:
       dockerfile: Dockerfile
     container_name: admin-service
     environment:
-      DATABASE_URL: postgresql://postgres:password@localhost:5700/evcs_db
-      JWT_ISSUER: http://localhost:5080/realms/myrealm
-      JWKS_URL: http://localhost:5080/realms/myrealm/protocol/openid-connect/certs
+      DATABASE_URL: postgresql://postgres:password@evcs-db:5432/evcs_db
+      JWT_ISSUER: http://keycloak:8080/realms/myrealm
+      JWKS_URL: http://keycloak:8080/realms/myrealm/protocol/openid-connect/certs
 #      SERVER_HOST: 0.0.0.0
-#      SERVER_PORT: 3000
+      SERVER_PORT: 3200
 #      RUST_LOG: info
     ports:
-      - "3100:3000"
+      - "3200:3200"
     depends_on:
       auth-db:
         condition: service_healthy
@@ -203,12 +203,11 @@ services:
       - ev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3200/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
 
 # ========================
 # Volumes
