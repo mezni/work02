@@ -76,7 +76,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 
 # Copy the compiled binary from the builder
-COPY --from=builder /app/target/release/admin-service /app/admin-service
+COPY --from=builder /app/target/release/locate-service /app/locate-service
 
 # Set ownership and permissions
 RUN chown -R appuser:appuser /app
@@ -91,4 +91,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/health || exit 1
 
 # Run the application
-CMD ["./admin-service"]
+CMD ["./locate-service"]

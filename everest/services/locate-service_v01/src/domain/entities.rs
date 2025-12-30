@@ -18,12 +18,12 @@ pub struct Station {
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]
 pub struct UserReview {
     pub review_id: String,
-    pub user_id: String,
+    pub user_id: Option<String>,
     pub station_id: String,
-    pub rating: i32,
+    pub rating: Option<i32>,
     pub review_text: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-    pub created_by: String,
-    pub updated_by: String,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+    pub created_by: Option<String>,
+    pub updated_by: Option<String>,
 }
