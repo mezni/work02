@@ -1,10 +1,11 @@
 pub mod controllers;
+pub mod openapi;
 
 use actix_web::web;
 
 pub fn configure_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/api/v1")
+        web::scope("/api")
             .service(
                 web::scope("/stations")
                     .route("/nearby", web::get().to(controllers::get_nearby_stations)),

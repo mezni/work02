@@ -11,9 +11,12 @@ use crate::core::config::Config;
 use crate::core::database::create_pool;
 use crate::infrastructure::repositories::review_repo::PgReviewRepository;
 use crate::infrastructure::repositories::station_repo::PgStationRepository;
+use crate::presentation::openapi::ApiDoc;
 use actix_cors::Cors;
 use actix_web::{App, HttpServer, middleware, web};
 use std::sync::Arc;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 pub async fn run() -> anyhow::Result<()> {
     let config = Config::from_env();
@@ -58,6 +61,10 @@ pub async fn run() -> anyhow::Result<()> {
             .app_data(web::Data::new(station_service.clone()))
             .app_data(web::Data::new(review_service.clone()))
             .configure(presentation::configure_routes)
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
     })
     .bind(config.bind_address())?
     .run()

@@ -8,7 +8,7 @@ use actix_web::{HttpRequest, HttpResponse, web};
 
 #[utoipa::path(
     get,
-    path = "/api/v1/stations/nearby",
+    path = "/api/stations/nearby",
     params(
         ("latitude" = f64, Query, description = "Latitude coordinate"),
         ("longitude" = f64, Query, description = "Longitude coordinate"),
@@ -41,7 +41,7 @@ pub async fn get_nearby_stations(
 
 #[utoipa::path(
     post,
-    path = "/api/v1/reviews",
+    path = "/api/reviews",
     request_body = CreateReviewRequest,
     responses(
         (status = 201, description = "Review created successfully", body = ReviewResponse),
@@ -79,7 +79,7 @@ pub async fn create_review(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/reviews/station/{station_id}",
+    path = "/api/reviews/station/{station_id}",
     params(
         ("station_id" = String, Path, description = "Station ID")
     ),
@@ -108,7 +108,7 @@ pub async fn get_station_reviews(
 
 #[utoipa::path(
     put,
-    path = "/api/v1/reviews/{review_id}",
+    path = "/api/reviews/{review_id}",
     params(
         ("review_id" = String, Path, description = "Review ID")
     ),
@@ -149,7 +149,7 @@ pub async fn update_review(
 
 #[utoipa::path(
     delete,
-    path = "/api/v1/reviews/{review_id}",
+    path = "/api/reviews/{review_id}",
     params(
         ("review_id" = String, Path, description = "Review ID")
     ),
@@ -193,7 +193,7 @@ pub async fn health_check() -> HttpResponse {
 
 #[utoipa::path(
     get,
-    path = "/api/v1/user/info",
+    path = "/api/user/info",
     responses(
         (status = 200, description = "User information from token"),
         (status = 401, description = "Unauthorized")
