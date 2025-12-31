@@ -210,6 +210,37 @@ services:
       start_period: 40s
 
 # ========================
+# Locate service
+# ========================
+  locate-service:
+    build:
+      context: ../services/locate-service
+      dockerfile: Dockerfile
+    container_name: locate-service
+    environment:
+      DATABASE_URL: postgresql://postgres:password@evcs-db:5432/evcs_db
+      JWT_ISSUER: http://keycloak:8080/realms/myrealm
+      JWKS_URL: http://keycloak:8080/realms/myrealm/protocol/openid-connect/certs
+#      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 3300
+#      RUST_LOG: info
+    ports:
+      - "3300:3300"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    networks:
+      - ev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3300/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+
+# ========================
 # Volumes
 # ========================
 volumes:
