@@ -1,0 +1,90 @@
+name: Build & Push Auth Service
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "services/auth-service/**"
+  workflow_dispatch:
+
+env:
+  IMAGE_NAMESPACE: mezni
+  IMAGE_NAME: everest-auth-service
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: everest  # set repo root
+
+    steps:
+      # ------------------------
+      # 1. Checkout repository
+      # ------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------
+      # 2. Verify auth-service path
+      # ------------------------
+      - name: List auth-service files
+        run: ls -R services/auth-service
+
+      # ------------------------
+      # 3. Set up Rust
+      # ------------------------
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      # ------------------------
+      # 4. Check Rust formatting
+      # ------------------------
+      - name: Check Rust formatting
+        run: cargo fmt --all -- --check
+        working-directory: services/auth-service
+
+      # ------------------------
+      # 5. Run Rust linter (Clippy)
+      # ------------------------
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+        working-directory: services/auth-service
+
+      # ------------------------
+      # 6. Run tests
+      # ------------------------
+      - name: Run tests
+        run: cargo test --all
+        working-directory: services/auth-service
+
+      # ------------------------
+      # 7. Set up Docker Buildx
+      # ------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ------------------------
+      # 8. Login to Docker Hub
+      # ------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ------------------------
+      # 9. Build & Push Docker image
+      # ------------------------
+      - name: Build & Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: services/auth-service
+          file: services/auth-service/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
