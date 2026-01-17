@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_NAMESPACE: mezni
+  IMAGE_NAMESPACE: mohamedali
   IMAGE_NAME: everest-auth-service
   IMAGE_TAG: latest
 
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: everest  # set repo root
+        working-directory: everest   # <- important, fixes path issues
 
     steps:
       # ------------------------
