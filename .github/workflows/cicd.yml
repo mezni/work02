@@ -1,70 +1,28 @@
-name: Build & Push Auth Service
+name: Rust CI
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - "everest/services/auth-service/**" # Added 'everest/' prefix to match your folder structure
-  workflow_dispatch:
-
-env:
-  IMAGE_NAMESPACE: mohamedali
-  IMAGE_NAME: everest-auth-service
-  IMAGE_TAG: latest
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
-  build-and-push:
+  build-and-test:
     runs-on: ubuntu-latest
-    # Defaulting to the root where the service lives
+    
     defaults:
       run:
-        working-directory: everest/services/auth-service
+        working-directory: services/my-rust-app
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: List auth-service files
-        run: ls -R .
-
-      # Note: actions-rs/toolchain is unmaintained. dtolnay/rust-toolchain is the modern standard.
-      - name: Set up Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
 
-      # Rust builds are slow. This cache will save you several minutes per run.
-      - name: Rust Cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: everest/services/auth-service
+      - name: Run Tests
+        run: cargo test --verbose
 
-      - name: Check Rust formatting
-        run: cargo fmt --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test --all
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build & Push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          # Context is relative to the REPOSITORY ROOT, not the working-directory
-          context: ./everest/services/auth-service
-          push: true
-          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          # Docker layer caching
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build Docker Image
+        run: |
+          docker build -t my-rust-app:latest .
