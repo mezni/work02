@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - "services/auth-service/**"
+      - "everest/services/auth-service/**" # Added 'everest/' prefix to match your folder structure
   workflow_dispatch:
 
 env:
@@ -16,75 +16,55 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    # Defaulting to the root where the service lives
     defaults:
       run:
-        working-directory: everest   # <- important, fixes path issues
+        working-directory: everest/services/auth-service
 
     steps:
-      # ------------------------
-      # 1. Checkout repository
-      # ------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ------------------------
-      # 2. Verify auth-service path
-      # ------------------------
       - name: List auth-service files
-        run: ls -R services/auth-service
+        run: ls -R .
 
-      # ------------------------
-      # 3. Set up Rust
-      # ------------------------
+      # Note: actions-rs/toolchain is unmaintained. dtolnay/rust-toolchain is the modern standard.
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          components: rustfmt, clippy
 
-      # ------------------------
-      # 4. Check Rust formatting
-      # ------------------------
+      # Rust builds are slow. This cache will save you several minutes per run.
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: everest/services/auth-service
+
       - name: Check Rust formatting
         run: cargo fmt --all -- --check
-        working-directory: services/auth-service
 
-      # ------------------------
-      # 5. Run Rust linter (Clippy)
-      # ------------------------
       - name: Run Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
-        working-directory: services/auth-service
 
-      # ------------------------
-      # 6. Run tests
-      # ------------------------
       - name: Run tests
         run: cargo test --all
-        working-directory: services/auth-service
 
-      # ------------------------
-      # 7. Set up Docker Buildx
-      # ------------------------
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ------------------------
-      # 8. Login to Docker Hub
-      # ------------------------
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # ------------------------
-      # 9. Build & Push Docker image
-      # ------------------------
       - name: Build & Push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: services/auth-service
-          file: services/auth-service/Dockerfile
+          # Context is relative to the REPOSITORY ROOT, not the working-directory
+          context: ./everest/services/auth-service
           push: true
           tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          # Docker layer caching
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
