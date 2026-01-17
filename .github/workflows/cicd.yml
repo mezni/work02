@@ -3,6 +3,14 @@ name: Rust CI
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+# Permissions needed to push to GitHub Packages
+permissions:
+  contents: read
+  packages: write
+
 
 jobs:
   build-and-push:
