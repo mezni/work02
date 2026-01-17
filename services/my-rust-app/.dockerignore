@@ -1,0 +1,14 @@
+# Ignore the build directory
+target/
+
+# Ignore local environment files and git data
+.git
+.gitignore
+.dockerignore
+
+# Ignore IDE settings
+.vscode/
+.idea/
+
+# Ignore documentation and readme
+README.md

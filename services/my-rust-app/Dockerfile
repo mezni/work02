@@ -1,5 +1,5 @@
 # --- Stage 1: Build Stage ---
-FROM rust:1.75-slim as builder
+FROM rust:1.85-slim as builder
 
 # Create a workspace
 WORKDIR /usr/src/app
