@@ -1,14 +1,17 @@
-name: Build & Push Everest Images
+name: Build & Push Auth Service
 
 on:
   push:
     branches:
       - main
+    paths:
+      - "services/auth-service/**"
   workflow_dispatch:
 
 env:
-  IMAGE_NAMESPACE: mohamedali
-  VERSION: latest
+  IMAGE_NAMESPACE: mezni
+  IMAGE_NAME: everest-auth-service
+  IMAGE_TAG: latest
 
 jobs:
   build-and-push:
@@ -17,6 +20,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Verify auth-service path
+        run: |
+          ls services
+          ls services/auth-service
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -27,15 +35,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # =========================
-      # Auth Service
-      # =========================
-      - name: Build & Push auth-service
+      - name: Build & Push auth-service image
         uses: docker/build-push-action@v5
         with:
           context: services/auth-service
           file: services/auth-service/Dockerfile
           push: true
           tags: |
-            ${{ env.IMAGE_NAMESPACE }}/everest-auth-service:${{ env.VERSION }}
-
+            ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
