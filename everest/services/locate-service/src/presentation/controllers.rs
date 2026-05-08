@@ -12,8 +12,8 @@ use actix_web::{HttpRequest, HttpResponse, web};
     params(
         ("latitude" = f64, Query, description = "Latitude coordinate"),
         ("longitude" = f64, Query, description = "Longitude coordinate"),
-        ("radius_meters" = Option<i32>, Query, description = "Search radius in meters (default: 5000)"),
-        ("limit" = Option<i32>, Query, description = "Maximum number of results (default: 50)")
+        ("radius_meters" = Option<i32>, Query, description = "Search radius in meters (default: 20000)"),
+        ("limit" = Option<i32>, Query, description = "Maximum number of results (default: 5)")
     ),
     responses(
         (status = 200, description = "List of nearby stations", body = Vec<StationResponse>),
