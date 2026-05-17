@@ -1,9 +1,6 @@
 -- ============================
 -- Find nearby stations
 -- ============================
--- ============================
--- Find nearby stations
--- ============================
 CREATE OR REPLACE FUNCTION find_nearby_stations(
     p_latitude FLOAT,
     p_longitude FLOAT,
@@ -16,9 +13,11 @@ CREATE OR REPLACE FUNCTION find_nearby_stations(
     distance_meters FLOAT,
     has_available_connectors BOOLEAN,
     total_available_connectors BIGINT,
-    max_power_kw FLOAT,          -- CHANGED HERE
+    max_power_kw FLOAT,
     power_tier TEXT,
-    operator TEXT
+    operator TEXT,
+    latitude FLOAT,
+    longitude FLOAT
 ) AS $$
 BEGIN
     RETURN QUERY
@@ -29,9 +28,11 @@ BEGIN
         ST_Distance(gs.location, ST_Point(p_longitude, p_latitude)::GEOGRAPHY) AS distance_meters,
         gs.has_available_connectors,
         gs.total_available_connectors,
-        gs.max_power_kw::FLOAT, -- CAST HERE
+        gs.max_power_kw::FLOAT,
         gs.power_tier,
-        gs.operator
+        gs.operator,
+        ST_Y(gs.location::GEOMETRY)::FLOAT AS latitude,
+        ST_X(gs.location::GEOMETRY)::FLOAT AS longitude
     FROM mv_stations_geo gs
     WHERE ST_DWithin(gs.location, ST_Point(p_longitude, p_latitude)::GEOGRAPHY, p_radius_meters)
     ORDER BY ST_Distance(gs.location, ST_Point(p_longitude, p_latitude)::GEOGRAPHY)

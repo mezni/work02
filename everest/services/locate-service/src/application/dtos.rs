@@ -22,6 +22,8 @@ pub struct StationResponse {
     pub max_power_kw: Option<f64>,
     pub power_tier: Option<String>,
     pub operator: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 impl From<Station> for StationResponse {
@@ -36,6 +38,8 @@ impl From<Station> for StationResponse {
             max_power_kw: station.max_power_kw,
             power_tier: station.power_tier,
             operator: station.operator,
+            latitude: station.latitude,
+            longitude: station.longitude,
         }
     }
 }

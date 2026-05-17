@@ -13,6 +13,8 @@ pub struct Station {
     pub max_power_kw: Option<f64>,
     pub power_tier: Option<String>,
     pub operator: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow, ToSchema)]

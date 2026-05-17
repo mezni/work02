@@ -34,7 +34,9 @@ impl StationRepository for PgStationRepository {
                 total_available_connectors,
                 max_power_kw,
                 power_tier,
-                operator
+                operator,
+                latitude,
+                longitude
             FROM find_nearby_stations($1, $2, $3, $4)
             "#,
         )
